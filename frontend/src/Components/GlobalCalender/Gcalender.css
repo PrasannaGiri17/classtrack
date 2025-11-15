@@ -1,0 +1,195 @@
+.calendar.calendar {
+  width: 100%;
+  max-width: 312px;
+  margin: 0 auto;
+  padding: 12px;
+  background: white;
+  border-radius: 14.4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.calendar .calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10.08px;
+  padding-bottom: 8.88px;
+  border-bottom: 2.4px solid #f0f0f0;
+}
+
+.calendar .calendar-header h3 {
+  font-size: 15.12px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  min-width: 100.8px;
+  text-align: center;
+}
+
+.calendar .nav-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 7.2px;
+  transition: all 0.2s ease;
+}
+
+.calendar .nav-button:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.calendar .calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5.04px;
+}
+
+.calendar .day-name {
+  text-align: center;
+  font-weight: 600;
+  font-size: 10.08px;
+  color: #999;
+  padding: 5.04px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.calendar .day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 13.92px;
+  font-weight: 500;
+  cursor: default;
+  transition: all 0.2s ease;
+  position: relative;
+  background: transparent;
+  color: #333;
+}
+
+.calendar .day.empty {
+  background: transparent;
+}
+
+.calendar .day-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.calendar .day.normal {
+  background: #fafafa;
+}
+
+.calendar .normal-dot {
+  display: block;
+  width: 3.78px;
+  height: 3.78px;
+  background: #999;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 4.8px;
+  opacity: 0.6;
+}
+
+.calendar .day.event {
+  background: #51cf66;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2.4px 9.6px rgba(81, 207, 102, 0.3);
+}
+
+.calendar .event-dot {
+  display: none;
+}
+
+.calendar .day.holiday {
+  background: #ff6b6b;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2.4px 9.6px rgba(255, 107, 107, 0.3);
+}
+
+.calendar .holiday-dot {
+  display: none;
+}
+
+.calendar .day.exam {
+  background: #4dabf7;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2.4px 9.6px rgba(77, 171, 247, 0.3);
+}
+
+.calendar .exam-dot {
+  display: none;
+}
+
+.calendar .day.saturday {
+  background: #ff6b6b;
+  color: white;
+  font-weight: 600;
+  border: 2.4px solid #ffcdd2;
+}
+
+.calendar .day.saturday .holiday-dot {
+  display: block;
+  width: 3.78px;
+  height: 3.78px;
+  background: #d32f2d;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 4.8px;
+  opacity: 0.8;
+}
+
+.calendar .day:not(.empty):hover {
+  transform: scale(1.05);
+  box-shadow: 0 4.8px 14.4px rgba(0, 0, 0, 0.15);
+}
+
+.calendar .day.event:hover {
+  background: #40c057;
+  box-shadow: 0 4.8px 14.4px rgba(64, 192, 87, 0.3);
+}
+
+.calendar .day.holiday:hover {
+  background: #f03e3e;
+  box-shadow: 0 4.8px 14.4px rgba(240, 62, 62, 0.3);
+}
+
+.calendar .day.exam:hover {
+  background: #339af0;
+  box-shadow: 0 4.8px 14.4px rgba(51, 154, 240, 0.3);
+}
+
+.calendar .day.saturday:hover {
+  background: #f03e3e;
+  box-shadow: 0 4.8px 14.4px rgba(211, 47, 47, 0.2);
+}
+
+@media (max-width: 600px) {
+  .calendar .calendar {
+    padding: 12px;
+    max-width: 100%;
+  }
+
+  .calendar .calendar-header h3 {
+    font-size: 14.4px;
+  }
+
+  .calendar .day {
+    font-size: 12px;
+  }
+}

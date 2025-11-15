@@ -1,0 +1,97 @@
+.admin-footer {
+  background-color: #121212; /* softer black */
+  color: #e0e0e0;            /* softer white for less harsh contrast */
+  padding: 25px 0;
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  border-top: 1px solid #333;
+}
+
+.admin-footer .footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  flex-wrap: wrap; /* allows wrapping on small screens */
+}
+
+.admin-footer .footer-left,
+.admin-footer .footer-middle,
+.admin-footer .footer-right {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.admin-footer .footer-left {
+  gap: 12px;
+}
+
+.admin-footer .footer-middle {
+  justify-content: center;
+  text-align: center;
+}
+
+.admin-footer .footer-right {
+  justify-content: flex-end;
+}
+
+.admin-footer .logo {
+  display: flex;
+  align-items: center;
+}
+
+.admin-footer .logo-img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 50%; /* circular icon for school app */
+}
+
+.admin-footer .logo-icon {
+  height: 30px;
+  width: auto;
+  object-fit: contain;
+}
+
+.admin-footer .school-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+}
+
+.admin-footer .copyright {
+  font-size: 14px;
+  font-weight: 400;
+  margin: 0;
+  color: #cccccc;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .admin-footer .footer-content {
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .admin-footer .footer-left,
+  .admin-footer .footer-middle,
+  .admin-footer .footer-right {
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 5px;
+  }
+
+  .admin-footer .logo-img {
+    height: 35px;
+  }
+
+  .admin-footer .logo-icon {
+    height: 25px;
+  }
+}
