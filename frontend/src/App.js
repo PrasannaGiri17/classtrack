@@ -5,7 +5,7 @@ import Alayout from './Components/Admin/Layout/Alayout';
 import Gcalender from './Components/GlobalCalender/Gcalender';
 import GcalenderDetail from './Components/GlobalCalenderDetail/Gcalenderdetail';
 import { GMainC } from './Components/GlobalMainCalender/GMainC';
-import { DashBoard } from './Page/Admin/DashBoard';
+import DashBoard from './Page/Admin/Dashboard/DashBoard';
 
 function App() {
   return (
