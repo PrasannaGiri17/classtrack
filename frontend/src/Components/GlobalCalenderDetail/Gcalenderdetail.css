@@ -1,6 +1,6 @@
 .calendar-detail.calendar-detail {
-  width: 100%;
-  max-width: 312px;
+  width: 334px;
+  
   margin: 0 auto;
   padding: 12px;
   background-color: white;
@@ -10,7 +10,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: 320px;
+  height: 418px;
+  border-radius: 10px;
 }
 
 .calendar-detail .detail-header {
@@ -31,22 +32,22 @@
 }
 
 .calendar-detail .events-list::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .calendar-detail .events-list::-webkit-scrollbar-track {
-  background: rgba(100, 50, 200, 0.05);
+  background: rgba(8, 7, 9, 0.05);
 }
 
 .calendar-detail .events-list::-webkit-scrollbar-thumb {
-  background: rgba(100, 50, 200, 0.3);
-  border-radius: 3px;
+  background: rgb(145, 140, 140);
+  border-radius: 2px;
+  min-height: 199px !important; /* Makes the thumb shorter */
 }
 
 .calendar-detail .events-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 50, 200, 0.5);
+  background: #888;
 }
-
 .calendar-detail .event-item {
   display: flex;
   align-items: center;
