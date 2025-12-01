@@ -27,13 +27,13 @@ function App() {
               <Route path="school" element={<School />} />
               <Route path="student-record" element={<StudentRecord />} />
               <Route path="teacher" element={<TeacherRecord />} />
-              <Route path="timetable" element={<div>Timetable Page - Add component later</div>} />
-              <Route path="classroom" element={<div>Classroom Page - Add component later</div>} />
+              <Route path="timetable" element={<div>Timetable Page </div>} />
+              <Route path="classroom" element={<div>Classroom Page</div>} />
               <Route path="calendar" element={<Gcalender />} />
-              <Route path="exam" element={<div>Exam Page - Add component later</div>} />
-              <Route path="notification" element={<div>Notification Page - Add component later</div>} />
+              <Route path="exam" element={<div>Exam Page</div>} />
+              <Route path="notification" element={<div>Notification Page</div>} />
               
-              {/* Keep your existing routes */}
+             
               <Route path="gcalendar" element={<Gcalender />} />
               <Route path="gcalendar/:id" element={<GcalenderDetail />} />
             </Route>

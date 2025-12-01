@@ -1,0 +1,25 @@
+import mongoose from "mongoose";
+
+const SubjectSchema = new mongoose.Schema(
+  {
+    classId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Class",
+      required: true,
+    },
+
+    title: {
+      type: String,
+      required: true, 
+      trim: true,
+    },
+
+    code: {
+      type: String,
+      default: null,
+    }
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model("Subject", SubjectSchema);

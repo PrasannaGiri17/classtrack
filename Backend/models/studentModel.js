@@ -1,38 +1,43 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-const StudentSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    schoolId: { type: mongoose.Schema.Types.ObjectId, ref: "School", required: true },
+const StudentSchema = new mongoose.Schema(
+  {
+    studentId: { type: String, required: true, unique: true },
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
 
-    // basic info
-    firstName: String,
-    lastName: String,
-    gender: { type: String, enum: ["Male", "Female", "Other"] },
-    dateOfBirth: Date,
+    email: { type: String, unique: true, sparse: true },
+    phone: { type: String, default: null },
 
-    // profile section
-    profile: {
-        photo: { type: String, default: null }, 
-        nationality: { type: String, default: null },
-        bloodGroup: { type: String, default: null },
-        emergencyContact: { type: String, default: null },
-        additionalInfo: { type: String, default: null }
+    profilePhoto: { type: String, default: null },
+
+    
+    parentName: { type: String, default: null, trim: true },
+    parentPhone: { type: String, default: null },
+    Address: { type: String, default: null, trim: true },
+
+    
+    classId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Class",
+      default: null,
     },
 
-    // enrollment data
-    gradeId: { type: mongoose.Schema.Types.ObjectId, ref: "Grade", default: null },
-    sectionId: { type: mongoose.Schema.Types.ObjectId, ref: "Section", default: null },
+    sectionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Section",
+      default: null,
+    },
+
     rollNumber: { type: Number, default: null },
 
-    // parent info
-    parentName: String,
-    parentPhone: String,
-    address: String,
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
+    },
+  },
+  { timestamps: true }
+);
 
-    // attendance/flags 
-    attendanceFlag: { type: Boolean, default: false },
-
-    createdAt: { type: Date, default: Date.now }
-});
-
-module.exports = mongoose.model("Student", StudentSchema);
+export default mongoose.model("Student", StudentSchema);
