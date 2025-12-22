@@ -21,6 +21,14 @@ const userSchema = new mongoose.Schema(
       ref: "Student",
       default: null,
     },
+
+    // for Google login (optional)
+    googleId: { type: String, default: null },
+    authProvider: { type: String, default: "local" },
+
+    // for forgot/reset password
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null },
   },
   { timestamps: true }
 );

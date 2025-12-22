@@ -1,15 +1,29 @@
 import React, { useState } from "react";
 import googlePhoto from "../Assests/download.png";
 import { Link, useNavigate } from "react-router-dom";
+import { useGoogleLogin, googleLogout } from "@react-oauth/google";
+import FailedPopup from "../Components/SmallerComponents/FailedPopup.jsx";
 
 const UserLoginbox = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
+
+  const [emailError, setEmailError] = useState("");
+  const [popupMessage, setPopupMessage] = useState("");
+  const [popupType, setPopupType] = useState("error");
+
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setEmailError("");
+    setPopupMessage("");
+
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      return;
+    }
 
     try {
       const res = await fetch("http://localhost:7000/api/auth/login", {
@@ -17,19 +31,97 @@ const UserLoginbox = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      console.log("status", res.status);
-      const data = await res.json();
+
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
-        alert(data.message || "Login failed");
+        if (res.status === 404 || data.message === "EMAIL_NOT_FOUND") {
+          setEmailError("Email not found.");
+          return;
+        }
+
+        if (res.status === 401 || data.message === "INVALID_PASSWORD") {
+          setPopupType("error");
+          setPopupMessage("Invalid password.");
+          return;
+        }
+
+        setPopupType("warning");
+        setPopupMessage(data.message || "Login failed.");
         return;
       }
 
       localStorage.setItem("token", data.token);
-      navigate("/test"); // go to /test after login
+      navigate("/test");
     } catch (err) {
-      alert("Server error, please try again.");
+      setPopupType("warning");
+      setPopupMessage("Server error, please try again.");
     }
+  };
+
+  // Google login with custom button + backend check
+  const loginWithGoogle = useGoogleLogin({
+    flow: "implicit",
+    onSuccess: async (tokenResponse) => {
+      try {
+        // 1) get Google user info (includes email)
+        const resUser = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: {
+            Authorization: `Bearer ${tokenResponse.access_token}`,
+          },
+        });
+        const googleUser = await resUser.json(); // { email, name, sub, ... }[web:4]
+
+        // 2) send email to backend to check if registered
+        const res = await fetch("http://localhost:7000/api/auth/google-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: googleUser.email,
+            name: googleUser.name,
+            googleId: googleUser.sub,
+          }),
+        });
+
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
+
+        if (!res.ok) {
+          // email not registered by admin
+          if (res.status === 403 && data.message === "EMAIL_NOT_REGISTERED") {
+            setPopupType("error");
+            setPopupMessage("Your email is not registered by admin.");
+            return;
+          }
+
+          setPopupType("warning");
+          setPopupMessage(data.message || "Google login failed.");
+          return;
+        }
+
+        // 3) backend returned your JWT → save and go in
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("googleUser", JSON.stringify(googleUser));
+        navigate("/home");
+      } catch (err) {
+        console.error("Google login error", err);
+        setPopupType("error");
+        setPopupMessage("Google login failed.");
+      }
+    },
+    onError: () => {
+      setPopupType("error");
+      setPopupMessage("Google login failed.");
+    },
+  });
+
+  const handleLogout = () => {
+    googleLogout();
+    localStorage.removeItem("googleAccessToken");
+    localStorage.removeItem("googleUser");
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
   return (
@@ -40,16 +132,29 @@ const UserLoginbox = () => {
         </h1>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
+          {/* email */}
           <div>
             <input
               type="email"
               placeholder="Email Address"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-800 placeholder:text-gray-400 focus:border-[#4CAF50] focus:outline-none focus:ring-2 focus:ring-[#4CAF50]/20"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError("");
+              }}
+              className={`w-full rounded-lg border px-4 py-3 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2
+                ${
+                  emailError
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                    : "border-gray-300 focus:border-[#4CAF50] focus:ring-[#4CAF50]/20"
+                }`}
             />
+            {emailError && (
+              <p className="mt-1 text-sm text-red-500">{emailError}</p>
+            )}
           </div>
 
+          {/* password */}
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -89,14 +194,24 @@ const UserLoginbox = () => {
             <div className="h-px flex-1 bg-gray-300"></div>
           </div>
 
+          {/* Tailwind custom Google button */}
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-3 rounded-full border border-gray-300 bg-white py-3.5 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="mt-4 flex w-full items-center justify-center gap-3 rounded-full border border-gray-300 bg-white py-3.5 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            onClick={() => loginWithGoogle()}
           >
             <img src={googlePhoto} alt="Google" className="h-5 w-5" />
-            Sign in with Google
+            <span>Log in with Google</span>
           </button>
         </form>
+
+        <FailedPopup
+          message={popupMessage}
+          type={popupType}
+          duration={5000}
+          onClose={() => setPopupMessage("")}
+        />
+
       </div>
     </div>
   );

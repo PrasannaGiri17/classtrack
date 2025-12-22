@@ -10,9 +10,9 @@ import DashBoard from './Page/Admin/DashBoard';
 import School from './Page/Admin/School';
 import StudentRecord from './Page/Admin/StudentRecord';
 import TeacherRecord from './Page/Admin/TeacherRecord';
-import LoginPage from './Page/Student/LoginPage';
-import ForgetPage from './Page/Student/ForgetPage';
-import ResetPage from './Page/Student/ResetPage';
+import LoginPage from './Page/Users/LoginPage';
+import ForgetPage from './Page/Users/ForgetPage';
+import ResetPage from './Page/Users/ResetPage';
 function App() {
   return (
     <ActivePageProvider>
@@ -45,6 +45,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forget" element={<ForgetPage />} />
             <Route path="/reset" element={<ResetPage />} />
+            <Route path="/test" element={<GMainC />} />
           </Routes>
         </div>
       </Router>
