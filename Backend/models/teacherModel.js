@@ -1,34 +1,47 @@
+// models/TeacherModel.js
 const mongoose = require("mongoose");
 
-const TeacherSchema = new mongoose.Schema({
-    TeacherId: { type: mongoose.Schema.Types.ObjectId, ref: "teacher", required: true },
-    schoolId: { type: mongoose.Schema.Types.ObjectId, ref: "School", required: true },
+const TeacherSchema = new mongoose.Schema(
+  {
+    schoolId: { type: Number, required: true, default: 1 },
 
- 
-    firstName: String,
-    lastName: String,
-    gender: { type: String, enum: ["Male", "Female", "Other"] },
-    qualification: String,
+    // Auto generated like studentId
+    teacherCode: { type: String, required: true, unique: true },
 
-    profile: {
-        photo: { type: String, default: null },
-        nationality: { type: String, default: null },
-        bloodGroup: { type: String, default: null },
-        emergencyContact: { type: String, default: null },
-        additionalInfo: { type: String, default: null }
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+
+    email: { type: String, required: true, unique: true, trim: true },
+    phone: { type: String, default: null, trim: true },
+
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
+      required: true,
     },
 
-    phone: String,
-    address: String,
+    qualification: { type: String, default: null, trim: true },
 
-    // teacher assigned classes
+    profilePhoto: { type: String, default: null },
+
+    currentAddress: { type: String, default: null, trim: true },
+
     assignedGrades: [{ type: mongoose.Schema.Types.ObjectId, ref: "Grade" }],
     assignedSections: [{ type: mongoose.Schema.Types.ObjectId, ref: "Section" }],
 
-    // only one primary subject
-    primarySubject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", required: true },
+    primarySubject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", default: null },
+    secondarySubject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", default: null },
+  },
+  { timestamps: true }
+);
 
-    createdAt: { type: Date, default: Date.now }
+// Generate teacherCode BEFORE validation runs
+TeacherSchema.pre("validate", function (next) {
+  if (!this.teacherCode) {
+    const random = Math.floor(1000 + Math.random() * 9000);
+    this.teacherCode = `TCH-${Date.now()}-${random}`;
+  }
+  next();
 });
 
 module.exports = mongoose.model("Teacher", TeacherSchema);

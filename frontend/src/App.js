@@ -13,6 +13,7 @@ import TeacherRecord from './Page/Admin/TeacherRecord';
 import LoginPage from './Page/Users/LoginPage';
 import ForgetPage from './Page/Users/ForgetPage';
 import ResetPage from './Page/Users/ResetPage';
+import ResetFirstLogin from './Page/Users/ResetFirstLogin';
 function App() {
   return (
     <ActivePageProvider>
@@ -46,6 +47,7 @@ function App() {
             <Route path="/forget" element={<ForgetPage />} />
             <Route path="/reset" element={<ResetPage />} />
             <Route path="/test" element={<GMainC />} />
+            <Route path="/reset-first-login" element={<ResetFirstLogin />} />
           </Routes>
         </div>
       </Router>

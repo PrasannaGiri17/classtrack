@@ -52,8 +52,15 @@ const UserLoginbox = () => {
         return;
       }
 
+      // Save JWT
       localStorage.setItem("token", data.token);
-      navigate("/test");
+
+      // Redirect based on first-login flag
+      if (data.mustChangePassword) {
+        navigate("/reset-first-login");
+      } else {
+        navigate("/home");
+      }
     } catch (err) {
       setPopupType("warning");
       setPopupMessage("Server error, please try again.");
@@ -71,7 +78,7 @@ const UserLoginbox = () => {
             Authorization: `Bearer ${tokenResponse.access_token}`,
           },
         });
-        const googleUser = await resUser.json(); // { email, name, sub, ... }[web:4]
+        const googleUser = await resUser.json();
 
         // 2) send email to backend to check if registered
         const res = await fetch("http://localhost:7000/api/auth/google-login", {
@@ -103,7 +110,13 @@ const UserLoginbox = () => {
         // 3) backend returned your JWT → save and go in
         localStorage.setItem("token", data.token);
         localStorage.setItem("googleUser", JSON.stringify(googleUser));
-        navigate("/home");
+
+        // Redirect based on first-login flag
+        if (data.mustChangePassword) {
+          navigate("/reset-first-login");
+        } else {
+          navigate("/home");
+        }
       } catch (err) {
         console.error("Google login error", err);
         setPopupType("error");
@@ -149,9 +162,7 @@ const UserLoginbox = () => {
                     : "border-gray-300 focus:border-[#4CAF50] focus:ring-[#4CAF50]/20"
                 }`}
             />
-            {emailError && (
-              <p className="mt-1 text-sm text-red-500">{emailError}</p>
-            )}
+            {emailError && <p className="mt-1 text-sm text-red-500">{emailError}</p>}
           </div>
 
           {/* password */}
@@ -173,10 +184,7 @@ const UserLoginbox = () => {
           </div>
 
           <div>
-            <Link
-              to="/forget"
-              className="text-sm font-medium text-[#4CAF50] hover:underline"
-            >
+            <Link to="/forget" className="text-sm font-medium text-[#4CAF50] hover:underline">
               Forgot your password?
             </Link>
           </div>
@@ -194,7 +202,7 @@ const UserLoginbox = () => {
             <div className="h-px flex-1 bg-gray-300"></div>
           </div>
 
-          {/* Tailwind custom Google button */}
+          {/* Google button */}
           <button
             type="button"
             className="mt-4 flex w-full items-center justify-center gap-3 rounded-full border border-gray-300 bg-white py-3.5 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
@@ -211,7 +219,6 @@ const UserLoginbox = () => {
           duration={5000}
           onClose={() => setPopupMessage("")}
         />
-
       </div>
     </div>
   );

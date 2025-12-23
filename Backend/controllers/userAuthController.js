@@ -6,13 +6,19 @@ const User = require("../models/UserModal");
 
 // helper to create JWT
 function createJwt(payload) {
-  if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET is missing");
-  }
+  if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is missing");
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
 }
 
-// email transporter (configure your Gmail/app password)
+// helper: read Bearer token
+function getTokenFromHeader(req) {
+  const h = req.headers.authorization || "";
+  const [type, token] = h.split(" ");
+  if (type !== "Bearer" || !token) return null;
+  return token;
+}
+
+// email transporter (Gmail app password) [web:362]
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -27,22 +33,19 @@ exports.register = async (req, res) => {
     const { email, password, role, teacherId, studentId } = req.body;
 
     if (!email || !password || !role) {
-      return res
-        .status(400)
-        .json({ message: "email, password, role required" });
+      return res.status(400).json({ message: "email, password, role required" });
     }
 
-    const existing = await User.findOne({ email });
-    if (existing) {
-      return res.status(400).json({ message: "Email already in use" });
-    }
+    const existing = await User.findOne({ email: email.trim() });
+    if (existing) return res.status(400).json({ message: "Email already in use" });
 
     const user = new User({
-      email,
+      email: email.trim(),
       password, // hashed in model
       role,
       teacherId: teacherId || null,
       studentId: studentId || null,
+      mustChangePassword: true,
     });
 
     await user.save();
@@ -58,21 +61,23 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      console.log("LOGIN: user not found");
-      return res.status(404).json({ message: "EMAIL_NOT_FOUND" });
-    }
+    const user = await User.findOne({ email: email?.trim() });
+    if (!user) return res.status(404).json({ message: "EMAIL_NOT_FOUND" });
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      console.log("LOGIN: password mismatch");
-      return res.status(401).json({ message: "INVALID_PASSWORD" });
-    }
+    if (!isMatch) return res.status(401).json({ message: "INVALID_PASSWORD" });
 
     const token = createJwt({ id: user._id, role: user.role });
 
-    return res.json({ token, role: user.role });
+    return res.json({
+      token,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword === true,
+      email: user.email,
+      userId: user._id,
+      studentId: user.studentId,
+      teacherId: user.teacherId,
+    });
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     return res.status(500).json({ message: "Server error" });
@@ -82,20 +87,13 @@ exports.login = async (req, res) => {
 /* ---------- GOOGLE LOGIN ---------- */
 exports.googleLogin = async (req, res) => {
   try {
-    const { email, name, googleId } = req.body;
+    const { email, googleId } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ message: "Email required" });
-    }
+    if (!email) return res.status(400).json({ message: "Email required" });
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.trim() });
+    if (!user) return res.status(403).json({ message: "EMAIL_NOT_REGISTERED" });
 
-    // only allow if admin/normal register already created this email
-    if (!user) {
-      return res.status(403).json({ message: "EMAIL_NOT_REGISTERED" });
-    }
-
-    // optionally store google info for this user
     if (!user.googleId) {
       user.googleId = googleId || user.googleId;
       user.authProvider = "google";
@@ -104,41 +102,79 @@ exports.googleLogin = async (req, res) => {
 
     const token = createJwt({ id: user._id, role: user.role });
 
-    return res.json({ token, role: user.role, user });
+    return res.json({
+      token,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword === true,
+      email: user.email,
+      userId: user._id,
+      studentId: user.studentId,
+      teacherId: user.teacherId,
+    });
   } catch (err) {
     console.error("GOOGLE LOGIN ERROR:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
 
-/* ---------- FORGOT PASSWORD ---------- */
+/* ---------- FIRST LOGIN: CHANGE PASSWORD (JWT protected) ---------- */
+exports.changePasswordFirstLogin = async (req, res) => {
+  try {
+    const token = getTokenFromHeader(req);
+    if (!token) return res.status(401).json({ message: "NO_TOKEN" });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (e) {
+      return res.status(401).json({ message: "INVALID_TOKEN" });
+    }
+
+    const { password } = req.body;
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ message: "USER_NOT_FOUND" });
+
+    // Set new password and mark first-login done
+    user.password = password; // hashed by model pre-save
+    user.mustChangePassword = false;
+
+    await user.save();
+
+    return res.json({
+      message: "Password changed successfully",
+      mustChangePassword: false,
+    });
+  } catch (err) {
+    console.error("CHANGE PASSWORD FIRST LOGIN ERROR:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* ---------- FORGOT PASSWORD (EMAIL LINK) ---------- */
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    console.log("FORGOT PASSWORD HIT:", email);
+    if (!email) return res.status(400).json({ message: "Email is required" });
 
-    if (!email) {
-      return res.status(400).json({ message: "Email is required" });
-    }
-
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({ message: "EMAIL_NOT_FOUND" });
-    }
+    const user = await User.findOne({ email: email.trim() });
+    if (!user) return res.status(404).json({ message: "EMAIL_NOT_FOUND" });
 
     const token = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 1000 * 60 * 15; // 15 minutes
+    user.resetPasswordExpires = Date.now() + 1000 * 60 * 15;
     await user.save();
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const resetLink = `${frontendUrl}/reset?token=${token}&email=${encodeURIComponent(
-      email
+      email.trim()
     )}`;
 
     await transporter.sendMail({
-      to: email,
+      to: email.trim(),
       from: process.env.EMAIL_USER,
       subject: "Reset your password",
       html: `
@@ -156,29 +192,26 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-/* ---------- RESET PASSWORD ---------- */
+/* ---------- RESET PASSWORD (EMAIL LINK FLOW) ---------- */
 exports.resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { email, password } = req.body;
 
-    if (!password) {
-      return res.status(400).json({ message: "Password is required" });
-    }
+    if (!password) return res.status(400).json({ message: "Password is required" });
 
     const user = await User.findOne({
-      email,
+      email: email?.trim(),
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() },
     });
 
-    if (!user) {
-      return res.status(400).json({ message: "Invalid or expired link" });
-    }
+    if (!user) return res.status(400).json({ message: "Invalid or expired link" });
 
-    user.password = password; // will be hashed by pre-save hook
+    user.password = password; // hashed by pre-save
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
+    user.mustChangePassword = false;
     await user.save();
 
     return res.json({ message: "Password reset successful" });

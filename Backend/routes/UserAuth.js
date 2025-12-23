@@ -15,4 +15,10 @@ router.post("/google-login", authController.googleLogin);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password/:token", authController.resetPassword);
 
+// ✅ first login force change password (JWT protected)
+router.post(
+  "/change-password-first-login",
+  authController.changePasswordFirstLogin
+);
+
 module.exports = router;
