@@ -20,6 +20,12 @@ const StudentSchema = new mongoose.Schema(
     parentPhone: { type: String, default: null, trim: true },
     Address: { type: String, default: null, trim: true },
 
+    // NEW: class as Number (1..10)
+    studentClass: { type: Number, min: 1, max: 10, default: null },
+
+    // NEW: flag
+    flag: { type: String, enum: ["red", "green", "yellow"], default: "green" },
+
     classId: { type: mongoose.Schema.Types.ObjectId, ref: "Class", default: null },
     sectionId: { type: mongoose.Schema.Types.ObjectId, ref: "Section", default: null },
 

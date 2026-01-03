@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ✅ relationship fields (one-to-one link)
+    
     teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", default: null },
     studentId: { type: mongoose.Schema.Types.ObjectId, ref: "Student", default: null },
 

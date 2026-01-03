@@ -1,129 +1,99 @@
-import React, { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom';
-import reallogo from '../../../Assests/Real_Madrid_CF.svg.png';
-import { MdOutlineDashboard } from "react-icons/md"
-import { FaSchool } from "react-icons/fa"
-import { FaChalkboardTeacher } from "react-icons/fa"
-import { PiStudent } from "react-icons/pi"
-import { MdOutlineMoreTime } from "react-icons/md"
-import { SiGoogleclassroom } from "react-icons/si"
-import { PiExam } from "react-icons/pi"
-import { IoCalendarOutline } from "react-icons/io5"
-import { IoIosNotificationsOutline } from "react-icons/io"
-import { MdExitToApp } from "react-icons/md"
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  School,
+  Users,
+  GraduationCap,
+  Clock,
+  Store,
+  Calendar,
+  FileText,
+  Bell,
+  LogOut,
+} from "lucide-react";
 
-const Sidebar = ({ activePage, setActivePage }) => {
+const Sidebar = ({ activePage }) => {
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  const getActivePage = () => {
-    const path = location.pathname;
-    if (path.includes('/dashboard')) return 'dashboard';
-    if (path.includes('/school')) return 'school';
-    if (path.includes('/student-record')) return 'student';
-    if (path.includes('/teacher')) return 'teacher';
-    if (path.includes('/timetable')) return 'timetable';
-    if (path.includes('/classroom')) return 'classroom';
-    if (path.includes('/calendar')) return 'calendar';
-    if (path.includes('/exam')) return 'exam';
-    if (path.includes('/notification')) return 'notification';
-    return 'dashboard';
-  };
 
-  // Use prop if provided, otherwise use local state
-  const currentActivePage = activePage || getActivePage();
-  
   const menuItems = [
-    { key: 'dashboard', icon: MdOutlineDashboard, label: 'Dashboard', path: '/admin/dashboard' },
-    { key: 'school', icon: FaSchool, label: 'School', path: '/admin/school' },
-    { key: 'student', icon: PiStudent, label: 'Student Record', path: '/admin/student-record' },
-    { key: 'teacher', icon: FaChalkboardTeacher, label: 'Teacher', path: '/admin/teacher' },
-    { key: 'timetable', icon: MdOutlineMoreTime, label: 'Timetable', path: '/admin/timetable' },
-    { key: 'classroom', icon: SiGoogleclassroom, label: 'Classroom', path: '/admin/classroom' },
-    { key: 'calendar', icon: IoCalendarOutline, label: 'Calendar', path: '/admin/calendar' },
-    { key: 'exam', icon: PiExam, label: 'Exam', path: '/admin/exam' },
-    { key: 'notification', icon: IoIosNotificationsOutline, label: 'Notification', path: '/admin/notification' },
+    { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+    { key: "school", icon: School, label: "School", path: "/school" },
+    { key: "student", icon: Users, label: "Student Record", path: "/student-record" },
+    { key: "teacher", icon: GraduationCap, label: "Teacher", path: "/teacher" },
+    { key: "timetable", icon: Clock, label: "Timetable", path: "/timetable" },
+    { key: "classroom", icon: Store, label: "Classroom", path: "/classroom" },
+    { key: "calendar", icon: Calendar, label: "Calendar", path: "/calendar" },
+    { key: "exam", icon: FileText, label: "Exam", path: "/exam" },
+    { key: "notification", icon: Bell, label: "Notification", path: "/notification" },
   ];
 
-  const handleMenuClick = (pageKey, path) => {
-    if (setActivePage) {
-      setActivePage(pageKey);
-    }
-    navigate(path);
-  };
-
-  const handleExit = () => {
-    navigate('/login'); 
-  };
-
-  const isActive = (pageKey) => currentActivePage === pageKey;
-
   return (
-    <div className="w-full h-full bg-white">
-      {/* Header Section */}
-      <div className="mb-8 pt-6">
-        <div className="flex items-center gap-3 px-4">
-          <img 
-            src={reallogo} 
-            alt="Real Madrid Logo" 
-            className="w-12 h-12 rounded-lg object-contain" 
-          />
-          <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
-            Real Madrid
-          </h1>
+    <div className="flex flex-col h-full">
+      <div className="h-[72px] flex items-center px-6 border-b border-slate-50 dark:border-slate-800 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100 dark:shadow-none">
+            <School className="text-white w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">
+              Real Madrid
+            </h1>
+            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+              Academy
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Menu Section */}
-      <div className="flex flex-col flex-1 gap-4">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 px-4">
-          Menu
+      <nav className="flex-1 px-4 py-6 overflow-y-auto space-y-1">
+        <p className="px-4 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">
+          Main Menu
         </p>
-        <div className="flex flex-col gap-2">
+
+        <div className="space-y-1">
           {menuItems.map((item) => {
-            const IconComponent = item.icon;
+            const Icon = item.icon;
+            const isActive = activePage === item.key;
+
             return (
-              <div 
+              <button
                 key={item.key}
-                className={`flex items-center gap-3 px-4 py-3 cursor-pointer rounded-lg transition-all duration-200 hover:translate-x-1 mx-2 ${
-                  isActive(item.key) 
-                    ? 'bg-green-500 text-white' 
-                    : 'text-gray-900 hover:bg-gray-100'
+                onClick={() => navigate(item.path)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
+                  isActive
+                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-100 dark:shadow-none"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400"
                 }`}
-                onClick={() => handleMenuClick(item.key, item.path)}
               >
-                <IconComponent className={`w-5 h-5 transition-colors duration-200 ${
-                  isActive(item.key) 
-                    ? 'text-white' 
-                    : 'text-gray-500 hover:text-green-500'
-                }`} />
-                <span className="text-sm">{item.label}</span>
-              </div>
+                <Icon
+                  className={`w-5 h-5 transition-colors ${
+                    isActive
+                      ? "text-white"
+                      : "text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400"
+                  }`}
+                />
+                <span className="text-sm font-medium">{item.label}</span>
+                {isActive && (
+                  <div className="absolute left-[-16px] w-1.5 h-6 bg-emerald-500 rounded-r-full" />
+                )}
+              </button>
             );
           })}
         </div>
-      </div>
+      </nav>
 
-      {/* Footer Section */}
-      <div className="mt-6 pt-4 border-t border-gray-300 mx-4">
-        <div 
-          className={`flex items-center gap-3 px-4 py-3 cursor-pointer rounded-lg transition-all duration-200 hover:translate-x-1 mx-2 ${
-            isActive('exit') 
-              ? 'bg-red-500 text-white' 
-              : 'text-gray-900 hover:bg-gray-100'
-          }`}
-          onClick={handleExit}
+      <div className="p-4 border-t border-slate-50 dark:border-slate-800 transition-colors">
+        <button
+          onClick={() => navigate("/login")}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 group"
         >
-          <MdExitToApp className={`w-5 h-5 transition-colors duration-200 ${
-            isActive('exit') 
-              ? 'text-white' 
-              : 'text-gray-500 hover:text-red-500'
-          }`} />
-          <span className="text-sm">Exit</span>
-        </div>
+          <LogOut className="w-5 h-5 text-slate-400 group-hover:text-red-500 transition-colors" />
+          <span className="text-sm font-medium">Logout</span>
+        </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Sidebar
+export default Sidebar;

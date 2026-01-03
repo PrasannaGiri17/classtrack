@@ -1,15 +1,24 @@
 import React from 'react';
 import './App.css';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes,Navigate } from 'react-router-dom';
 import { ActivePageProvider } from './context/ActivePageContext';
-import Alayout from './Components/Admin/Layout/Alayout';
-import Gcalender from './Components/GlobalCalender/Gcalender';
-import GcalenderDetail from './Components/GlobalCalenderDetail/Gcalenderdetail';
+import AdminLayout from './AdminComponents/Layout/AdminLayout';
+import DashboardPage from './Adminpages/Dashboard';
+
+import CalendarPage from './Adminpages/CalendarPage';
+import StudentRecord from './Adminpages/StudentRecord';
+import TeacherRecord from './Adminpages/TeacherRecord';
+import SchoolManagement from './Adminpages/SchoolManagement';
+import TimetablePage from './Adminpages/TimetablePage';
+import ClassroomPage from './Adminpages/ClassroomPage';
+import NotificationPage from './Adminpages/NotificationPage';
+import ExamManagement from './Adminpages/ExamManagement';
+import PlaceholderPage from './Adminpages/PlaceholderPage';
+
+
 import { GMainC } from './Components/GlobalMainCalender/GMainC';
-import DashBoard from './Page/Admin/DashBoard';
-import School from './Page/Admin/School';
-import StudentRecord from './Page/Admin/StudentRecord';
-import TeacherRecord from './Page/Admin/TeacherRecord';
+
+
 import LoginPage from './Page/Users/LoginPage';
 import ForgetPage from './Page/Users/ForgetPage';
 import ResetPage from './Page/Users/ResetPage';
@@ -20,12 +29,13 @@ function App() {
       <Router>
         <div className="App">
           <Routes>
-            {/* ---------------- Admin Pages (Wrapped in Layout) ---------------- */}
-            <Route path="/admin" element={<Alayout />}>
-              {/* Default admin home: /admin */}
+
+            
+            {/* <Route path="/admin" element={<Alayout />}>
+              
               <Route index element={<DashBoard />} />
 
-              {/* Admin pages that match sidebar routes */}
+     
               <Route path="dashboard" element={<DashBoard />} />
               <Route path="school" element={<School />} />
               <Route path="student-record" element={<StudentRecord />} />
@@ -39,15 +49,28 @@ function App() {
              
               <Route path="gcalendar" element={<Gcalender />} />
               <Route path="gcalendar/:id" element={<GcalenderDetail />} />
-            </Route>
+            </Route>  */}
+            <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="school" element={<SchoolManagement />} />
+          <Route path="student-record" element={<StudentRecord />} />
+          <Route path="teacher" element={<TeacherRecord />} />
+          <Route path="timetable" element={<TimetablePage />} />
+          <Route path="classroom" element={<ClassroomPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="notification" element={<NotificationPage />} />
+          <Route path="exam" element={<ExamManagement />} />
+        </Route>
 
             {/* ---------------- Public Website ---------------- */}
             <Route path="/" element={<LoginPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forget" element={<ForgetPage />} />
             <Route path="/reset" element={<ResetPage />} />
-            <Route path="/test" element={<GMainC />} />
+            
             <Route path="/reset-first-login" element={<ResetFirstLogin />} />
+            <Route path="/test" element={<GMainC />} />
           </Routes>
         </div>
       </Router>

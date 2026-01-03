@@ -26,6 +26,11 @@ const addStudent = async (req, res) => {
       email,
       phone,
       Address,
+
+      // from frontend (no JSX rename needed)
+      class: classFromClient,
+      flag,
+
       classId,
       sectionId,
       rollNumber,
@@ -38,7 +43,8 @@ const addStudent = async (req, res) => {
     if (!firstName?.trim()) fieldErrors.firstName = "First name is required";
     if (!lastName?.trim()) fieldErrors.lastName = "Last name is required";
     if (!parentName?.trim()) fieldErrors.parentName = "Parent name is required";
-    if (!String(parentPhone || "").trim()) fieldErrors.parentPhone = "Parent contact is required";
+    if (!String(parentPhone || "").trim())
+      fieldErrors.parentPhone = "Parent contact is required";
     if (!email?.trim()) fieldErrors.email = "Email is required (for student login)";
 
     if (Object.keys(fieldErrors).length) {
@@ -66,6 +72,12 @@ const addStudent = async (req, res) => {
       return res.status(409).json({ message: "Email already exists (user account)." });
     }
 
+    // Convert class to Number (because select usually sends string)
+    const parsedClass =
+      classFromClient !== undefined && classFromClient !== ""
+        ? Number(classFromClient)
+        : null;
+
     // 1) Create Student
     const student = new Student({
       schoolId,
@@ -76,6 +88,11 @@ const addStudent = async (req, res) => {
       email: email.trim(),
       phone: phone ? String(phone).trim() : null,
       Address: Address?.trim(),
+
+      // NEW FIELDS
+      studentClass: parsedClass,     // Number in DB
+      flag: flag ?? "green",         // red/green/yellow
+
       classId: classId || null,
       sectionId: sectionId || null,
       rollNumber: rollNumber ?? null,
@@ -108,11 +125,10 @@ const addStudent = async (req, res) => {
     });
 
     return res.status(201).json({
-      message: "Student added successfully. Login user created and temp password sent to email.",
+      message:
+        "Student added successfully. Login user created and temp password sent to email.",
       student,
       userId: user._id,
-      // optional: remove tempPassword from response for security
-      // tempPassword,
     });
   } catch (error) {
     if (error?.code === 11000) {
@@ -169,6 +185,15 @@ const updateStudent = async (req, res) => {
 
     // do not allow changing schoolId from normal update
     if ("schoolId" in req.body) delete req.body.schoolId;
+
+    // allow frontend key "class" to update DB field "studentClass"
+    if ("class" in req.body) {
+      req.body.studentClass =
+        req.body.class !== undefined && req.body.class !== ""
+          ? Number(req.body.class)
+          : null;
+      delete req.body.class;
+    }
 
     const updatedStudent = await Student.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
