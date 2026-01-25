@@ -1,0 +1,84 @@
+const mongoose = require("mongoose");
+
+// =============================================
+// SCHOOL MODEL
+// =============================================
+const schoolSchema = new mongoose.Schema({
+  _id: { type: Number, default: 1 },  // Fixed school_id = 1
+  name: { type: String, required: true },
+  address: String,
+  email: String,
+  logo: String,
+  website: String,
+  gradeSpan: {
+    start: { type: Number, default: 1 },
+    end: { type: Number, default: 10 }
+  },
+  operatingHours: {
+    start: { type: String, default: "09:00" },
+    end: { type: String, default: "16:00" }
+  },
+  maxSectionsPerGrade: { type: Number, default: 10 },
+  phoneNumbers: [{
+    phoneNumber: { type: String, required: true },
+    type: { type: String, enum: ['main', 'office', 'emergency', 'fax', 'mobile'], default: 'main' },
+    isPrimary: { type: Boolean, default: false },
+    displayOrder: { type: Number, default: 0 }
+  }],
+  socialLinks: [{
+    platform: { type: String, enum: ['facebook', 'instagram', 'tiktok', 'twitter', 'youtube'], required: true },
+    url: { type: String, required: true }
+  }],
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, { collection: 'schools' });
+
+// =============================================
+// GRADE MODEL (Grades 1-10)
+// =============================================
+const gradeSchema = new mongoose.Schema({
+  schoolId: { type: Number, default: 1 },
+  gradeNumber: { type: Number, required: true, min: 1, max: 10 },  // 1 to 10
+  gradeName: String,  // "Grade 1", "Class I"
+  sections: [{
+    sectionName: { type: String, required: true },  // 'A', 'B', 'C' up to 10
+    capacity: { type: Number, default: 40 },
+    roomNumber: String,
+    isActive: { type: Boolean, default: true }
+  }],
+  subjects: [{
+    subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject' },
+    isMandatory: { type: Boolean, default: true },  // true=core, false=additional
+    periodsPerWeek: { type: Number, default: 5 },
+    creditHours: Number
+  }],
+  displayOrder: Number,
+  isActive: { type: Boolean, default: true }
+}, { collection: 'grades' });
+
+// =============================================
+// SUBJECT MODEL (Core + Additional)
+// =============================================
+const subjectSchema = new mongoose.Schema({
+  schoolId: { type: Number, default: 1 },
+  subjectCode: String,  // 'MATH', 'ENG', 'SCI'
+  subjectName: { type: String, required: true },
+  subjectType: { 
+    type: String, 
+    enum: ['core', 'elective', 'extra_curricular'], 
+    default: 'core' 
+  },
+  description: String,
+  isActive: { type: Boolean, default: true }
+}, { collection: 'subjects' });
+
+// Indexes for performance
+gradeSchema.index({ schoolId: 1, gradeNumber: 1 }, { unique: true });
+subjectSchema.index({ schoolId: 1, subjectCode: 1 }, { unique: true });
+
+const School = mongoose.model('School', schoolSchema);
+const Grade = mongoose.model('Grade', gradeSchema);
+const Subject = mongoose.model('Subject', subjectSchema);
+
+module.exports = { School, Grade, Subject };
+

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
+  Edit3,
+  Loader2,
   Mail,
   Phone,
   Instagram,
@@ -24,7 +26,7 @@ import {
  * }
  * onUpdate(updates) => void
  */
-const InstitutionalView = ({ config, onUpdate }) => {
+const InstitutionalView = ({ config, onUpdate, onSave, isLoading }) => {
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
   const [phoneCount, setPhoneCount] = useState(
     (config?.phoneNumbers?.length || 1)
@@ -32,7 +34,7 @@ const InstitutionalView = ({ config, onUpdate }) => {
   const [tempPhones, setTempPhones] = useState(
     config?.phoneNumbers?.length ? config.phoneNumbers : [""]
   );
-  const [showToast, setShowToast] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Sync temp state with config when modal opens
   useEffect(() => {
@@ -54,16 +56,33 @@ const InstitutionalView = ({ config, onUpdate }) => {
     setTempPhones(newPhones);
   };
 
-  const triggerToast = () => {
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+
+
+  const handleImageUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Simulate upload delay for effect (optional, or remove)
+      setTimeout(() => {
+        onUpdate({ logo: reader.result }); // reader.result is the Base64 string
+        setIsUploading(false);
+      }, 1000);
+    };
+    reader.onerror = () => {
+      console.error("File reading failed");
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handlePhoneSave = () => {
     const validPhones = tempPhones.filter((p) => p.trim() !== "");
     onUpdate({ phoneNumbers: validPhones });
     setIsPhoneModalOpen(false);
-    triggerToast();
   };
 
   const socialPlatforms = [
@@ -74,37 +93,50 @@ const InstitutionalView = ({ config, onUpdate }) => {
 
   return (
     <div className="space-y-10 relative">
-      {/* Success Toast */}
-      {showToast && (
-        <div className="fixed top-24 right-10 z-[100] animate-in slide-in-from-right-10 duration-300">
-          <div className="bg-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
-            <CheckCircle2 size={20} />
-            <p className="text-sm font-black uppercase tracking-widest">
-              Configuration Updated
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col lg:flex-row gap-10 items-start pb-20">
         {/* Left column - identity card */}
         <div className="w-full lg:w-[280px] shrink-0 flex flex-col items-center lg:items-start space-y-8">
-          <div className="relative group">
-            <div className="w-44 h-44 rounded-[32px] overflow-hidden shadow-xl ring-4 ring-white dark:ring-slate-900 ring-offset-2 ring-offset-slate-100 dark:ring-offset-slate-800 transition-transform hover:scale-105">
+          <div className="relative group cursor-pointer w-44 h-44">
+            <div className="w-full h-full rounded-[32px] overflow-hidden shadow-xl ring-4 ring-white dark:ring-slate-900 ring-offset-2 ring-offset-slate-100 dark:ring-offset-slate-800 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:ring-emerald-500/20 relative z-10">
               <img
                 src={config.logo}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 alt="School Logo"
               />
+
+              {/* Anti-gravity Hover Overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 backdrop-blur-[0px] group-hover:backdrop-blur-sm transition-all duration-500 flex items-center justify-center">
+                <div className="absolute opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300 delay-75">
+                  <div className="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center text-slate-900 animate-bounce cursor-pointer border border-white/50 group-hover:border-white transition-all">
+                    <Edit3 size={18} className="transition-transform group-hover:rotate-6" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Loading Overlay */}
+              {isUploading && (
+                <div className="absolute inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-300">
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                </div>
+              )}
             </div>
+
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              accept="image/*"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+              onChange={handleImageUpload}
+              disabled={isUploading}
+            />
           </div>
 
           <div className="w-full space-y-3 text-center lg:text-left">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
-              Identity Hub
+              School Information
             </h2>
             <p className="text-xs font-medium text-slate-400 leading-relaxed">
-              Update your academy&apos;s global branding and nomenclature.
+              Update your School&apos;s general Information.
             </p>
           </div>
         </div>
@@ -116,7 +148,8 @@ const InstitutionalView = ({ config, onUpdate }) => {
             <div className="space-y-8">
               <div className="space-y-3">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Full Academy Nomenclature
+                  Full School Name
+
                 </label>
                 <input
                   type="text"
@@ -128,7 +161,7 @@ const InstitutionalView = ({ config, onUpdate }) => {
 
               <div className="space-y-3">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Global HQ Address
+                  School Address
                 </label>
                 <textarea
                   rows={3}
@@ -153,7 +186,7 @@ const InstitutionalView = ({ config, onUpdate }) => {
               {/* Email */}
               <div className="space-y-3">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Official Academy Email
+                  Official School Email
                 </label>
                 <div className="relative group">
                   <Mail
@@ -209,7 +242,7 @@ const InstitutionalView = ({ config, onUpdate }) => {
               {/* Social Media Inputs */}
               <div className="space-y-4">
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Digital Footprint
+                  Social Media
                 </label>
 
                 <div className="grid grid-cols-1 gap-4">
@@ -240,6 +273,17 @@ const InstitutionalView = ({ config, onUpdate }) => {
                   })}
                 </div>
               </div>
+            </div>
+            {/* Save Button Action */}
+            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={onSave}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold uppercase tracking-wider shadow-lg shadow-emerald-600/20 transition-all hover:scale-105 active:scale-95 text-xs"
+              >
+                {isLoading && <Loader2 size={16} className="animate-spin" />}
+                {isLoading ? "Saving..." : "Save Changes"}
+              </button>
             </div>
           </div>
         </div>
