@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Plus, X, RefreshCw, ChevronDown, CheckCircle2, AlertTriangle, Layers, Info, Lock, Unlock } from 'lucide-react';
+import React, { useState } from 'react';
+// import { createPortal } from 'react-dom'; // Removed as unused
+import { Plus, X, RefreshCw, ChevronDown, CheckCircle2, Layers, Info, Lock, Unlock } from 'lucide-react';
 import { toast } from '../../MainSystemComponents/Toast';
 import PortalPopup from '../../MainSystemComponents/PortalPopup';
 import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
@@ -345,7 +345,7 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                     onChange={(e) => setTempRange({ ...tempRange, from: parseInt(e.target.value) })}
                     className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none"
                   >
-                    {[...Array(12)].map((_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+                    {[...Array(13)].map((_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
@@ -358,7 +358,7 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                     onChange={(e) => setTempRange({ ...tempRange, to: parseInt(e.target.value) })}
                     className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none"
                   >
-                    {[...Array(12)].map((_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+                    {[...Array(13)].map((_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>

@@ -15,13 +15,15 @@ const StudentSchema = new mongoose.Schema(
     phone: { type: String, default: null, trim: true },
 
     profilePhoto: { type: String, default: null },
+    birthdate: { type: Date, default: null },
+    gender: { type: String, enum: ["male", "female", "other"], default: null },
 
     parentName: { type: String, default: null, trim: true },
     parentPhone: { type: String, default: null, trim: true },
     Address: { type: String, default: null, trim: true },
 
     // NEW: class as Number (1..10)
-    studentClass: { type: Number, min: 1, max: 10, default: null },
+    studentClass: { type: Number, min: 1, max: 13, default: null },
 
     // NEW: flag
     flag: { type: String, enum: ["red", "green", "yellow"], default: "green" },

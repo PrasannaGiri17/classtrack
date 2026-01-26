@@ -30,7 +30,25 @@ const getRoutineMatrix = async (req, res) => {
   }
 };
 
-// ... (updateOperatingHours remains) ...
+// Update Operating Hours
+const updateOperatingHours = async (req, res) => {
+    try {
+        const { start, end } = req.body;
+        if (!start || !end) {
+            return res.status(400).json({ message: "Start and End times are required" });
+        }
+
+        const updatedSchool = await School.findOneAndUpdate(
+            { _id: 1 },
+            { $set: { operatingHours: { start, end } } },
+            { upsert: true, new: true }
+        );
+
+        res.status(200).json({ message: "Operating hours updated", operatingHours: updatedSchool.operatingHours });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
 
 // Update Routine for a specific grade
 const updateGradeRoutine = async (req, res) => {

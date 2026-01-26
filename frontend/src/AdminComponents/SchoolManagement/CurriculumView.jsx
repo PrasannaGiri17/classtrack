@@ -8,6 +8,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "../../MainSystemComponents/Toast";
+import PortalPopup from "../../MainSystemComponents/PortalPopup";
 
 const CurriculumView = ({
   getCoreForGrade,
@@ -32,44 +33,42 @@ const CurriculumView = ({
   const [isAddCoreOpen, setIsAddCoreOpen] = useState(false);
   const [isDeleteCoreOpen, setIsDeleteCoreOpen] = useState(false);
 
+  // Modals for Specialized management
+  const [isAddExtraOpen, setIsAddExtraOpen] = useState(false);
+  const [isDeleteExtraOpen, setIsDeleteExtraOpen] = useState(false);
+
   const [newCoreName, setNewCoreName] = useState("");
   const [subjectToDelete, setSubjectToDelete] = useState("");
 
-  const activeCoreSubjects = getCoreForGrade(selectedGrade);
+  const [newExtraName, setNewExtraName] = useState("");
+  const [extraToDelete, setExtraToDelete] = useState("");
 
-  const electivesForGrade = extraSubjects.filter(
-    (s) => s.gradeNum === selectedGrade
-  );
+  const [selectedGradesForExtra, setSelectedGradesForExtra] = useState([]);
 
-  // ✅ ADD TOAST HERE (Enroll specialized subject)
-  const handleAddExtra = () => {
-    const name = newSub.trim();
+  const activeCoreSubjects = getCoreForGrade("1"); // Core subjects are global in the system
 
-    if (!name) {
-      toast({
-        type: "warning",
-        message: "Please enter a subject name.",
-        duration: 2500,
-      });
-      return;
-    }
+  // Group electives by name to show a unique list with assigned grades
+  const uniqueElectives = React.useMemo(() => {
+    const grouped = {};
+    extraSubjects.forEach((s) => {
+      if (!grouped[s.subjectName]) {
+        grouped[s.subjectName] = new Set();
+      }
+      grouped[s.subjectName].add(s.gradeNum);
+    });
+    return Object.entries(grouped).map(([name, grades]) => ({
+      subjectName: name,
+      assignedGrades: Array.from(grades).sort((a, b) => parseInt(a) - parseInt(b)),
+    }));
+  }, [extraSubjects]);
 
-    const alreadyExists = electivesForGrade.some(
-      (s) => s.subjectName.toLowerCase() === name.toLowerCase()
+  const toggleGradeForExtra = (grade) => {
+    setSelectedGradesForExtra((prev) =>
+      prev.includes(grade) ? prev.filter((g) => g !== grade) : [...prev, grade]
     );
-
-    if (alreadyExists) {
-      toast({
-        type: "error",
-        message: `This elective already exists for Grade ${selectedGrade}.`,
-        duration: 3000,
-      });
-      return;
-    }
-
-    onAddExtra(selectedGrade, name);
-    setNewSub("");
   };
+
+
 
   const handleAddCoreSubmit = (e) => {
     e.preventDefault();
@@ -86,15 +85,64 @@ const CurriculumView = ({
     if (activeCoreSubjects.some((s) => s.toLowerCase() === name.toLowerCase())) {
       toast({
         type: "error",
-        message: `This core subject already exists for Grade ${selectedGrade}.`,
+        message: `This core subject already exists globally.`,
         duration: 3000,
       });
       return;
     }
 
-    onAddCore(selectedGrade, name);
+    onAddCore("1", name); // Adds globally
     setIsAddCoreOpen(false);
     setNewCoreName("");
+  };
+
+  // Handle Specialized Subject Submission
+  const handleAddExtraSubmit = (e) => {
+    e.preventDefault();
+    const name = newExtraName.trim();
+    if (!name) {
+      toast({
+        type: "warning",
+        message: "Please enter a specialized subject name.",
+        duration: 2500,
+      });
+      return;
+    }
+
+    if (selectedGradesForExtra.length === 0) {
+      toast({
+        type: "warning",
+        message: "Please select at least one grade.",
+        duration: 2500,
+      });
+      return;
+    }
+
+    onAddExtra(selectedGradesForExtra, name);
+    setIsAddExtraOpen(false);
+    setNewExtraName("");
+    setSelectedGradesForExtra([]);
+  };
+
+  const handleDeleteExtraSubmit = (e) => {
+    e.preventDefault();
+    if (!extraToDelete) {
+      toast({
+        type: "warning",
+        message: "Please select a subject to delete.",
+        duration: 2500,
+      });
+      return;
+    }
+
+    // Pass the list of grades it was assigned to for removal
+    const targetExtra = uniqueElectives.find(e => e.subjectName === extraToDelete);
+    if (targetExtra) {
+      onRemoveExtra(targetExtra.assignedGrades, extraToDelete);
+    }
+
+    setIsDeleteExtraOpen(false);
+    setExtraToDelete("");
   };
 
   const handleDeleteCoreSubmit = (e) => {
@@ -108,13 +156,9 @@ const CurriculumView = ({
       return;
     }
 
-    onRemoveCore(selectedGrade, subjectToDelete);
+    onRemoveCore("1", subjectToDelete); // Removes globally
     setIsDeleteCoreOpen(false);
     setSubjectToDelete("");
-  };
-
-  const handleRemoveExtra = (subjectName) => {
-    onRemoveExtra(selectedGrade, subjectName);
   };
 
   return (
@@ -123,28 +167,13 @@ const CurriculumView = ({
         <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
           School Subjects
         </h2>
-
-        <div className="flex bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-x-auto scrollbar-hide">
-          {gradeList.map((grade) => (
-            <button
-              key={grade}
-              onClick={() => setSelectedGrade(grade)}
-              className={`flex-1 min-w-[80px] py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all ${selectedGrade === grade
-                ? "bg-emerald-600 text-white shadow-md"
-                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                }`}
-            >
-              Grade {grade}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* LEFT COLUMN: CORE SUBJECTS */}
         <div className="lg:col-span-5 space-y-4 flex flex-col">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-            Core Academic Subjects (Grade {selectedGrade})
+            Global Core Academic Subjects
           </p>
 
           <div className="grid grid-cols-1 gap-2">
@@ -197,189 +226,342 @@ const CurriculumView = ({
           </div>
         </div>
 
-        {/* RIGHT COLUMN: ELECTIVES */}
-        <div className="lg:col-span-7 space-y-6">
+        {/* RIGHT COLUMN: ELECTIVES (Specialized) */}
+        <div className="lg:col-span-7 space-y-4 flex flex-col">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-            Specialized Subjects (Grade {selectedGrade})
+            Global Specialized Subjects (All Grades)
           </p>
 
-          <div className="flex gap-3 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-            <input
-              type="text"
-              placeholder="Assign New Subject..."
-              value={newSub}
-              onChange={(e) => setNewSub(e.target.value)}
-              className="flex-1 px-5 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-semibold outline-none placeholder:text-slate-300 dark:text-white"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAddExtra();
-              }}
-            />
-            <button
-              onClick={handleAddExtra}
-              className="h-11 px-8 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/10"
-            >
-              Enroll
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {electivesForGrade.map((sub) => (
+          <div className="grid grid-cols-1 gap-2">
+            {uniqueElectives.map((sub) => (
               <div
                 key={sub.subjectName}
-                className="flex items-center justify-between p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group shadow-sm hover:border-emerald-500/20 transition-all"
+                className="px-5 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm flex items-center justify-between animate-in fade-in slide-in-from-right-2 duration-300"
               >
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full shadow-sm" />
                   {sub.subjectName}
-                </span>
-
-                <button
-                  onClick={() => handleRemoveExtra(sub.subjectName)}
-                  className="text-slate-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 size={16} />
-                </button>
+                </div>
+                <div className="flex gap-1 flex-wrap justify-end max-w-[50%]">
+                  {sub.assignedGrades.map(g => (
+                    <span key={g} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[9px] font-black rounded-lg border border-indigo-100 dark:border-indigo-900/40 uppercase">
+                      G{g}
+                    </span>
+                  ))}
+                </div>
               </div>
             ))}
 
-            {electivesForGrade.length === 0 && (
-              <div className="col-span-full py-12 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">
-                <BookOpen className="text-slate-200 mx-auto mb-3" size={32} />
+            {uniqueElectives.length === 0 && (
+              <div className="py-10 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  No Active Electives
+                  No Specialized Subjects
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Specialized Action Row */}
+          <div className="flex items-center gap-3 pt-4">
+            <button
+              onClick={() => setIsAddExtraOpen(true)}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/10 transition-all active:scale-[0.98]"
+            >
+              <Plus size={16} strokeWidth={3} />
+              New Specialized Subject
+            </button>
+
+            <button
+              onClick={() => {
+                if (uniqueElectives.length === 0) {
+                  toast({
+                    type: "warning",
+                    message: "No specialized subjects available to delete.",
+                    duration: 2500,
+                  });
+                  return;
+                }
+                setIsDeleteExtraOpen(true);
+              }}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/20 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all active:scale-[0.98]"
+            >
+              <Trash2 size={16} strokeWidth={2.5} />
+              Delete From School
+            </button>
           </div>
         </div>
       </div>
 
       {/* ADD CORE MODAL */}
-      {isAddCoreOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                Add Core Subject
-              </h3>
-              <button
-                onClick={() => setIsAddCoreOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
-              >
-                <X size={20} />
-              </button>
+      <PortalPopup isOpen={isAddCoreOpen} onClose={() => setIsAddCoreOpen(false)}>
+        <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+          <div className="px-6 py-4 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              Add Core Subject
+            </h3>
+            <button
+              onClick={() => setIsAddCoreOpen(false)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleAddCoreSubmit} className="p-8 space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                Subject Name
+              </label>
+              <input
+                autoFocus
+                required
+                type="text"
+                value={newCoreName}
+                onChange={(e) => setNewCoreName(e.target.value)}
+                placeholder="e.g. Physics"
+                className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
             </div>
 
-            <form onSubmit={handleAddCoreSubmit} className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Subject Name
-                </label>
-                <input
-                  autoFocus
-                  required
-                  type="text"
-                  value={newCoreName}
-                  onChange={(e) => setNewCoreName(e.target.value)}
-                  placeholder="e.g. Physics"
-                  className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddCoreOpen(false)}
-                  className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all"
-                >
-                  Add Subject
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsAddCoreOpen(false)}
+                className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all"
+              >
+                Add Subject
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </PortalPopup>
 
       {/* DELETE CORE MODAL */}
-      {isDeleteCoreOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                Delete Core Subject
-              </h3>
-              <button
-                onClick={() => setIsDeleteCoreOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
-              >
-                <X size={20} />
-              </button>
+      <PortalPopup isOpen={isDeleteCoreOpen} onClose={() => setIsDeleteCoreOpen(false)}>
+        <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+          <div className="px-6 py-4 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              Delete Core Subject
+            </h3>
+            <button
+              onClick={() => setIsDeleteCoreOpen(false)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleDeleteCoreSubmit} className="p-8 space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                Select Subject
+              </label>
+
+              <div className="relative group">
+                <select
+                  required
+                  value={subjectToDelete}
+                  onChange={(e) => setSubjectToDelete(e.target.value)}
+                  className="appearance-none w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer pr-12"
+                >
+                  <option value="">Select a Subject</option>
+                  {activeCoreSubjects.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+
+                <ChevronDown
+                  size={16}
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500"
+                />
+              </div>
             </div>
 
-            <form onSubmit={handleDeleteCoreSubmit} className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Select Subject
-                </label>
+            <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-900/20 flex gap-3">
+              <AlertCircle
+                size={18}
+                className="text-red-500 shrink-0 mt-0.5"
+              />
+              <p className="text-[10px] font-bold text-red-600 dark:text-red-400 leading-relaxed uppercase tracking-wider">
+                Caution: Removing a core subject may affect current grade
+                matrices and reports.
+              </p>
+            </div>
 
-                <div className="relative group">
-                  <select
-                    required
-                    value={subjectToDelete}
-                    onChange={(e) => setSubjectToDelete(e.target.value)}
-                    className="appearance-none w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer pr-12"
-                  >
-                    <option value="">Select a Subject</option>
-                    {activeCoreSubjects.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-
-                  <ChevronDown
-                    size={16}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-900/20 flex gap-3">
-                <AlertCircle
-                  size={18}
-                  className="text-red-500 shrink-0 mt-0.5"
-                />
-                <p className="text-[10px] font-bold text-red-600 dark:text-red-400 leading-relaxed uppercase tracking-wider">
-                  Caution: Removing a core subject may affect current grade
-                  matrices and reports.
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsDeleteCoreOpen(false)}
-                  className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!subjectToDelete}
-                  className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 transition-all disabled:opacity-30 disabled:grayscale"
-                >
-                  Confirm Delete
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteCoreOpen(false)}
+                className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!subjectToDelete}
+                className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 transition-all disabled:opacity-30 disabled:grayscale"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </PortalPopup>
+
+      {/* ADD SPECIALIZED MODAL */}
+      <PortalPopup isOpen={isAddExtraOpen} onClose={() => setIsAddExtraOpen(false)}>
+        <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+          <div className="px-6 py-4 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              Add Specialized Subject
+            </h3>
+            <button
+              onClick={() => setIsAddExtraOpen(false)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleAddExtraSubmit} className="p-8 space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                Subject Name
+              </label>
+              <input
+                autoFocus
+                required
+                type="text"
+                value={newExtraName}
+                onChange={(e) => setNewExtraName(e.target.value)}
+                placeholder="e.g. Advanced Calculus"
+                className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+              />
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                Assign to Grades
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {gradeList.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => toggleGradeForExtra(g)}
+                    className={`py-3 rounded-xl text-[10px] font-black transition-all border ${selectedGradesForExtra.includes(g)
+                      ? "bg-indigo-500 text-white border-indigo-600 shadow-md shadow-indigo-500/20"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      }`}
+                  >
+                    Grade {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddExtraOpen(false);
+                  setSelectedGradesForExtra([]);
+                }}
+                className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all"
+              >
+                Add Subject
+              </button>
+            </div>
+          </form>
+        </div>
+      </PortalPopup>
+
+      {/* DELETE SPECIALIZED MODAL */}
+      <PortalPopup isOpen={isDeleteExtraOpen} onClose={() => setIsDeleteExtraOpen(false)}>
+        <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+          <div className="px-6 py-4 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              Delete Specialized Subject
+            </h3>
+            <button
+              onClick={() => setIsDeleteExtraOpen(false)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 transition-all"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleDeleteExtraSubmit} className="p-8 space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                Select Subject
+              </label>
+
+              <div className="relative group">
+                <select
+                  required
+                  value={extraToDelete}
+                  onChange={(e) => setExtraToDelete(e.target.value)}
+                  className="appearance-none w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all cursor-pointer pr-12"
+                >
+                  <option value="">Select a Subject</option>
+                  {uniqueElectives.map((s) => (
+                    <option key={s.subjectName} value={s.subjectName}>
+                      {s.subjectName}
+                    </option>
+                  ))}
+                </select>
+
+                <ChevronDown
+                  size={16}
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-900/20 flex gap-3">
+              <AlertCircle
+                size={18}
+                className="text-red-500 shrink-0 mt-0.5"
+              />
+              <p className="text-[10px] font-bold text-red-600 dark:text-red-400 leading-relaxed uppercase tracking-wider">
+                Caution: This will remove "{extraToDelete}" from ALL assigned grades in the entire school.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteExtraOpen(false)}
+                className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!extraToDelete}
+                className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 transition-all disabled:opacity-30 disabled:grayscale"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </form>
+        </div>
+      </PortalPopup>
     </div>
   );
 };

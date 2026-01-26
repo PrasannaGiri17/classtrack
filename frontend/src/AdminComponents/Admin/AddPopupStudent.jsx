@@ -27,6 +27,11 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
   const [popup, setPopup] = useState({ message: "", type: "error" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Validation: Age 5+
+  const maxDate = new Date();
+  maxDate.setFullYear(maxDate.getFullYear() - 5);
+  const maxDateString = maxDate.toISOString().split('T')[0];
+
   // Handle ESC key to close
   useEffect(() => {
     const handleEsc = (e) => {
@@ -51,6 +56,20 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
     const firstName = parts[0] || "";
     const lastName = parts.slice(1).join(" ") || ".";
 
+    // Client-side validations
+    if (!/^\d{10}$/.test(formData.parentPhone)) {
+      setPopup({ message: "Parent phone number must be exactly 10 digits.", type: "error" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const birthDate = new Date(formData.birthdate);
+    if (birthDate > maxDate) {
+      setPopup({ message: "Student must be at least 5 years old.", type: "error" });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       await axios.post("http://localhost:7000/students/add", {
         firstName,
@@ -61,6 +80,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
         Address: formData.currentAddress,
         studentClass: Number(formData.class),
         birthdate: formData.birthdate,
+        gender: formData.gender,
       });
 
       setPopup({ message: "Student record successfully saved.", type: "success" });
@@ -169,6 +189,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
                     name="birthdate"
                     type="date"
                     required
+                    max={maxDateString}
                     onChange={handleChange}
                     value={formData.birthdate}
                     className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
@@ -234,7 +255,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
                     className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
                   >
                     <option value="">Select Grade</option>
-                    {[...Array(12)].map((_, i) => (
+                    {[...Array(13)].map((_, i) => (
                       <option key={i + 1} value={i + 1}>
                         Grade {i + 1}
                       </option>
@@ -275,9 +296,16 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
                     <input
                       name="parentPhone"
                       required
-                      onChange={handleChange}
+                      type="tel"
+                      pattern="\d{10}"
+                      title="Please enter a 10-digit phone number"
+                      maxLength={10}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setFormData({ ...formData, parentPhone: val });
+                      }}
                       value={formData.parentPhone}
-                      placeholder="Primary phone number"
+                      placeholder="Primary phone number (10 digits)"
                       className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
                     />
                   </div>

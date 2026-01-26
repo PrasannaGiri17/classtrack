@@ -1,6 +1,7 @@
 // controllers/teacherController.js
 const Teacher = require("../models/teacherModel");
 const User = require("../models/UserModal");
+const { Grade, Subject } = require("../models/School");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 
@@ -9,7 +10,10 @@ const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
 const getAllTeachers = async (req, res) => {
   try {
-    const teachers = await Teacher.find();
+    const teachers = await Teacher.find()
+      .populate("assignedGrades", "gradeNumber")
+      .populate("primarySubject", "subjectName")
+      .populate("secondarySubject", "subjectName");
     res.status(200).json(teachers);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -30,6 +34,7 @@ const addTeacher = async (req, res) => {
       secondarySubject,
       assignedGrades,
       assignedSections,
+      birthdate,
     } = req.body;
 
     const schoolId = 1;
@@ -57,6 +62,28 @@ const addTeacher = async (req, res) => {
       return res.status(409).json({ message: "Email already exists (user account)." });
     }
 
+    // 4) Resolve Subject IDs
+    let primarySubId = null;
+    let secondarySubId = null;
+
+    if (primarySubject) {
+      const sub = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${primarySubject}$`, "i") });
+      if (sub) primarySubId = sub._id;
+    }
+    if (secondarySubject) {
+      const sub = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${secondarySubject}$`, "i") });
+      if (sub) secondarySubId = sub._id;
+    }
+
+    // 5) Resolve Grade IDs
+    const resolvedGradeIds = [];
+    if (Array.isArray(assignedGrades) && assignedGrades.length > 0) {
+      for (const gNum of assignedGrades) {
+        const grade = await Grade.findOne({ schoolId, gradeNumber: Number(gNum) });
+        if (grade) resolvedGradeIds.push(grade._id);
+      }
+    }
+
     // 1) Create Teacher
     const teacher = new Teacher({
       schoolId,
@@ -65,13 +92,14 @@ const addTeacher = async (req, res) => {
       email: email.trim(),
       phone: phone ? String(phone).trim() : null,
       gender: gender.trim(), // must be "male" | "female" | "other"
+      birthdate: birthdate || null,
       qualification: qualification?.trim() || null,
       currentAddress: currentAddress?.trim() || null,
 
-      primarySubject: primarySubject || null,
-      secondarySubject: secondarySubject || null,
+      primarySubject: primarySubId,
+      secondarySubject: secondarySubId,
 
-      assignedGrades: Array.isArray(assignedGrades) ? assignedGrades : [],
+      assignedGrades: resolvedGradeIds,
       assignedSections: Array.isArray(assignedSections) ? assignedSections : [],
     });
 
@@ -91,15 +119,21 @@ const addTeacher = async (req, res) => {
     await user.save();
 
     // 3) Send email with temp password
-    await sendEmail({
-      to: teacher.email,
-      subject: "Teacher account created (Temporary password)",
-      text:
-        `Teacher Code: ${teacher.teacherCode}\n` +
-        `Login Email: ${teacher.email}\n` +
-        `Temporary Password: ${tempPassword}\n` +
-        `Please login and change your password immediately.`,
-    });
+    try {
+      await sendEmail({
+        to: teacher.email,
+        subject: "Teacher account created (Temporary password)",
+        text:
+          `Teacher Code: ${teacher.teacherCode}\n` +
+          `Login Email: ${teacher.email}\n` +
+          `Temporary Password: ${tempPassword}\n` +
+          `Please login and change your password immediately.`,
+      });
+    } catch (emailErr) {
+      console.error("Failed to send email:", emailErr.message);
+      // We don't want to fail the whole request if email fails, 
+      // though user might not get their password.
+    }
 
     return res.status(201).json({
       message: "Teacher added successfully. Login user created and temp password sent to email.",

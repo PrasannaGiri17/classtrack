@@ -5,7 +5,8 @@ import {
   Layers,
   Clock,
   ChevronLeft,
-  ArrowRight
+  ArrowRight,
+  ChevronDown
 } from 'lucide-react';
 
 // Sub-components
@@ -38,6 +39,8 @@ const SchoolManagement = () => {
     },
     gradeSpan: { start: 1, end: 10 }
   });
+
+  const [selectedGrade, setSelectedGrade] = useState("1");
 
   const [range, setRange] = useState({ from: 1, to: 10 });
   const [sectionMap, setSectionMap] = useState({});
@@ -130,17 +133,31 @@ const SchoolManagement = () => {
     }
   };
 
-  const handleUpdateRoutines = async (grade, routines, isLocked) => {
+  const handleUpdateRoutines = (grade, routines, isLocked) => {
+    setClassRoutines(prev => ({
+      ...prev,
+      [grade]: { slots: routines, isLocked }
+    }));
+  };
+
+  const handleFinalizeRoutine = async (grade) => {
     try {
-      await routineService.updateGradeRoutine(grade, routines, isLocked);
+      const routineData = classRoutines[grade];
+      if (!routineData) return;
+
+      // Ensure it's saved as locked
+      await routineService.updateGradeRoutine(grade, routineData.slots, true);
+
+      // Update local state to reflect finalized/locked status
       setClassRoutines(prev => ({
         ...prev,
-        [grade]: { slots: routines, isLocked }
+        [grade]: { ...prev[grade], isLocked: true }
       }));
-      toast({ type: 'success', message: `Routine for Grade ${grade} updated.`, duration: 2000 });
+
+      toast({ type: 'success', message: `Routine for Grade ${grade} finalized and locked.`, duration: 2000 });
     } catch (e) {
       console.error(e);
-      toast({ type: 'error', message: "Failed to save routine.", duration: 3000 });
+      toast({ type: 'error', message: "Failed to finalize routine.", duration: 3000 });
     }
   };
 
@@ -257,29 +274,56 @@ const SchoolManagement = () => {
     }
   };
 
-  const handleAddExtra = async (grade, name) => {
+  const handleAddExtra = async (grades, name) => {
+    setIsLoading(true);
     try {
-      await subjectService.addSubject(grade, name, 'elective');
+      // Process all grades
+      for (const grade of grades) {
+        await subjectService.addSubject(grade, name, 'elective');
+      }
+
       setCurriculumMap(prev => {
-        const gData = prev[grade] || { core: [], extra: [] };
-        return { ...prev, [grade]: { ...gData, extra: [...gData.extra, { subjectName: name, gradeNum: grade }] } };
+        const newMap = { ...prev };
+        grades.forEach(grade => {
+          const gData = newMap[grade] || { core: [], extra: [] };
+          newMap[grade] = {
+            ...gData,
+            extra: [...gData.extra, { subjectName: name, gradeNum: grade }]
+          };
+        });
+        return newMap;
       });
-      toast({ type: 'success', message: "Elective added successfully.", duration: 3000 });
+      toast({ type: 'success', message: `Specialized subject '${name}' added to selected grades.`, duration: 3000 });
     } catch (e) {
-      toast({ type: 'error', message: "Failed to add elective.", duration: 3000 });
+      toast({ type: 'error', message: "Failed to add specialized subject.", duration: 3000 });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleRemoveExtra = async (grade, name) => {
+  const handleRemoveExtra = async (grades, name) => {
+    setIsLoading(true);
     try {
-      await subjectService.removeSubject(grade, name);
+      for (const grade of grades) {
+        await subjectService.removeSubject(grade, name);
+      }
+
       setCurriculumMap(prev => {
-        const gData = prev[grade] || { core: [], extra: [] };
-        return { ...prev, [grade]: { ...gData, extra: gData.extra.filter(e => e.subjectName !== name) } };
+        const newMap = { ...prev };
+        grades.forEach(grade => {
+          const gData = newMap[grade] || { core: [], extra: [] };
+          newMap[grade] = {
+            ...gData,
+            extra: gData.extra.filter(e => e.subjectName !== name)
+          };
+        });
+        return newMap;
       });
-      toast({ type: 'success', message: "Elective removed.", duration: 3000 });
+      toast({ type: 'success', message: "Specialized subject removed successfully.", duration: 3000 });
     } catch (e) {
-      toast({ type: 'error', message: "Failed to remove elective.", duration: 3000 });
+      toast({ type: 'error', message: "Failed to remove specialized subject.", duration: 3000 });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -322,6 +366,7 @@ const SchoolManagement = () => {
           onUpdateHours={handleUpdateHours}
           classRoutines={classRoutines}
           onUpdateRoutines={handleUpdateRoutines}
+          onFinalize={handleFinalizeRoutine}
           gradeList={gradeList}
         />;
       default:

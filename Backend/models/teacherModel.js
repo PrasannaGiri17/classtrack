@@ -13,6 +13,7 @@ const TeacherSchema = new mongoose.Schema(
 
     email: { type: String, required: true, unique: true, trim: true },
     phone: { type: String, default: null, trim: true },
+    birthdate: { type: Date, default: null },
 
     gender: {
       type: String,

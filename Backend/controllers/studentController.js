@@ -27,9 +27,12 @@ const addStudent = async (req, res) => {
       phone,
       Address,
 
-      // from frontend (no JSX rename needed)
+      // from frontend
       class: classFromClient,
+      studentClass: studentClassFromClient,
       flag,
+      birthdate,
+      gender,
 
       classId,
       sectionId,
@@ -72,10 +75,11 @@ const addStudent = async (req, res) => {
       return res.status(409).json({ message: "Email already exists (user account)." });
     }
 
-    // Convert class to Number (because select usually sends string)
+    // Convert class to Number (handle both names from frontend)
+    const rawClass = classFromClient || studentClassFromClient;
     const parsedClass =
-      classFromClient !== undefined && classFromClient !== ""
-        ? Number(classFromClient)
+      rawClass !== undefined && rawClass !== ""
+        ? Number(rawClass)
         : null;
 
     // 1) Create Student
@@ -88,6 +92,8 @@ const addStudent = async (req, res) => {
       email: email.trim(),
       phone: phone ? String(phone).trim() : null,
       Address: Address?.trim(),
+      birthdate: birthdate || null,
+      gender: gender || null,
 
       // NEW FIELDS
       studentClass: parsedClass,     // Number in DB

@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import axios from "axios";
-import { X, UserPlus, Check, AlertCircle, User, Phone, BookOpen } from "lucide-react";
+import { X, UserPlus, Check, AlertCircle, User, Phone, BookOpen, ChevronDown } from "lucide-react";
 import FailedPopup from "../SmallerComponents/FailedPopup";
+import gradeService from "../../Api/gradeService";
 
 const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: "",
-    age: "",
+    birthdate: "",
+    qualification: "",
     gender: "",
     phoneNo: "",
     subject: "",
@@ -19,8 +21,49 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
 
   const [popup, setPopup] = useState({ message: "", type: "error" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [schoolConfig, setSchoolConfig] = useState(null);
+  const [allSubjects, setAllSubjects] = useState([]);
 
-  const classes = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        // Fetch school config
+        const schoolRes = await axios.get("http://localhost:7000/api/school");
+        setSchoolConfig(schoolRes.data);
+
+        // Fetch subjects
+        const gradesData = await gradeService.getGrades();
+        if (gradesData && Array.isArray(gradesData)) {
+          const subjectsSet = new Set();
+          gradesData.forEach(g => {
+            if (g.subjects) {
+              g.subjects.forEach(s => {
+                if (s.subjectId && s.subjectId.subjectName) {
+                  subjectsSet.add(s.subjectId.subjectName);
+                }
+              });
+            }
+          });
+          setAllSubjects(Array.from(subjectsSet).sort());
+        }
+      } catch (err) {
+        console.error("Failed to fetch initial data:", err);
+      }
+    };
+    if (isOpen) {
+      fetchInitialData();
+    }
+  }, [isOpen]);
+
+  const classes = React.useMemo(() => {
+    if (!schoolConfig || !schoolConfig.gradeSpan) return [];
+    const { start, end } = schoolConfig.gradeSpan;
+    const list = [];
+    for (let i = start; i <= end; i++) {
+      list.push(String(i));
+    }
+    return list;
+  }, [schoolConfig]);
 
   if (!isOpen) return null;
   if (typeof document === "undefined") return null;
@@ -53,11 +96,12 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
         email: formData.email,
         phone: formData.phoneNo,
         gender: formData.gender,
+        birthdate: formData.birthdate,
         currentAddress: formData.currentAddress,
-        qualification: formData.age,
-        primarySubject: null,
-        secondarySubject: null,
-        assignedGrades: [],
+        qualification: formData.qualification,
+        primarySubject: formData.subject,
+        secondarySubject: formData.secondarySubject,
+        assignedGrades: formData.class,
         assignedSections: [],
       });
 
@@ -71,7 +115,8 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
         onClose();
         setFormData({
           name: "",
-          age: "",
+          birthdate: "",
+          qualification: "",
           gender: "",
           phoneNo: "",
           subject: "",
@@ -94,7 +139,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-start justify-center p-4 sm:p-6 pt-6 sm:pt-12 animate-in fade-in duration-300 overflow-hidden"
+      className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-start justify-center p-4 sm:p-6 pt-2 sm:pt-4 animate-in fade-in duration-300 overflow-hidden"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
@@ -160,18 +205,32 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  Date of Birth
+                </label>
+                <input
+                  name="birthdate"
+                  type="date"
+                  required
+                  onChange={handleChange}
+                  value={formData.birthdate}
+                  className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    Age
+                    Qualification
                   </label>
                   <input
-                    name="age"
-                    type="number"
+                    name="qualification"
+                    type="text"
                     required
                     onChange={handleChange}
-                    value={formData.age}
-                    placeholder="Years"
+                    value={formData.qualification}
+                    placeholder="e.g. M.Ed, B.Sc"
                     className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
                   />
                 </div>
@@ -225,30 +284,44 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      Core Subject
+                      Main Subject
                     </label>
-                    <input
-                      name="subject"
-                      required
-                      onChange={handleChange}
-                      value={formData.subject}
-                      placeholder="e.g. Science"
-                      className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
-                    />
+                    <div className="relative group">
+                      <select
+                        name="subject"
+                        required
+                        onChange={handleChange}
+                        value={formData.subject}
+                        className="appearance-none w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer"
+                      >
+                        <option value="">Main Subject</option>
+                        {allSubjects.map(sub => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      Elective Subject
+                      Secondary Subject
                     </label>
-                    <input
-                      name="secondarySubject"
-                      required
-                      onChange={handleChange}
-                      value={formData.secondarySubject}
-                      placeholder="e.g. English"
-                      className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
-                    />
+                    <div className="relative group">
+                      <select
+                        name="secondarySubject"
+                        required
+                        onChange={handleChange}
+                        value={formData.secondarySubject}
+                        className="appearance-none w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer"
+                      >
+                        <option value="">Secondary Subject</option>
+                        {allSubjects.map(sub => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                    </div>
                   </div>
                 </div>
 
@@ -262,15 +335,13 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
                         key={cls}
                         type="button"
                         onClick={() => handleClassChange(cls)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                          formData.class.includes(cls)
-                            ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                            : "bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500"
-                        } ${
-                          formData.class.length >= 3 && !formData.class.includes(cls)
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.class.includes(cls)
+                          ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                          : "bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500"
+                          } ${formData.class.length >= 3 && !formData.class.includes(cls)
                             ? "opacity-30 cursor-not-allowed"
                             : ""
-                        }`}
+                          }`}
                         disabled={formData.class.length >= 3 && !formData.class.includes(cls)}
                       >
                         Grade {cls}

@@ -1,28 +1,37 @@
 import React, { useState } from "react";
-import { Users, Search, Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import axios from "axios";
+import { Users, Search, Trash2, Plus, ChevronLeft, ChevronRight, Loader2, AlertCircle } from "lucide-react";
 import { AddPopupStudent } from "../AdminComponents/Admin/AddPopupStudent";
-
-const initialStudents = [
-  { _id: "1", studentId: "2024001", firstName: "Cristiano", lastName: "Ronaldo", email: "cr7@madrid.edu", studentClass: "10", flag: "green" },
-  { _id: "2", studentId: "2024002", firstName: "Luka", lastName: "Modric", email: "luka.m@madrid.edu", studentClass: "10", flag: "yellow" },
-  { _id: "3", studentId: "2024003", firstName: "Vinicius", lastName: "Junior", email: "vini.jr@madrid.edu", studentClass: "9", flag: "red" },
-  { _id: "4", studentId: "2024004", firstName: "Jude", lastName: "Bellingham", email: "jude.b@madrid.edu", studentClass: "11", flag: "green" },
-  { _id: "5", studentId: "2024005", firstName: "Federico", lastName: "Valverde", email: "fede.v@madrid.edu", studentClass: "11", flag: "green" },
-  { _id: "6", studentId: "2024006", firstName: "Thibaut", lastName: "Courtois", email: "thibaut.c@madrid.edu", studentClass: "12", flag: "yellow" },
-  { _id: "7", studentId: "2024007", firstName: "Eduardo", lastName: "Camavinga", email: "edu.c@madrid.edu", studentClass: "9", flag: "red" },
-  { _id: "8", studentId: "2024008", firstName: "Rodrygo", lastName: "Goes", email: "rodrygo.g@madrid.edu", studentClass: "10", flag: "green" },
-  { _id: "9", studentId: "2024009", firstName: "Antonio", lastName: "Rudiger", email: "toni.r@madrid.edu", studentClass: "12", flag: "red" },
-  { _id: "10", studentId: "2024010", firstName: "Dani", lastName: "Carvajal", email: "dani.c@madrid.edu", studentClass: "12", flag: "green" },
-  { _id: "11", studentId: "2024011", firstName: "David", lastName: "Alaba", email: "david.a@madrid.edu", studentClass: "11", flag: "yellow" },
-  { _id: "12", studentId: "2024012", firstName: "Eder", lastName: "Militao", email: "eder.m@madrid.edu", studentClass: "10", flag: "green" },
-];
+import ConfirmDialog from "../MainSystemComponents/ConfirmDialog";
+import { toast } from "../MainSystemComponents/Toast";
 
 const StudentRecord = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [students, setStudents] = useState(initialStudents);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, studentId: null, studentName: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get("http://localhost:7000/students");
+      setStudents(response.data);
+      setError(null);
+    } catch (err) {
+      setError("Failed to fetch student records. Please ensure backend is running.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchStudents();
+  }, []);
 
   const getFlagColor = (flag) => {
     switch (flag) {
@@ -33,19 +42,36 @@ const StudentRecord = () => {
     }
   };
 
-  const filtered = students.filter(s => 
+  const filtered = Array.isArray(students) ? students.filter(s =>
     `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(s.studentId || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) : [];
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const currentItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Delete student record?")) return;
-    setStudents(prev => prev.filter(s => s._id !== id));
-    if (currentItems.length === 1 && currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
+  const handleDeleteClick = (student) => {
+    setDeleteDialog({
+      isOpen: true,
+      studentId: student._id,
+      studentName: `${student.firstName} ${student.lastName}`
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    const { studentId } = deleteDialog;
+    try {
+      await axios.delete(`http://localhost:7000/students/${studentId}`);
+      setStudents(prev => prev.filter(s => s._id !== studentId));
+      toast({ type: 'success', message: "Student record and account deleted.", duration: 3000 });
+      if (currentItems.length === 1 && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+      }
+    } catch (err) {
+      toast({ type: 'error', message: "Failed to delete student record.", duration: 3000 });
+      console.error(err);
+    } finally {
+      setDeleteDialog({ isOpen: false, studentId: null, studentName: "" });
     }
   };
 
@@ -65,9 +91,9 @@ const StudentRecord = () => {
 
         <div className="flex-1 max-w-xl relative">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search student records..." 
+          <input
+            type="text"
+            placeholder="Search student records..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -77,7 +103,7 @@ const StudentRecord = () => {
           />
         </div>
 
-        <button 
+        <button
           onClick={() => setIsPopupOpen(true)}
           className="px-10 py-5 bg-emerald-500 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
         >
@@ -99,7 +125,23 @@ const StudentRecord = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-              {currentItems.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-32 flex flex-col items-center justify-center">
+                    <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mb-4" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accessing Student Vault...</p>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="py-32">
+                    <div className="flex flex-col items-center justify-center text-red-500">
+                      <AlertCircle className="w-10 h-10 mb-4" />
+                      <p className="text-sm font-bold uppercase tracking-widest">{error}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : currentItems.length > 0 ? (
                 currentItems.map((s) => (
                   <tr key={s._id} className="group hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5 transition-all">
                     <td className="pl-12 pr-6 py-6 font-bold text-slate-400 text-xs">{s.studentId}</td>
@@ -124,8 +166,8 @@ const StudentRecord = () => {
                     </td>
                     <td className="pr-12 pl-6 py-6 text-center">
                       <div className="flex items-center justify-center transition-all">
-                        <button 
-                          onClick={() => handleDelete(s._id)} 
+                        <button
+                          onClick={() => handleDeleteClick(s)}
                           className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
                           title="Delete Record"
                         >
@@ -148,16 +190,16 @@ const StudentRecord = () => {
         <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Record {currentPage} of {totalPages}</p>
           <div className="flex items-center gap-3">
-            <button 
+            <button
               disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => Math.max(1, p-1))}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft size={18} />
             </button>
-            <button 
+            <button
               disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronRight size={18} />
@@ -166,10 +208,18 @@ const StudentRecord = () => {
         </div>
       </div>
 
-      <AddPopupStudent 
-        isOpen={isPopupOpen} 
-        onClose={() => setIsPopupOpen(false)} 
-        onSuccess={() => {}} 
+      <AddPopupStudent
+        isOpen={isPopupOpen}
+        onClose={() => setIsPopupOpen(false)}
+        onSuccess={fetchStudents}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ ...deleteDialog, isOpen: false })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Student Record?"
+        message={`Are you sure you want to permanently delete the record for ${deleteDialog.studentName}? This action will also remove their linked user account and cannot be undone.`}
       />
     </div>
   );

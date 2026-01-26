@@ -38,7 +38,7 @@ const schoolSchema = new mongoose.Schema({
 // =============================================
 const gradeSchema = new mongoose.Schema({
   schoolId: { type: Number, default: 1 },
-  gradeNumber: { type: Number, required: true, min: 1, max: 10 },  // 1 to 10
+  gradeNumber: { type: Number, required: true, min: 1, max: 13 },  // 1 to 13
   gradeName: String,  // "Grade 1", "Class I"
   sections: [{
     sectionName: { type: String, required: true },  // 'A', 'B', 'C' up to 10
