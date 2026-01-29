@@ -8,7 +8,8 @@ import {
   ChevronRight,
   GraduationCap,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Pencil
 } from "lucide-react";
 import AddPopupTeacher from "../AdminComponents/Admin/AddPopupTeacher";
 import { toast } from "../MainSystemComponents/Toast";
@@ -21,11 +22,12 @@ const TeacherRecord = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState(null);
 
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:7000/teachers");
+      const response = await axios.get("http://localhost:7000/api/teachers");
       setTeachers(response.data);
       setError(null);
     } catch (err) {
@@ -60,7 +62,7 @@ const TeacherRecord = () => {
   const handleDelete = async (teacher) => {
     if (!window.confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`)) return;
     try {
-      await axios.delete(`http://localhost:7000/teachers/${teacher._id}`);
+      await axios.delete(`http://localhost:7000/api/teachers/${teacher._id}`);
       setTeachers(prev => prev.filter(t => t._id !== teacher._id));
       toast({ type: 'success', message: "Teacher record deleted successfully.", duration: 3000 });
       if (currentTeachers.length === 1 && currentPage > 1) {
@@ -101,7 +103,10 @@ const TeacherRecord = () => {
         </div>
 
         <button
-          onClick={() => setIsPopupOpen(true)}
+          onClick={() => {
+            setEditingTeacher(null);
+            setIsPopupOpen(true);
+          }}
           className="px-10 py-5 bg-emerald-500 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
         >
           <Plus size={22} /> ADD TEACHER
@@ -166,7 +171,17 @@ const TeacherRecord = () => {
                       {teacher.secondarySubject?.subjectName || "—"}
                     </td>
                     <td className="pr-12 pl-6 py-6 text-center">
-                      <div className="flex items-center justify-center transition-all">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingTeacher(teacher);
+                            setIsPopupOpen(true);
+                          }}
+                          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl"
+                          title="Edit Faculty Record"
+                        >
+                          <Pencil size={18} />
+                        </button>
                         <button
                           onClick={() => handleDelete(teacher)}
                           className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
@@ -225,8 +240,12 @@ const TeacherRecord = () => {
 
       <AddPopupTeacher
         isOpen={isPopupOpen}
-        onClose={() => setIsPopupOpen(false)}
+        onClose={() => {
+          setIsPopupOpen(false);
+          setEditingTeacher(null);
+        }}
         onSuccess={fetchTeachers}
+        teacherToEdit={editingTeacher}
       />
     </div>
   );

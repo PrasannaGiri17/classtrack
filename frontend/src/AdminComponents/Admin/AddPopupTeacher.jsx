@@ -5,7 +5,7 @@ import { X, UserPlus, Check, AlertCircle, User, Phone, BookOpen, ChevronDown } f
 import FailedPopup from "../SmallerComponents/FailedPopup";
 import gradeService from "../../Api/gradeService";
 
-const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
+const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) => {
   const [formData, setFormData] = useState({
     name: "",
     birthdate: "",
@@ -52,8 +52,35 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
     };
     if (isOpen) {
       fetchInitialData();
+      if (teacherToEdit) {
+        setFormData({
+          name: `${teacherToEdit.firstName} ${teacherToEdit.lastName}`,
+          birthdate: teacherToEdit.birthdate ? new Date(teacherToEdit.birthdate).toISOString().split('T')[0] : "",
+          qualification: teacherToEdit.qualification || "",
+          gender: teacherToEdit.gender || "",
+          phoneNo: teacherToEdit.phone || "",
+          subject: teacherToEdit.primarySubject?.subjectName || "",
+          secondarySubject: teacherToEdit.secondarySubject?.subjectName || "",
+          class: teacherToEdit.assignedGrades?.map(g => String(g.gradeNumber)) || [],
+          email: teacherToEdit.email || "",
+          currentAddress: teacherToEdit.currentAddress || "",
+        });
+      } else {
+        setFormData({
+          name: "",
+          birthdate: "",
+          qualification: "",
+          gender: "",
+          phoneNo: "",
+          subject: "",
+          secondarySubject: "",
+          class: [],
+          email: "",
+          currentAddress: "",
+        });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, teacherToEdit]);
 
   const classes = React.useMemo(() => {
     if (!schoolConfig || !schoolConfig.gradeSpan) return [];
@@ -90,7 +117,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
     const lastName = parts.slice(1).join(" ") || ".";
 
     try {
-      const res = await axios.post("http://localhost:7000/teachers/add", {
+      const payload = {
         firstName,
         lastName,
         email: formData.email,
@@ -103,33 +130,42 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
         secondarySubject: formData.secondarySubject,
         assignedGrades: formData.class,
         assignedSections: [],
-      });
+      };
+
+      let res;
+      if (teacherToEdit) {
+        res = await axios.put(`http://localhost:7000/api/teachers/${teacherToEdit._id}`, payload);
+      } else {
+        res = await axios.post("http://localhost:7000/api/teachers/add", payload);
+      }
 
       setPopup({
-        message: res.data?.message || "Teacher record successfully saved.",
+        message: res.data?.message || `Teacher record successfully ${teacherToEdit ? "updated" : "saved"}.`,
         type: "success",
       });
 
       setTimeout(() => {
         if (onSuccess) onSuccess();
         onClose();
-        setFormData({
-          name: "",
-          birthdate: "",
-          qualification: "",
-          gender: "",
-          phoneNo: "",
-          subject: "",
-          secondarySubject: "",
-          class: [],
-          email: "",
-          currentAddress: "",
-        });
+        if (!teacherToEdit) {
+          setFormData({
+            name: "",
+            birthdate: "",
+            qualification: "",
+            gender: "",
+            phoneNo: "",
+            subject: "",
+            secondarySubject: "",
+            class: [],
+            email: "",
+            currentAddress: "",
+          });
+        }
         setPopup({ message: "", type: "error" });
       }, 1500);
     } catch (err) {
       setPopup({
-        message: err?.response?.data?.message || "Record creation failed. Please check your inputs.",
+        message: err?.response?.data?.message || `Record ${teacherToEdit ? "update" : "creation"} failed. Please check your inputs.`,
         type: "error",
       });
     } finally {
@@ -162,10 +198,10 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
-                Enroll Teacher
+                {teacherToEdit ? "Edit Teacher Record" : "Enroll Teacher"}
               </h2>
               <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-1.5">
-                New Academic Record
+                {teacherToEdit ? "Update Faculty Details" : "New Academic Record"}
               </p>
             </div>
           </div>
@@ -420,7 +456,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess }) => {
               ) : (
                 <Check size={16} strokeWidth={3} />
               )}
-              Submit Record
+              {teacherToEdit ? "Update Record" : "Submit Record"}
             </button>
           </div>
         </form>

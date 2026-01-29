@@ -71,7 +71,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
     }
 
     try {
-      await axios.post("http://localhost:7000/students/add", {
+      await axios.post("http://localhost:7000/api/students/add", {
         firstName,
         lastName,
         parentName: formData.parentName,

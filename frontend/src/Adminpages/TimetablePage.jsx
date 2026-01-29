@@ -1,83 +1,184 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Clock, 
-  BookOpen, 
-  User, 
-  Coffee, 
-  Trophy, 
-  ChevronDown, 
-  Save, 
+import {
+  Clock,
+  BookOpen,
+  User,
+  Coffee,
+  Trophy,
+  ChevronDown,
+  Save,
   AlertCircle,
   CheckCircle2,
-  CalendarDays
+  CalendarDays,
+  Loader2
 } from 'lucide-react';
-
-// --- Dummy Data ---
-const GRADES = ["5", "6", "7", "8", "9", "10"];
-const SECTIONS = ["A", "B", "C"];
-
-const SUBJECTS = [
-  { id: 's1', name: 'Mathematics', grade: 'all' },
-  { id: 's2', name: 'Science', grade: 'all' },
-  { id: 's3', name: 'English', grade: 'all' },
-  { id: 's4', name: 'Social Studies', grade: 'all' },
-  { id: 's5', name: 'Nepali', grade: 'all' },
-  { id: 's6', name: 'Computer Science', grade: '9,10' },
-];
-
-const TEACHERS = [
-  { id: 't1', name: 'John Smith', subjects: ['s1', 's2'] },
-  { id: 't2', name: 'Emma Johnson', subjects: ['s3', 's5'] },
-  { id: 't3', name: 'Michael Brown', subjects: ['s4'] },
-  { id: 't4', name: 'Sarah Davis', subjects: ['s1', 's6'] },
-  { id: 't5', name: 'Robert Wilson', subjects: ['s2', 's6'] },
-];
-
-// Predefined structure from "Academic Timeline"
-const DAILY_STRUCTURE = [
-  { id: 'p1', type: 'subject', label: 'Period 1', startTime: '09:00', endTime: '09:45' },
-  { id: 'p2', type: 'subject', label: 'Period 2', startTime: '09:45', endTime: '10:30' },
-  { id: 'pb1', type: 'break', label: 'Short Break', startTime: '10:30', endTime: '10:45' },
-  { id: 'p3', type: 'subject', label: 'Period 3', startTime: '10:45', endTime: '11:30' },
-  { id: 'ps1', type: 'sport', label: 'Physical Activity', startTime: '11:30', endTime: '12:15' },
-];
+import timetableService from '../Api/timetableService';
+import gradeService from '../Api/gradeService';
+import { toast } from '../MainSystemComponents/Toast';
 
 const TimetablePage = () => {
-  const [selectedGrade, setSelectedGrade] = useState('5');
-  const [selectedSection, setSelectedSection] = useState('A');
+  const [grades, setGrades] = useState([]);
+  const [selectedGrade, setSelectedGrade] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
+  const [availableSections, setAvailableSections] = useState([]);
+
+  const [routineSlots, setRoutineSlots] = useState([]);
   const [assignments, setAssignments] = useState({});
+  const [subjects, setSubjects] = useState([]);
+  const [busyTeachers, setBusyTeachers] = useState({});
+
+  const [teachers, setTeachers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
-  // Reset save state on change
+  // Fetch initial data (Grades)
   useEffect(() => {
-    setIsSaved(false);
-  }, [selectedGrade, selectedSection, assignments]);
+    const fetchGrades = async () => {
+      try {
+        const data = await gradeService.getGrades();
+        setGrades(data);
+        if (data.length > 0) {
+          setSelectedGrade(data[0].gradeNumber.toString());
+        }
+      } catch (error) {
+        console.error("Error fetching grades:", error);
+        toast({ type: 'error', message: "Failed to load grades." });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchGrades();
+  }, []);
+
+  // Update sections and options when grade changes
+  useEffect(() => {
+    if (!selectedGrade) return;
+
+    const grade = grades.find(g => g.gradeNumber.toString() === selectedGrade);
+    if (grade) {
+      setAvailableSections(grade.sections || []);
+      if (grade.sections?.length > 0) {
+        setSelectedSection(grade.sections[0].sectionName);
+      }
+    }
+
+    const fetchOptions = async () => {
+      try {
+        const options = await timetableService.getTimetableOptions(selectedGrade);
+        setSubjects(options.subjects || []);
+        setTeachers(options.teachers || []);
+        setBusyTeachers(options.busyTeachers || {});
+      } catch (error) {
+        console.error("Error fetching options:", error);
+      }
+    };
+    fetchOptions();
+  }, [selectedGrade, grades]);
+
+  // Fetch timetable when grade or section changes
+  useEffect(() => {
+    if (!selectedGrade || !selectedSection) return;
+
+    const fetchTimetable = async () => {
+      setIsLoading(true);
+      try {
+        const data = await timetableService.getTimetable(selectedGrade, selectedSection);
+        setRoutineSlots(data.slots || []);
+        setAssignments(data.assignments || {});
+      } catch (error) {
+        console.error("Error fetching timetable:", error);
+        // If routine not found, we should probably show a better message
+        setRoutineSlots([]);
+        setAssignments({});
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTimetable();
+  }, [selectedGrade, selectedSection]);
 
   const handleAssignmentChange = (periodId, field, value) => {
+    // Conflict Check for Teacher
+    if (field === 'teacherId' && value) {
+      const busyList = busyTeachers[periodId] || [];
+      const conflict = busyList.find(b =>
+        b.teacherId === value &&
+        !(b.gradeNumber === selectedGrade && b.sectionName === selectedSection)
+      );
+
+      if (conflict) {
+        toast({
+          type: 'error',
+          message: `Teacher ${conflict.teacherName} is already assigned to Grade ${conflict.gradeNumber} Section ${conflict.sectionName} at this time.`
+        });
+        return; // Block assignment
+      }
+    }
+
     setAssignments(prev => ({
       ...prev,
       [periodId]: {
         ...(prev[periodId] || { subjectId: '', teacherId: '' }),
-        [field]: value
+        [field]: value,
+        // Reset teacher if subject changes
+        ...(field === 'subjectId' ? { teacherId: '' } : {})
       }
     }));
   };
 
-  const getAvailableTeachers = (subjectId) => {
+  const getAvailableTeachers = (subjectId, slotLabel) => {
     if (!subjectId) return [];
-    return TEACHERS.filter(t => t.subjects.includes(subjectId));
+
+    // Check if it's Physical Activity or Sport
+    const label = (slotLabel || '').toLowerCase();
+    if (label.includes('physical') || label.includes('sport')) {
+      return [];
+    }
+
+    // Filter teachers who teach this subject
+    // Handle both populated objects and ID strings
+    return teachers.filter(t => {
+      const primaryId = t.primarySubject?._id || t.primarySubject;
+      const secondaryId = t.secondarySubject?._id || t.secondarySubject;
+      return primaryId === subjectId || secondaryId === subjectId;
+    });
   };
 
-  const handleSave = () => {
-    // Logic to simulate saving to DB
-    console.log('Saving Timetable:', {
-      grade: selectedGrade,
-      section: selectedSection,
-      assignments
-    });
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await timetableService.updateTimetable(selectedGrade, selectedSection, assignments);
+      setIsSaved(true);
+      toast({ type: 'success', message: "Timetable updated successfully!" });
+      setTimeout(() => setIsSaved(false), 3000);
+    } catch (error) {
+      console.error("Error saving timetable:", error);
+      toast({ type: 'error', message: "Failed to save timetable." });
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const formatTime = (totalMinutes) => {
+    let hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+    return `${hours}:${minutesStr} ${ampm}`;
+  };
+
+  let currentMinutes = 9 * 60; // Initialize starting time at 9:00 AM
+
+  if (isLoading && grades.length === 0) {
+    return (
+      <div className="h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -96,24 +197,26 @@ const TimetablePage = () => {
         <div className="flex items-center gap-3">
           {/* Grade Selector */}
           <div className="relative group">
-            <select 
+            <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
               className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-600 dark:text-slate-300 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm cursor-pointer"
             >
-              {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
+              <option value="" disabled>Select Grade</option>
+              {grades.map(g => <option key={g.gradeNumber} value={g.gradeNumber}>Grade {g.gradeNumber}</option>)}
             </select>
             <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
           </div>
 
           {/* Section Selector */}
           <div className="relative group">
-            <select 
+            <select
               value={selectedSection}
               onChange={(e) => setSelectedSection(e.target.value)}
               className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-600 dark:text-slate-300 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm cursor-pointer"
             >
-              {SECTIONS.map(s => <option key={s} value={s}>Section {s}</option>)}
+              <option value="" disabled>Select Section</option>
+              {availableSections.map(s => <option key={s.sectionName} value={s.sectionName}>Section {s.sectionName}</option>)}
             </select>
             <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
           </div>
@@ -124,11 +227,11 @@ const TimetablePage = () => {
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-8 lg:p-10 space-y-6">
         <div className="flex items-center justify-between mb-8 border-b border-slate-50 dark:border-slate-800 pb-6">
           <div className="flex items-center gap-3">
-             <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-               Matrix Loaded: G{selectedGrade}-{selectedSection}
-             </div>
+            <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+              Matrix Loaded: G{selectedGrade}-{selectedSection}
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> Subject
             </div>
@@ -142,96 +245,126 @@ const TimetablePage = () => {
         </div>
 
         <div className="space-y-4">
-          {DAILY_STRUCTURE.map((period, index) => {
-            const isSubject = period.type === 'subject';
-            const assignment = assignments[period.id] || { subjectId: '', teacherId: '' };
-            const availableTeachers = getAvailableTeachers(assignment.subjectId);
+          {isLoading ? (
+            <div className="py-20 flex flex-col items-center gap-4">
+              <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Sycing with Server...</p>
+            </div>
+          ) : routineSlots.length === 0 ? (
+            <div className="py-20 flex flex-col items-center text-center bg-slate-50/50 dark:bg-slate-800/20 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700">
+              <AlertCircle className="text-slate-300 mb-4" size={48} />
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">No Routine Framework Found</h3>
+              <p className="text-xs font-medium text-slate-500 mt-2">Please define the routine structure in the Routine View first.</p>
+            </div>
+          ) : (
+            routineSlots.map((period, index) => {
+              const isSubject = period.type === 'subject';
+              const assignment = assignments[period.id] || { subjectId: '', teacherId: '' };
 
-            return (
-              <div 
-                key={period.id} 
-                className={`
-                  flex flex-col lg:flex-row items-center gap-6 p-6 rounded-3xl border transition-all duration-300
-                  ${isSubject 
-                    ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-emerald-500/30 shadow-sm' 
-                    : 'bg-slate-50/50 dark:bg-slate-800/20 border-transparent opacity-80'}
-                `}
-              >
-                {/* Time Indicator - Updated for Single Line Layout */}
-                <div className="w-full lg:w-[180px] shrink-0 flex items-center">
-                  <div className="flex items-center gap-2.5 text-slate-900 dark:text-white font-semibold text-sm whitespace-nowrap">
-                    <Clock size={16} className="text-slate-400 shrink-0" />
-                    <span>{period.startTime} – {period.endTime}</span>
+              // Determine if this is a physical activity/sport slot (by label or selected subject)
+              const selectedSubject = subjects.find(s => s._id === assignment.subjectId);
+              const subjectName = selectedSubject?.subjectName || '';
+              const isPhysical = period.type === 'sport' ||
+                (period.label || '').toLowerCase().includes('physical') ||
+                (period.label || '').toLowerCase().includes('sport') ||
+                subjectName.toLowerCase().includes('physical') ||
+                subjectName.toLowerCase().includes('sport');
+
+              const availableTeachers = getAvailableTeachers(assignment.subjectId, period.label);
+
+              // Calculate start and end times
+              const startTime = formatTime(currentMinutes);
+              const endTime = formatTime(currentMinutes + period.durationMinutes);
+              currentMinutes += period.durationMinutes;
+
+              return (
+                <div
+                  key={period.id}
+                  className={`
+                    flex flex-col lg:flex-row items-center gap-6 p-6 rounded-3xl border transition-all duration-300
+                    ${isSubject
+                      ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-emerald-500/30 shadow-sm'
+                      : 'bg-slate-50/50 dark:bg-slate-800/20 border-transparent opacity-80'}
+                  `}
+                >
+                  {/* Time Indicator */}
+                  <div className="w-full lg:w-[180px] shrink-0 flex items-center">
+                    <div className="flex items-center gap-2.5 text-slate-900 dark:text-white font-black text-[10px] uppercase tracking-widest whitespace-nowrap">
+                      <Clock size={16} className="text-emerald-500 shrink-0" />
+                      <span>{startTime} - {endTime}</span>
+                    </div>
                   </div>
+
+                  {/* Period Info */}
+                  <div className="w-full lg:w-[200px] flex items-center gap-4">
+                    <div className={`
+                      w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm
+                      ${period.type === 'break' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/20' :
+                        period.type === 'sport' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/20' :
+                          'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/20'}
+                    `}>
+                      {period.type === 'break' ? <Coffee size={20} /> :
+                        period.type === 'sport' ? <Trophy size={20} /> :
+                          <BookOpen size={20} />}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{period.label}</h4>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                        {period.type === 'subject' ? 'Academic Slot' : period.type === 'break' ? 'Recess' : 'Field Activity'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Assignment Controls (Only for Academic Subjects) */}
+                  {isSubject && !isPhysical ? (
+                    <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Subject Select */}
+                      <div className="relative group">
+                        <select
+                          value={assignment.subjectId}
+                          onChange={(e) => handleAssignmentChange(period.id, 'subjectId', e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer appearance-none"
+                        >
+                          <option value="">Select Subject</option>
+                          {subjects.map(s => (
+                            <option key={s._id} value={s._id}>{s.subjectName}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                      </div>
+
+                      {/* Teacher Select */}
+                      <div className="relative group">
+                        <select
+                          disabled={!assignment.subjectId}
+                          value={assignment.teacherId}
+                          onChange={(e) => handleAssignmentChange(period.id, 'teacherId', e.target.value)}
+                          className={`
+                            w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer appearance-none
+                            ${!assignment.subjectId ? 'opacity-50 cursor-not-allowed' : ''}
+                          `}
+                        >
+                          <option value="">Assign Teacher</option>
+                          {availableTeachers.map(t => (
+                            <option key={t._id} value={t._id}>{t.firstName} {t.lastName}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 w-full flex items-center justify-center lg:justify-start">
+                      <div className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/50 dark:border-slate-700">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          {isPhysical ? 'Sport Block' : `${period.breakType || 'Recess'} Block`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Period Info */}
-                <div className="w-full lg:w-[200px] flex items-center gap-4">
-                  <div className={`
-                    w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm
-                    ${period.type === 'break' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/20' : 
-                      period.type === 'sport' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/20' : 
-                      'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/20'}
-                  `}>
-                    {period.type === 'break' ? <Coffee size={20} /> : 
-                     period.type === 'sport' ? <Trophy size={20} /> : 
-                     <BookOpen size={20} />}
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{period.label}</h4>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                      {period.type === 'subject' ? 'Academic Slot' : period.type === 'break' ? 'Recess' : 'Field Activity'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Assignment Controls (Only for Subjects) */}
-                {isSubject ? (
-                  <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Subject Select */}
-                    <div className="relative group">
-                      <select 
-                        value={assignment.subjectId}
-                        onChange={(e) => handleAssignmentChange(period.id, 'subjectId', e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer appearance-none"
-                      >
-                        <option value="">Select Subject</option>
-                        {SUBJECTS.map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
-                    </div>
-
-                    {/* Teacher Select */}
-                    <div className="relative group">
-                      <select 
-                        disabled={!assignment.subjectId}
-                        value={assignment.teacherId}
-                        onChange={(e) => handleAssignmentChange(period.id, 'teacherId', e.target.value)}
-                        className={`
-                          w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer appearance-none
-                          ${!assignment.subjectId ? 'opacity-50 cursor-not-allowed' : ''}
-                        `}
-                      >
-                        <option value="">Assign Teacher</option>
-                        {availableTeachers.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 w-full flex items-center justify-center lg:justify-start">
-                    <div className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/50 dark:border-slate-700">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Read Only Block</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -239,22 +372,22 @@ const TimetablePage = () => {
           <div className="flex items-center gap-4 p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[28px] border border-emerald-100/50 dark:border-emerald-800/30">
             <AlertCircle className="text-emerald-500 shrink-0" size={20} />
             <p className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">
-              Verification Notice: Teacher availability is automatically checked against overlapping schedules in the current grade matrix.
+              Verification Notice: Only teachers specializing in the selected subject are available for allocation.
             </p>
           </div>
 
-          <button 
+          <button
             onClick={handleSave}
-            disabled={Object.keys(assignments).length === 0}
+            disabled={routineSlots.length === 0 || isSaving}
             className={`
               flex items-center gap-3 px-14 py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all hover:scale-105 active:scale-95
-              ${isSaved 
-                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-slate-900/20' 
+              ${isSaved
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-slate-900/20'
                 : 'bg-emerald-500 text-white shadow-emerald-500/20 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed'}
             `}
           >
-            {isSaved ? <CheckCircle2 size={20} /> : <Save size={20} />}
-            {isSaved ? 'Timetable Saved' : 'Publish Matrix'}
+            {isSaving ? <Loader2 size={20} className="animate-spin" /> : isSaved ? <CheckCircle2 size={20} /> : <Save size={20} />}
+            {isSaving ? 'Saving...' : isSaved ? 'Timetable Saved' : 'Publish Matrix'}
           </button>
         </div>
       </div>

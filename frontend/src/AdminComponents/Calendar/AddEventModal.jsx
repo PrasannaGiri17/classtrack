@@ -1,12 +1,98 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Calendar, Check, AlertCircle } from "lucide-react";
+import { toast } from "../../MainSystemComponents/Toast";
 
-const AddEventModal = ({ isOpen, onClose }) => {
-  const [isRange, setIsRange] = useState(true);
+const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
+  const [isRange, setIsRange] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    category: "event", // event, holiday, exam
+    startDate: "",
+    endDate: "",
+    sendTo: "",
+    description: ""
+  });
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
   if (typeof document === "undefined") return null;
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRangeToggle = (status) => {
+    setIsRange(status);
+    if (!status) {
+      // If switching to single, clear end date or sync it on submit
+      setFormData(prev => ({ ...prev, endDate: "" }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const payload = {
+        title: formData.title,
+        type: formData.category.toUpperCase(), // HOLIDAY, EXAMS, EVENT
+        startDate: formData.startDate,
+        endDate: isRange ? formData.endDate : formData.startDate,
+        audience: formData.sendTo,
+        description: formData.description,
+        school_id: 1, // Default
+        // Optional: map category to color explicitly if needed, 
+        // but backend adds default based on type.
+        // color: ...
+      };
+
+      const response = await fetch("http://localhost:7000/api/calendar/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create event");
+      }
+
+      const data = await response.json();
+
+      // Success Notification
+      toast({
+        type: 'success',
+        message: 'Event published successfully!',
+        duration: 4000
+      });
+
+      // Reset and close
+      onEventAdded(); // Trigger refresh in parent
+      setFormData({
+        title: "",
+        category: "event",
+        startDate: "",
+        endDate: "",
+        sendTo: "",
+        description: ""
+      });
+      setIsRange(false);
+      onClose();
+
+    } catch (error) {
+      console.error("Error creating event:", error);
+      toast({
+        type: 'error',
+        message: 'Failed to create event. Please check inputs.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return createPortal(
     <div
@@ -45,6 +131,7 @@ const AddEventModal = ({ isOpen, onClose }) => {
         <form
           id="add-event-form"
           className="flex-1 overflow-y-auto px-10 py-8 space-y-6 scrollbar-hide"
+          onSubmit={handleSubmit}
         >
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {/* Event Title */}
@@ -53,6 +140,10 @@ const AddEventModal = ({ isOpen, onClose }) => {
                 Event Title
               </label>
               <input
+                required
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
                 autoFocus
                 type="text"
                 placeholder="e.g. Science Exhibition or Mid-Term Exams"
@@ -65,10 +156,15 @@ const AddEventModal = ({ isOpen, onClose }) => {
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                 Event Category
               </label>
-              <select className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none">
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
+              >
                 <option value="event">Campus Event</option>
                 <option value="holiday">School Holiday</option>
-                <option value="exam">Examination Period</option>
+                <option value="exams">Examination Period</option>
               </select>
             </div>
 
@@ -80,23 +176,21 @@ const AddEventModal = ({ isOpen, onClose }) => {
               <div className="flex bg-slate-50 dark:bg-slate-800 p-1.5 rounded-[20px] shadow-inner">
                 <button
                   type="button"
-                  onClick={() => setIsRange(false)}
-                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    !isRange
-                      ? "bg-white dark:bg-slate-700 text-emerald-500 shadow-sm"
-                      : "text-slate-400"
-                  }`}
+                  onClick={() => handleRangeToggle(false)}
+                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!isRange
+                    ? "bg-white dark:bg-slate-700 text-emerald-500 shadow-sm"
+                    : "text-slate-400"
+                    }`}
                 >
                   Single
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsRange(true)}
-                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    isRange
-                      ? "bg-white dark:bg-slate-700 text-emerald-500 shadow-sm"
-                      : "text-slate-400"
-                  }`}
+                  onClick={() => handleRangeToggle(true)}
+                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isRange
+                    ? "bg-white dark:bg-slate-700 text-emerald-500 shadow-sm"
+                    : "text-slate-400"
+                    }`}
                 >
                   Range
                 </button>
@@ -109,6 +203,10 @@ const AddEventModal = ({ isOpen, onClose }) => {
                 {isRange ? "Start Date" : "Event Date"}
               </label>
               <input
+                required
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleChange}
                 type="date"
                 className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner"
               />
@@ -120,9 +218,35 @@ const AddEventModal = ({ isOpen, onClose }) => {
               </label>
               <input
                 disabled={!isRange}
+                required={isRange}
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleChange}
                 type="date"
                 className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner disabled:opacity-50"
               />
+            </div>
+
+            {/* Send To */}
+            <div className="md:col-span-12 space-y-2.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                Send To
+              </label>
+              <select
+                name="sendTo"
+                value={formData.sendTo}
+                onChange={handleChange}
+                required
+                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
+              >
+                <option value="" disabled>Select audience</option>
+                <option value="Students">Students</option>
+                <option value="Teachers">Teachers</option>
+                <option value="Whole School">Whole School</option>
+              </select>
+              <p className="text-[10px] font-medium text-slate-400 ml-1 mt-1.5">
+                Choose who will receive this event notification.
+              </p>
             </div>
 
             {/* Internal Description */}
@@ -131,6 +255,9 @@ const AddEventModal = ({ isOpen, onClose }) => {
                 Internal Description
               </label>
               <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
                 rows={3}
                 placeholder="Provide context for teachers and parents..."
                 className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[24px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 resize-none shadow-inner leading-relaxed"
@@ -161,14 +288,15 @@ const AddEventModal = ({ isOpen, onClose }) => {
           <button
             type="submit"
             form="add-event-form"
-            onClick={(e) => {
-              e.preventDefault();
-              onClose();
-            }}
-            className="flex items-center gap-3 px-12 py-4 bg-emerald-500 text-white rounded-[20px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+            disabled={loading}
+            className={`flex items-center gap-3 px-12 py-4 bg-emerald-500 text-white rounded-[20px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            <Check size={18} strokeWidth={3} />
-            Publish Event
+            {loading ? 'Publishing...' : (
+              <>
+                <Check size={18} strokeWidth={3} />
+                Publish Event
+              </>
+            )}
           </button>
         </div>
       </div>

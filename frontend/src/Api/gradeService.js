@@ -24,10 +24,22 @@ const syncSections = async (sectionCount, gradeList = []) => {
   return response.data;
 };
 
+const updateSectionName = async (payload) => {
+  const response = await axios.post(`${API_URL}/update-section-name`, payload);
+  return response.data;
+};
+
+const assignClassTeacher = async (payload) => {
+  const response = await axios.post(`${API_URL}/assign-class-teacher`, payload);
+  return response.data;
+};
+
 const gradeService = {
   getGrades,
   updateGradeSections,
-  syncSections
+  syncSections,
+  updateSectionName,
+  assignClassTeacher
 };
 
 export default gradeService;

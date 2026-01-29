@@ -18,7 +18,7 @@ const StudentRecord = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:7000/students");
+      const response = await axios.get("http://localhost:7000/api/students");
       setStudents(response.data);
       setError(null);
     } catch (err) {
@@ -61,7 +61,7 @@ const StudentRecord = () => {
   const handleConfirmDelete = async () => {
     const { studentId } = deleteDialog;
     try {
-      await axios.delete(`http://localhost:7000/students/${studentId}`);
+      await axios.delete(`http://localhost:7000/api/students/${studentId}`);
       setStudents(prev => prev.filter(s => s._id !== studentId));
       toast({ type: 'success', message: "Student record and account deleted.", duration: 3000 });
       if (currentItems.length === 1 && currentPage > 1) {

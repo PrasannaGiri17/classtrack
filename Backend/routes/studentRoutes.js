@@ -15,6 +15,8 @@ router.post("/add", studentController.addStudent);
 
 router.put("/:id", studentController.updateStudent);
 
+router.post("/bulk-enrollment", studentController.updateSectionEnrollment);
+router.post("/remove-from-section", studentController.removeStudentFromSection);
 router.delete("/:id", studentController.deleteStudent);
 
 module.exports = router;

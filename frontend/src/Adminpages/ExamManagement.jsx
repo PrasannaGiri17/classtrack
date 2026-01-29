@@ -1,40 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, Calendar, Settings2 } from 'lucide-react';
+import axios from 'axios';
+import { toast } from '../MainSystemComponents/Toast';
 
 import ModuleCard from '../AdminComponents/Exam/ModuleCard';
 import SchedulingView from '../AdminComponents/Exam/SchedulingView'
 import ControlView from '../AdminComponents/Exam/ControlView';
 
 // --- Constants & Dummy Data ---
-const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const SECTIONS = ["A", "B", "C"];
-const EXAM_NAMES = ["First Terminal", "Mid-Term", "Second Terminal", "Final Examination"];
 const YEARS = ["2025", "2026"];
-
-const INITIAL_PHASES = [
-  { id: 'ph1', name: 'First Terminal', status: 'Closed' },
-  { id: 'ph2', name: 'Mid-Term', status: 'Open' },
-  { id: 'ph3', name: 'Second Terminal', status: 'Closed' },
-  { id: 'ph4', name: 'Final Examination', status: 'Closed' },
-];
-
-const STUDENT_RESULTS = [
-  { 
-    id: 'r1', studentId: '2024001', name: 'Cristiano Ronaldo', phase: 'Mid-Term', grade: '10', section: 'A',
-    marks: { 'MATH': 85, 'SCI': 90, 'ENG': 88, 'SOC': 92, 'NEP': 75, 'COM': 94, 'ACC': 80, 'OPM': 89 }, 
-    total: 693, percentage: 86.6, gpa: '3.8', status: 'Passed' 
-  },
-  { 
-    id: 'r2', studentId: '2024002', name: 'Luka Modric', phase: 'Mid-Term', grade: '10', section: 'A',
-    marks: { 'MATH': 98, 'SCI': 82, 'ENG': 95, 'SOC': 88, 'NEP': 90, 'COM': 92, 'ACC': 84, 'OPM': 95 }, 
-    total: 732, percentage: 91.5, gpa: '4.0', status: 'Passed' 
-  },
-  { 
-    id: 'r3', studentId: '2024003', name: 'Vinicius Junior', phase: 'Mid-Term', grade: '10', section: 'A',
-    marks: { 'MATH': 78, 'SCI': 82, 'ENG': 70, 'SOC': 80, 'NEP': 72, 'COM': 85, 'ACC': null, 'OPM': 74 }, 
-    total: 541, percentage: 77.2, gpa: '3.2', status: 'Incomplete' 
-  },
-];
 
 const ANALYTICS_GRADE_DATA = [
   { grade: 'G5', average: 72 }, { grade: 'G6', average: 85 }, { grade: 'G7', average: 68 },
@@ -48,28 +23,165 @@ const ANALYTICS_SECTION_DATA = [
 const ExamManagement = () => {
   const [activeView, setActiveView] = useState('menu');
   const [selectedYear, setSelectedYear] = useState('2025');
-  
-  const [phases, setPhases] = useState(INITIAL_PHASES);
+
+  const [examData, setExamData] = useState(null);
+  const [grades, setGrades] = useState([]);
+
   const [analyticsGrade, setAnalyticsGrade] = useState('10');
   const [analyticsSection, setAnalyticsSection] = useState('A');
-  
+
   const [resYear, setResYear] = useState('2025');
-  const [resPhase, setResPhase] = useState('Mid-Term');
+  const [resPhase, setResPhase] = useState('MID-TERM 1');
   const [resGrade, setResGrade] = useState('10');
   const [resSection, setResSection] = useState('A');
   const [resultSearch, setResultSearch] = useState('');
   const [activeResultIndex, setActiveResultIndex] = useState(0);
 
-  const filteredResults = useMemo(() => {
-    return STUDENT_RESULTS.filter(r => {
-      const matchesSearch = r.name.toLowerCase().includes(resultSearch.toLowerCase()) || 
-                           r.studentId.includes(resultSearch);
-      const matchesGrade = r.grade === resGrade;
-      const matchesSection = !resSection || r.section === resSection;
-      const matchesPhase = r.phase === resPhase;
-      return matchesSearch && matchesGrade && matchesSection && matchesPhase;
+  // Fetch Initial Data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [examRes, gradesRes] = await Promise.all([
+          axios.get('http://localhost:7000/api/exams'),
+          axios.get('http://localhost:7000/api/grades')
+        ]);
+        setExamData({ ...examRes.data, allGrades: gradesRes.data });
+        setGrades(gradesRes.data.map(g => g.gradeNumber.toString()));
+        if (gradesRes.data.length > 0) {
+          const firstGrade = gradesRes.data[0];
+          const firstGradeNum = firstGrade.gradeNumber.toString();
+          setAnalyticsGrade(firstGradeNum);
+          setResGrade(firstGradeNum);
+          if (firstGrade.sections && firstGrade.sections.length > 0) {
+            setResSection(firstGrade.sections[0].sectionName);
+          }
+        }
+        // Initialize resPhase from exam data config
+        const { termsCount, includeMidTerm } = examRes.data.config || { termsCount: 3, includeMidTerm: true };
+        const initialPhase = includeMidTerm ? "MID-TERM 1" : "TERM 1";
+        setResPhase(initialPhase);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const phases = useMemo(() => {
+    if (!examData || !examData.config) return [];
+
+    const { termsCount, includeMidTerm } = examData.config;
+    const generatedPhases = [];
+
+    for (let i = 0; i < termsCount; i++) {
+      if (includeMidTerm) {
+        const name = `Mid-Term ${i + 1}`;
+        const upperName = name.toUpperCase();
+        const statusObj = examData.termStatuses?.find(s => s.term.toUpperCase() === upperName);
+        generatedPhases.push({
+          id: upperName,
+          name: upperName,
+          status: statusObj?.isOpen ? 'Open' : 'Closed'
+        });
+      }
+      const name = `Term ${i + 1}`;
+      const upperName = name.toUpperCase();
+      const statusObj = examData.termStatuses?.find(s => s.term.toUpperCase() === upperName);
+      generatedPhases.push({
+        id: upperName,
+        name: upperName,
+        status: statusObj?.isOpen ? 'Open' : 'Closed'
+      });
+    }
+
+    const finalName = 'FINAL';
+    generatedPhases.push({
+      id: finalName,
+      name: finalName,
+      status: examData.termStatuses?.find(s => s.term.toUpperCase() === finalName)?.isOpen ? 'Open' : 'Closed'
     });
-  }, [resultSearch, resGrade, resSection, resPhase]);
+
+    return generatedPhases;
+  }, [examData]);
+
+  const [realStudents, setRealStudents] = useState([]);
+  const [realResults, setRealResults] = useState([]);
+
+  // Fetch Students & Results when filters change
+  useEffect(() => {
+    const fetchStudentsAndResults = async () => {
+      // Find grade doc to get section details
+      const gradeDoc = examData?.allGrades?.find(g => g.gradeNumber.toString() === resGrade);
+      const sectionDoc = gradeDoc?.sections?.find(s => s.sectionName === resSection);
+
+      if (!gradeDoc || !sectionDoc) return;
+
+      try {
+        const [studentsRes, resultsRes] = await Promise.all([
+          axios.get(`http://localhost:7000/api/students?studentClass=${resGrade}&sectionId=${sectionDoc._id}`),
+          axios.get(`http://localhost:7000/api/results?gradeId=${gradeDoc._id}&sectionName=${resSection}&term=${resPhase}`)
+        ]);
+        setRealStudents(studentsRes.data);
+        setRealResults(resultsRes.data);
+      } catch (error) {
+        console.error("Failed to fetch students/results:", error);
+      }
+    };
+
+    if (examData) fetchStudentsAndResults();
+  }, [resGrade, resSection, resPhase, examData]);
+
+  const filteredResults = useMemo(() => {
+    // Find grade doc to get its subjects
+    const gradeDoc = examData?.allGrades?.find(g => g.gradeNumber.toString() === resGrade);
+
+    // Combine students with their results (if any)
+    const combined = realStudents.map(student => {
+      const result = realResults.find(r => (r.studentId?._id || r.studentId) === student._id);
+
+      // Initialize marks with all grade subjects
+      const marksObj = {};
+      if (gradeDoc && gradeDoc.subjects) {
+        gradeDoc.subjects.forEach(gs => {
+          const subName = gs.subjectId?.subjectName || gs.subjectId?.title;
+          if (subName) {
+            marksObj[subName.toUpperCase()] = null;
+          }
+        });
+      }
+
+      // Fill in actual marks if result exists
+      if (result && result.marks) {
+        result.marks.forEach(m => {
+          const subName = m.subjectId?.subjectName || m.subjectId?.title;
+          if (subName) {
+            marksObj[subName.toUpperCase()] = (m.theoryMarks || 0) + (m.practicalMarks || 0);
+          }
+        });
+      }
+
+      return {
+        id: student._id,
+        studentId: student.studentId,
+        name: `${student.firstName} ${student.lastName}`,
+        phase: resPhase,
+        grade: resGrade,
+        section: resSection,
+        marks: marksObj,
+        total: result?.summary?.total || 0,
+        percentage: result?.summary?.percentage || 0,
+        gpa: result?.summary?.gpa || '0.0',
+        status: result?.summary?.status || 'Incomplete'
+      };
+    });
+
+    // Apply search filter
+    return combined.filter(r => {
+      const matchesSearch = r.name.toLowerCase().includes(resultSearch.toLowerCase()) ||
+        r.studentId.toLowerCase().includes(resultSearch.toLowerCase());
+      return matchesSearch;
+    });
+  }, [realStudents, realResults, resultSearch, resGrade, resSection, resPhase, examData]);
 
   useEffect(() => {
     setActiveResultIndex(0);
@@ -89,12 +201,24 @@ const ExamManagement = () => {
     }
   };
 
-  const togglePhase = (id) => {
-    setPhases(prev => prev.map(p => {
-      if (p.id === id) return { ...p, status: p.status === 'Open' ? 'Closed' : 'Open' };
-      if (p.status === 'Open' && p.id !== id) return { ...p, status: 'Closed' };
-      return p;
-    }));
+  const togglePhase = async (termName) => {
+    const currentStatus = phases.find(p => p.id === termName)?.status === 'Open';
+    const newStatus = !currentStatus;
+
+    try {
+      const response = await axios.patch('http://localhost:7000/api/exams/term-status', {
+        term: termName,
+        isOpen: newStatus
+      });
+      setExamData(response.data);
+      toast({
+        type: 'success',
+        message: `Marking portal for ${termName} is now ${newStatus ? 'OPEN' : 'CLOSED'}`
+      });
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      toast({ type: 'error', message: "Failed to update portal status" });
+    }
   };
 
   return (
@@ -108,43 +232,40 @@ const ExamManagement = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-            <ModuleCard 
+            <ModuleCard
               icon={Calendar}
               color="bg-emerald-500"
               title="Exam Schedule"
-              description="Create and manage exam schedules by class and section. Define dates, times, and subject mapping for upcoming academic assessments." 
+              description="Create and manage exam schedules by class and section. Define dates, times, and subject mapping for upcoming academic assessments."
               buttonLabel="MANAGE EXAM SCHEDULE"
-              onClick={() => setActiveView('schedule')} 
+              onClick={() => setActiveView('schedule')}
             />
-            <ModuleCard 
+            <ModuleCard
               icon={Settings2}
               color="bg-emerald-600"
               title="Examination Control"
-              description="Oversee grading systems, manage marking portals for faculty, track academic outcomes, and verify official transcripts across all departments." 
+              description="Oversee grading systems, manage marking portals for faculty, track academic outcomes, and verify official transcripts across all departments."
               buttonLabel="MANAGE CONTROL MODULE"
-              onClick={() => setActiveView('control-module')} 
+              onClick={() => setActiveView('control-module')}
             />
           </div>
         </div>
       ) : (
         <div className="max-w-full mx-auto animate-in slide-in-from-bottom-2 duration-300">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
-            <button onClick={() => setActiveView('menu')} className="flex items-center gap-2 text-[11px] font-bold text-slate-400 hover:text-emerald-600 uppercase tracking-wider transition-colors group">
+            <button
+              onClick={() => setActiveView('menu')}
+              className="flex items-center gap-2 text-[11px] font-bold text-slate-400 hover:text-emerald-600 uppercase tracking-wider transition-colors group"
+            >
               <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
               Back to Hub
             </button>
-            <div className="relative group">
-              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="appearance-none bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 font-black text-[11px] uppercase px-6 py-2.5 rounded-xl border border-emerald-200/50 dark:border-emerald-800/30 outline-none pr-10 cursor-pointer shadow-sm hover:border-emerald-500 transition-all">
-                {YEARS.map(y => <option key={y} value={y}>{y} Session</option>)}
-              </select>
-              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none" />
-            </div>
           </div>
 
           {activeView === 'schedule' ? (
             <SchedulingView />
           ) : (
-            <ControlView 
+            <ControlView
               phases={phases}
               togglePhase={togglePhase}
               analyticsGrade={analyticsGrade}
@@ -168,10 +289,10 @@ const ExamManagement = () => {
               handleNext={handleNext}
               filteredResults={filteredResults}
               currentResult={currentResult}
-              grades={GRADES}
+              grades={grades}
               sections={SECTIONS}
               years={YEARS}
-              initialPhases={INITIAL_PHASES}
+              initialPhases={phases}
             />
           )}
         </div>

@@ -1,29 +1,44 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
+import React from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const DetailedCalendar = () => {
-  // defaulting to grid as we are removing the toggle UI
-  const [viewDate, setViewDate] = useState(new Date(2025, 11, 1)); // Dec 2025
+const DetailedCalendar = ({ currentDate, onMonthChange, events = [] }) => {
+  // currentDate controls the view (Month/Year)
+  const viewDate = currentDate || new Date();
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const monthName = viewDate.toLocaleString('default', { month: 'long' });
-
-  const schoolEvents = [
-    { id: '1', label: "Annual Sports Kickoff", type: "event", startDay: 1, endDay: 1 },
-    { id: '2', label: "Final Examinations", type: "exam", startDay: 10, endDay: 20 },
-    { id: '3', label: "Winter Break", type: "holiday", startDay: 24, endDay: 26 },
-    { id: '4', label: "Today", type: "today", startDay: 29, endDay: 29 },
-    { id: '5', label: "New Year Celebration", type: "event", startDay: 31, endDay: 31 }
-  ];
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const blanks = Array.from({ length: firstDay }, (_, i) => i);
 
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+  const prevMonth = () => onMonthChange(new Date(year, month - 1, 1));
+  const nextMonth = () => onMonthChange(new Date(year, month + 1, 1));
+
+  // Helper to check if a date (day of current month) is within an event range
+  const getEventsForDay = (day) => {
+    // Current day instance (midnight)
+    const current = new Date(year, month, day);
+    current.setHours(0, 0, 0, 0);
+
+    return events.filter(e => {
+      if (!e.startDate || !e.endDate) return false;
+
+      const start = new Date(e.startDate);
+      const end = new Date(e.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+
+      return current >= start && current <= end;
+    });
+  };
+
+  const isTodayDate = (day) => {
+    const today = new Date();
+    return day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+  };
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900 transition-colors">
@@ -53,12 +68,12 @@ const DetailedCalendar = () => {
         <div className="grid grid-cols-7 gap-y-6">
           {blanks.map((b, index) => <div key={`b-${index}`} />)}
           {days.map(day => {
-            const activeEvents = schoolEvents.filter(e => day >= e.startDay && day <= e.endDay);
-            
-            const isToday = activeEvents.some(e => e.type === 'today');
-            const isExam = activeEvents.some(e => e.type === 'exam');
-            const isHoliday = activeEvents.some(e => e.type === 'holiday');
-            const isEvent = activeEvents.some(e => e.type === 'event');
+            const activeEvents = getEventsForDay(day);
+
+            const isToday = isTodayDate(day);
+            const isExam = activeEvents.some(e => e.type === 'EXAMS');
+            const isHoliday = activeEvents.some(e => e.type === 'HOLIDAY');
+            const isEvent = activeEvents.some(e => e.type === 'EVENT' || e.type === 'event'); // Case sensitive check or normalized
 
             return (
               <div key={day} className="flex flex-col items-center justify-start h-20 group relative cursor-pointer">
@@ -71,19 +86,22 @@ const DetailedCalendar = () => {
                 `}>
                   {day}
                 </div>
-                
+
                 {/* Visual Indicators underneath */}
                 <div className="flex gap-1 mt-2.5 h-1.5 items-center justify-center">
                   {isToday && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />}
                   {isExam && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-sm" />}
                   {isHoliday && <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm" />}
-                  {isEvent && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-sm" />}
+                  {isEvent && <div className="w-1.5 h-1.5 bg-green-500 rounded-full shadow-sm" />}
                 </div>
 
-                {/* Range Tooltip */}
-                {activeEvents.length > 0 && activeEvents[0].startDay !== activeEvents[0].endDay && (
-                  <div className="absolute -bottom-1 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                     <span className="bg-slate-900 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full z-20">Range Event</span>
+                {/* Event Tooltip (Simple) */}
+                {activeEvents.length > 0 && (
+                  <div className="absolute top-14 w-full flex justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                    <div className="bg-slate-900 text-white text-[8px] font-bold px-2 py-1 rounded-md shadow-lg truncate max-w-[100px]">
+                      {activeEvents[0].title}
+                      {activeEvents.length > 1 && ` +${activeEvents.length - 1}`}
+                    </div>
                   </div>
                 )}
               </div>
@@ -99,7 +117,7 @@ const DetailedCalendar = () => {
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Today</span>
         </div>
         <div className="flex items-center gap-3 group">
-          <div className="w-3 h-3 border-2 border-emerald-500 rounded-full group-hover:scale-125 transition-transform" />
+          <div className="w-3 h-3 bg-green-500 rounded-full shadow-lg group-hover:scale-125 transition-transform" />
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Event</span>
         </div>
         <div className="flex items-center gap-3 group">

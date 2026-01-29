@@ -1,0 +1,36 @@
+import axios from "axios";
+
+const API_URL = "http://localhost:7000/api/students";
+
+const getStudents = async (grade) => {
+  const params = {};
+  if (grade) {
+    params.studentClass = grade;
+  }
+  const response = await axios.get(API_URL, { params });
+  return response.data;
+};
+
+const getStudentsBySection = async (grade, sectionId) => {
+  const response = await axios.get(API_URL, { params: { studentClass: grade, sectionId } });
+  return response.data;
+};
+
+const bulkEnrollment = async (studentIds, sectionId, studentClass) => {
+  const response = await axios.post(`${API_URL}/bulk-enrollment`, { studentIds, sectionId, studentClass });
+  return response.data;
+};
+
+const removeFromSection = async (studentId) => {
+  const response = await axios.post(`${API_URL}/remove-from-section`, { studentId });
+  return response.data;
+};
+
+const studentService = {
+  getStudents,
+  getStudentsBySection,
+  bulkEnrollment,
+  removeFromSection
+};
+
+export default studentService;

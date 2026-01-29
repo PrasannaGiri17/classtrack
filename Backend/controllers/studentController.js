@@ -9,8 +9,32 @@ const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
 const getAllStudents = async (req, res) => {
   try {
-    const students = await Student.find();
+    const { studentClass, sectionId } = req.query;
+    const filter = {};
+    if (studentClass) filter.studentClass = Number(studentClass);
+    if (sectionId) filter.sectionId = sectionId;
+
+    const students = await Student.find(filter);
     res.status(200).json(students);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+const updateSectionEnrollment = async (req, res) => {
+  try {
+    const { studentIds, sectionId, studentClass } = req.body;
+
+    if (!Array.isArray(studentIds)) {
+      return res.status(400).json({ message: "studentIds must be an array" });
+    }
+
+    await Student.updateMany(
+      { _id: { $in: studentIds } },
+      { $set: { sectionId: sectionId || null, studentClass: studentClass || null } }
+    );
+
+    res.status(200).json({ message: "Enrollment updated successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -227,6 +251,26 @@ const deleteStudent = async (req, res) => {
   }
 };
 
+// Remove student from section (clear sectionId and studentClass)
+const removeStudentFromSection = async (req, res) => {
+  try {
+    const { studentId } = req.body;
+
+    if (!studentId) {
+      return res.status(400).json({ message: "studentId is required" });
+    }
+
+    await Student.findByIdAndUpdate(
+      studentId,
+      { $set: { sectionId: null, studentClass: null } }
+    );
+
+    res.status(200).json({ message: "Student removed from section successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getAllStudents,
   addStudent,
@@ -234,4 +278,6 @@ module.exports = {
   getStudentByName,
   updateStudent,
   deleteStudent,
+  updateSectionEnrollment,
+  removeStudentFromSection
 };

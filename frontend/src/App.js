@@ -23,11 +23,14 @@ import LoginPage from './Page/Users/LoginPage';
 import ForgetPage from './Page/Users/ForgetPage';
 import ResetPage from './Page/Users/ResetPage';
 import ResetFirstLogin from './Page/Users/ResetFirstLogin';
+import { ToastHost } from './MainSystemComponents/Toast';
+
 function App() {
   return (
     <ActivePageProvider>
       <Router>
         <div className="App">
+          <ToastHost />
           <Routes>
 
             

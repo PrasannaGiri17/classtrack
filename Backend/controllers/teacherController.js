@@ -8,6 +8,44 @@ const sendEmail = require("../utils/sendEmail");
 // temp password (8 chars)
 const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
+// Helper to resolve Subject names and Grade numbers to ObjectIds
+const resolveTeacherRelations = async (schoolId, data) => {
+  const { primarySubject, secondarySubject, assignedGrades } = data;
+  let primarySubId = undefined;
+  let secondarySubId = undefined;
+  let resolvedGradeIds = undefined;
+
+  if (primarySubject !== undefined) {
+    if (primarySubject) {
+      const sub = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${primarySubject}$`, "i") });
+      primarySubId = sub ? sub._id : null;
+    } else {
+      primarySubId = null;
+    }
+  }
+
+  if (secondarySubject !== undefined) {
+    if (secondarySubject) {
+      const sub = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${secondarySubject}$`, "i") });
+      secondarySubId = sub ? sub._id : null;
+    } else {
+      secondarySubId = null;
+    }
+  }
+
+  if (assignedGrades !== undefined) {
+    resolvedGradeIds = [];
+    if (Array.isArray(assignedGrades) && assignedGrades.length > 0) {
+      for (const gNum of assignedGrades) {
+        const grade = await Grade.findOne({ schoolId, gradeNumber: Number(gNum) });
+        if (grade) resolvedGradeIds.push(grade._id);
+      }
+    }
+  }
+
+  return { primarySubId, secondarySubId, resolvedGradeIds };
+};
+
 const getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find()
@@ -62,27 +100,12 @@ const addTeacher = async (req, res) => {
       return res.status(409).json({ message: "Email already exists (user account)." });
     }
 
-    // 4) Resolve Subject IDs
-    let primarySubId = null;
-    let secondarySubId = null;
-
-    if (primarySubject) {
-      const sub = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${primarySubject}$`, "i") });
-      if (sub) primarySubId = sub._id;
-    }
-    if (secondarySubject) {
-      const sub = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${secondarySubject}$`, "i") });
-      if (sub) secondarySubId = sub._id;
-    }
-
-    // 5) Resolve Grade IDs
-    const resolvedGradeIds = [];
-    if (Array.isArray(assignedGrades) && assignedGrades.length > 0) {
-      for (const gNum of assignedGrades) {
-        const grade = await Grade.findOne({ schoolId, gradeNumber: Number(gNum) });
-        if (grade) resolvedGradeIds.push(grade._id);
-      }
-    }
+    // 4 & 5) Resolve IDs
+    const { primarySubId, secondarySubId, resolvedGradeIds } = await resolveTeacherRelations(schoolId, {
+      primarySubject,
+      secondarySubject,
+      assignedGrades,
+    });
 
     // 1) Create Teacher
     const teacher = new Teacher({
@@ -193,15 +216,27 @@ const updateTeacher = async (req, res) => {
     const exists = await Teacher.findById(req.params.id);
     if (!exists) return res.status(404).json({ message: "Teacher not found" });
 
-    // don't allow changing schoolId normally
-    if ("schoolId" in req.body) delete req.body.schoolId;
+    const schoolId = exists.schoolId || 1;
+    const updateData = { ...req.body };
 
-    const updatedTeacher = await Teacher.findByIdAndUpdate(req.params.id, req.body, {
+    // don't allow changing schoolId normally
+    if ("schoolId" in updateData) delete updateData.schoolId;
+
+    // Resolve Subject/Grade IDs if they are provided in update
+    const { primarySubId, secondarySubId, resolvedGradeIds } = await resolveTeacherRelations(schoolId, updateData);
+
+    if (primarySubId !== undefined) updateData.primarySubject = primarySubId;
+    if (secondarySubId !== undefined) updateData.secondarySubject = secondarySubId;
+    if (resolvedGradeIds !== undefined) updateData.assignedGrades = resolvedGradeIds;
+
+    const updatedTeacher = await Teacher.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
-    });
+    }).populate("assignedGrades", "gradeNumber")
+      .populate("primarySubject", "subjectName")
+      .populate("secondarySubject", "subjectName");
 
-    res.status(200).json(updatedTeacher);
+    res.status(200).json({ message: "Teacher record updated successfully.", teacher: updatedTeacher });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

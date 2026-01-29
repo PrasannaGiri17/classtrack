@@ -1,27 +1,27 @@
 import React from 'react';
-import { 
-  Settings2, 
-  ClipboardCheck, 
-  FileBarChart, 
-  ShieldCheck, 
-  ChevronDown, 
-  Search, 
-  ChevronLeft, 
-  ChevronRight, 
-  User, 
-  Trophy, 
-  Eye, 
-  Download, 
-  BarChart3 
+import {
+  Settings2,
+  ClipboardCheck,
+  FileBarChart,
+  ShieldCheck,
+  ChevronDown,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Trophy,
+  Eye,
+  Download,
+  BarChart3
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
   Cell
 } from 'recharts';
 
@@ -91,18 +91,16 @@ const ControlView = ({
                     <tr key={p.id} className="hover:bg-white dark:hover:bg-slate-800 transition-all">
                       <td className="pl-10 py-5 font-black text-sm text-slate-700 dark:text-slate-300">{p.name}</td>
                       <td className="px-6 py-5 text-center">
-                        <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${
-                          p.status === 'Open' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border-transparent'
-                        }`}>
-                          {p.status}
+                        <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${p.status === 'Open' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border-transparent'
+                          }`}>
+                          {p.status === 'Open' ? 'OPEN' : 'CLOSED'}
                         </span>
                       </td>
                       <td className="pr-10 py-5 text-right">
-                        <button 
+                        <button
                           onClick={() => togglePhase(p.id)}
-                          className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                            p.status === 'Open' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20 hover:bg-red-600' : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700'
-                          }`}
+                          className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${p.status === 'Open' ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600' : 'bg-emerald-600 text-white shadow-emerald-600/20 hover:bg-emerald-700'
+                            }`}
                         >
                           {p.status === 'Open' ? 'Close Portal' : 'Open Portal'}
                         </button>
@@ -157,12 +155,6 @@ const ControlView = ({
 
             <div className="flex flex-col xl:flex-row items-center justify-between gap-6 mb-8 p-6 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px]">
               <div className="flex flex-wrap items-center gap-4">
-                <div className="relative min-w-[140px]">
-                  <select value={resYear} onChange={e => setResYear(e.target.value)} className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase outline-none pr-10 cursor-pointer">
-                    {years.map(y => <option key={y} value={y}>{y} SESSION</option>)}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                </div>
                 <div className="relative min-w-[140px]">
                   <select value={resPhase} onChange={e => setResPhase(e.target.value)} className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase outline-none pr-10 cursor-pointer">
                     {initialPhases.map(p => <option key={p.name} value={p.name}>{p.name.toUpperCase()}</option>)}
@@ -251,11 +243,10 @@ const ControlView = ({
                         <p className="text-4xl font-black text-indigo-600 leading-none tracking-tighter">{currentResult.gpa}</p>
                       </div>
                       <div className="col-span-2 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                        <div className={`px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest border shadow-sm ${
-                          currentResult.status === 'Passed' ? 'bg-emerald-500 text-white border-emerald-400' : 
-                          currentResult.status === 'Failed' ? 'bg-red-500 text-white border-red-400' : 
-                          'bg-slate-400 text-white border-slate-300'
-                        }`}>
+                        <div className={`px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest border shadow-sm ${currentResult.status === 'Passed' ? 'bg-emerald-500 text-white border-emerald-400' :
+                          currentResult.status === 'Failed' ? 'bg-red-500 text-white border-red-400' :
+                            'bg-slate-400 text-white border-slate-300'
+                          }`}>
                           {currentResult.status}
                         </div>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Validated by System</p>

@@ -1,37 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Save, 
-  Clock, 
-  Calendar, 
-  ChevronDown, 
+import {
+  Save,
+  Clock,
+  Calendar,
+  ChevronDown,
   CheckCircle2,
   Info,
   Settings,
   X,
-  ListOrdered
+  ListOrdered,
+  GripVertical
 } from 'lucide-react';
+import axios from 'axios';
+import { toast } from '../../MainSystemComponents/Toast';
 
 // --- Mock Backend Data ---
 const TERMS = ["First Terminal", "Mid-Term", "Second Terminal", "Final Examination"];
-const SESSIONS = ["2025 SESSION", "2026 SESSION"];
-const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
-
-const GRADE_SUBJECT_MAP = {
-  "1": [
-    { id: 's1', name: 'Nepali' }, { id: 's2', name: 'English' }, { id: 's3', name: 'Mathematics' },
-    { id: 's4', name: 'Social Studies' }, { id: 's5', name: 'Science' }, { id: 's6', name: 'Moral Education' }
-  ],
-  "10": [
-    { id: 's1', name: 'Nepali' }, { id: 's2', name: 'English' }, { id: 's3', name: 'Mathematics' },
-    { id: 's4', name: 'Social Studies' }, { id: 's5', name: 'Science' }, { id: 's6', name: 'Computer' },
-    { id: 's7', name: 'Accountancy' }, { id: 's8', name: 'Optional Math' }
-  ]
-};
-
-const DEFAULT_SUBJECTS = [
-  { id: 's1', name: 'Nepali' }, { id: 's2', name: 'English' }, { id: 's3', name: 'Mathematics' },
-  { id: 's4', name: 'Social Studies' }, { id: 's5', name: 'Science' }
-];
+// Mock data removed (SESSIONS, GRADES, GRADE_SUBJECT_MAP, DEFAULT_SUBJECTS)
 
 const SchedulingView = () => {
   // --- Setup Modal State ---
@@ -47,46 +32,204 @@ const SchedulingView = () => {
   const [isTemplateSaved, setIsTemplateSaved] = useState(false);
 
   // --- Mapping States ---
-  const [mappingSession, setMappingSession] = useState(SESSIONS[0]);
-  const [mappingTerm, setMappingTerm] = useState(TERMS[0]);
-  const [mappingGrade, setMappingGrade] = useState("10");
+  // --- Mapping States ---
+  // const [mappingSession, setMappingSession] = useState(SESSIONS[0]); // REMOVED
+  const [mappingTerm, setMappingTerm] = useState("Term 1");
+  const [mappingGrade, setMappingGrade] = useState("");
   const [slots, setSlots] = useState([]);
   const [isMappingSaved, setIsMappingSaved] = useState(false);
 
-  const templateSubjects = GRADE_SUBJECT_MAP["10"] || DEFAULT_SUBJECTS;
-  const mappingSubjects = GRADE_SUBJECT_MAP[mappingGrade] || DEFAULT_SUBJECTS;
+  // New Data State
+  const [allGrades, setAllGrades] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Drag Refs
+  const dragItem = React.useRef(null);
+  const dragOverItem = React.useRef(null);
+
+  // Derived Subjects
+  const currentGradeData = allGrades.find(g => g.gradeNumber.toString() === mappingGrade);
+  const mappingSubjects = currentGradeData?.subjects?.map(s => s.subjectId) || [];
+
+  // Fetch Grades on Mount
+  useEffect(() => {
+    const fetchGrades = async () => {
+      try {
+        const response = await axios.get('http://localhost:7000/api/grades');
+        setAllGrades(response.data);
+        if (response.data.length > 0) {
+          setMappingGrade(response.data[0].gradeNumber.toString());
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to fetch grades:", error);
+        toast({ type: 'error', message: 'Failed to load grades' });
+        setLoading(false);
+      }
+    };
+
+    // Fetch Exam Config
+    const fetchExamData = async () => {
+      try {
+        const response = await axios.get('http://localhost:7000/api/exams');
+        const data = response.data;
+        if (data && data.config) {
+          setYearSetup(data.config);
+          setStartTime(data.config.globalStartTime || "09:00");
+          setDuration(data.config.globalDuration || 120);
+        }
+        // Store full exam data to access schedules later
+        setExamData(data);
+      } catch (error) {
+        console.error("Failed to fetch exam data", error);
+        // Don't show toast here as it might be empty initially
+      }
+    };
+
+    fetchGrades();
+    fetchExamData();
+  }, []);
+
+  const [examData, setExamData] = useState(null);
 
   useEffect(() => {
-    const initialSlots = mappingSubjects.map((_, index) => ({
-      slotOrder: index + 1,
-      subjectId: '',
-      date: ''
-    }));
-    setSlots(initialSlots);
-    setIsMappingSaved(false);
-  }, [mappingGrade]);
+    // 1. Initialize slots with subjects
+    if (mappingSubjects.length > 0) {
+      // Check if we have an existing schedule for this Grade + Term
+      const existingSchedule = examData?.schedules?.find(
+        s => s.gradeNumber.toString() === mappingGrade && s.term === mappingTerm
+      );
 
-  const handleTemplateSave = () => {
-    setIsTemplateSaved(true);
-    setTimeout(() => setIsTemplateSaved(false), 3000);
+      const initialSlots = mappingSubjects.map((subjectObj, index) => {
+        const subjectId = subjectObj._id; // Store ID string only
+        // Try to find saved entry for this subject
+        const savedEntry = existingSchedule?.entries?.find(e => e.subjectId._id === subjectId || e.subjectId === subjectId);
+
+        return {
+          slotOrder: index + 1,
+          subjectId: subjectId, // Store ID
+          date: savedEntry ? savedEntry.date.split('T')[0] : ''
+        };
+      });
+
+      // Sort Loading Data: Dates first, chronological order
+      const sortedInitial = initialSlots.sort((a, b) => {
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return new Date(a.date) - new Date(b.date);
+      }).map((s, i) => ({ ...s, slotOrder: i + 1 }));
+
+      setSlots(sortedInitial);
+    } else {
+      setSlots([]);
+    }
+    setIsMappingSaved(false);
+  }, [mappingGrade, mappingTerm, allGrades, examData]); // Re-run when mappingTerm changes too
+
+  const handleTemplateSave = async () => {
+    try {
+      await axios.post('http://localhost:7000/api/exams/config', {
+        ...yearSetup,
+        globalStartTime: startTime,
+        globalDuration: duration
+      });
+      setIsTemplateSaved(true);
+      toast({ type: 'success', message: 'Global exam template saved!' });
+      setTimeout(() => setIsTemplateSaved(false), 3000);
+    } catch (error) {
+      console.error("Failed to save template:", error);
+      toast({ type: 'error', message: 'Failed to save configuration' });
+    }
   };
 
-  const handleMappingSave = () => {
+  const handleMappingSave = async () => {
     const selectedIds = slots.map(s => s.subjectId).filter(id => id !== '');
     const hasDuplicates = new Set(selectedIds).size !== selectedIds.length;
-    
+
     if (hasDuplicates) {
-      alert("Duplicate subjects detected in the schedule!");
+      toast({ type: 'warning', message: 'Duplicate subjects detected!' });
       return;
     }
 
-    setIsMappingSaved(true);
-    setTimeout(() => setIsMappingSaved(false), 3000);
+    try {
+      // Construct entries
+      const entries = slots.filter(s => s.subjectId && s.date).map(s => ({
+        subjectId: s.subjectId,
+        date: s.date
+      }));
+
+      await axios.post('http://localhost:7000/api/exams/schedule', {
+        gradeNumber: mappingGrade,
+        term: mappingTerm,
+        entries
+      });
+
+      setIsMappingSaved(true);
+      toast({ type: 'success', message: 'Term schedule published!' });
+      setTimeout(() => setIsMappingSaved(false), 3000);
+
+      // Refresh data to keep local state in sync
+      const response = await axios.get('http://localhost:7000/api/exams');
+      setExamData(response.data);
+
+    } catch (error) {
+      console.error("Failed to publish schedule:", error);
+      toast({ type: 'error', message: 'Failed to publish schedule' });
+    }
+  };
+
+  const isSaturday = (dateString) => {
+    if (!dateString) return false;
+    const d = new Date(dateString);
+    return d.getDay() === 6;
+  };
+
+  const getNextWorkingDate = (dateString) => {
+    let d = new Date(dateString);
+    d.setDate(d.getDate() + 1);
+    // If Saturday, skip to Sunday
+    if (d.getDay() === 6) {
+      d.setDate(d.getDate() + 1);
+    }
+    return d.toISOString().split('T')[0];
   };
 
   const updateSlot = (index, field, value) => {
-    const newSlots = [...slots];
+    let newSlots = [...slots];
+
+    // Validation for Saturday
+    if (field === 'date' && isSaturday(value)) {
+      toast({ type: 'error', message: 'Statistics: Saturday exams are not allowed!' });
+      return;
+    }
+
     newSlots[index] = { ...newSlots[index], [field]: value };
+
+    // Auto-sort and Cascade if date changes
+    if (field === 'date') {
+      const modifiedSubjectId = newSlots[index].subjectId;
+
+      // 1. Sort
+      newSlots.sort((a, b) => {
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return new Date(a.date) - new Date(b.date);
+      });
+
+      // 2. Find new index of modified item
+      const newIndex = newSlots.findIndex(s => s.subjectId === modifiedSubjectId);
+
+      // 3. Cascade dates from there onwards
+      for (let i = newIndex; i < newSlots.length - 1; i++) {
+        if (newSlots[i].date) { // Only cascade if current has date
+          newSlots[i + 1].date = getNextWorkingDate(newSlots[i].date);
+        }
+      }
+
+      // Re-calculate Day Sequence
+      newSlots = newSlots.map((s, i) => ({ ...s, slotOrder: i + 1 }));
+    }
+
     setSlots(newSlots);
   };
 
@@ -96,9 +239,35 @@ const SchedulingView = () => {
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
+  const handleSort = () => {
+    // 1. Duplicate items
+    let _slots = [...slots];
+
+    // 2. Extract fixed dates (to keep them anchored to the sequence)
+    const fixedDates = _slots.map(s => s.date);
+
+    // 3. Remove and insert dragged item
+    const draggedItemContent = _slots.splice(dragItem.current, 1)[0];
+    _slots.splice(dragOverItem.current, 0, draggedItemContent);
+
+    // 4. Re-assign the fixed dates back to the new positions
+    _slots = _slots.map((slot, index) => ({
+      ...slot,
+      date: fixedDates[index],
+      slotOrder: index + 1
+    }));
+
+    // 5. Reset refs
+    dragItem.current = null;
+    dragOverItem.current = null;
+
+    // 6. Update state
+    setSlots(_slots);
+  };
+
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-500">
-      
+
       {/* Global Template Card */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="p-8 lg:p-10 border-b border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30">
@@ -122,7 +291,7 @@ const SchedulingView = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
             {/* Setup Exam Button replaced Grade Selection */}
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => setIsSetupModalOpen(true)}
                 className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[20px] font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
               >
@@ -133,8 +302,8 @@ const SchedulingView = () => {
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Exam Start Time</label>
               <div className="relative">
-                <input 
-                  type="time" 
+                <input
+                  type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all"
@@ -144,8 +313,8 @@ const SchedulingView = () => {
 
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Duration (Minutes)</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
                 placeholder="e.g. 120"
@@ -164,11 +333,10 @@ const SchedulingView = () => {
               </p>
             </div>
 
-            <button 
+            <button
               onClick={handleTemplateSave}
-              className={`flex items-center gap-3 px-12 py-4 rounded-[20px] font-black text-xs uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 shadow-xl ${
-                isTemplateSaved ? 'bg-slate-900 text-white' : 'bg-emerald-600 text-white shadow-emerald-500/20'
-              }`}
+              className={`flex items-center gap-3 px-12 py-4 rounded-[20px] font-black text-xs uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 shadow-xl ${isTemplateSaved ? 'bg-slate-900 text-white' : 'bg-emerald-600 text-white shadow-emerald-500/20'
+                }`}
             >
               {isTemplateSaved ? <CheckCircle2 size={18} /> : <Save size={18} />}
               {isTemplateSaved ? 'Template Saved' : 'Save Global Template'}
@@ -192,35 +360,39 @@ const SchedulingView = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative group">
-                <select 
-                  value={mappingSession}
-                  onChange={(e) => setMappingSession(e.target.value)}
-                  className="appearance-none bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-[10px] font-black text-slate-500 uppercase outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
-                >
-                  {SESSIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
-              </div>
+              {/* Session Dropdown REMOVED */}
 
               <div className="relative group">
-                <select 
+                <select
                   value={mappingTerm}
                   onChange={(e) => setMappingTerm(e.target.value)}
                   className="appearance-none bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-[10px] font-black text-slate-500 uppercase outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
                 >
-                  {TERMS.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                  {/* Dynamic Terms based on Setup */}
+                  {Array.from({ length: yearSetup.termsCount }).map((_, i) => (
+                    <React.Fragment key={i}>
+                      {yearSetup.includeMidTerm && (
+                        <option value={`Mid-Term ${i + 1}`}>{`MID-TERM ${i + 1}`}</option>
+                      )}
+                      <option value={`Term ${i + 1}`}>{`TERM ${i + 1}`}</option>
+                    </React.Fragment>
+                  ))}
+                  <option value="Final">FINAL</option>
                 </select>
                 <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
               </div>
 
               <div className="relative group">
-                <select 
+                <select
                   value={mappingGrade}
                   onChange={(e) => setMappingGrade(e.target.value)}
                   className="appearance-none bg-emerald-600 text-white rounded-xl pl-4 pr-10 py-2.5 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all cursor-pointer"
                 >
-                  {GRADES.map(g => <option key={g} value={g}>GRADE {g}</option>)}
+                  {loading ? <option>Loading...</option> : allGrades.map(g => (
+                    <option key={g._id} value={g.gradeNumber}>
+                      {g.gradeName ? g.gradeName.toUpperCase() : `GRADE ${g.gradeNumber}`}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white pointer-events-none" />
               </div>
@@ -241,33 +413,40 @@ const SchedulingView = () => {
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {slots.map((slot, index) => (
-                <tr key={index} className="group hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors">
-                  <td className="pl-10 pr-4 py-6">
-                    <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tighter">
-                      {getOrdinal(slot.slotOrder)} Day
-                    </span>
-                  </td>
-                  <td className="px-4 py-6">
-                    <div className="relative group/sel min-w-[200px]">
-                      <select 
-                        value={slot.subjectId}
-                        onChange={(e) => updateSlot(index, 'subjectId', e.target.value)}
-                        className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-5 py-3 text-xs font-bold dark:text-white cursor-pointer"
-                      >
-                        <option value="">SELECT SUBJECT</option>
-                        {mappingSubjects.map(s => (
-                          <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover/sel:text-emerald-500" />
+                <tr
+                  key={slot.subjectId || index}
+                  className="group hover:bg-emerald-50/10 dark:hover:bg-emerald-900/5 transition-colors cursor-move"
+                  draggable
+                  onDragStart={(e) => (dragItem.current = index)}
+                  onDragEnter={(e) => (dragOverItem.current = index)}
+                  onDragEnd={handleSort}
+                  onDragOver={(e) => e.preventDefault()}
+                >
+                  <td className="pl-6 pr-4 py-6">
+                    <div className="flex items-center gap-3">
+                      <div className="cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-emerald-500 transition-colors">
+                        <GripVertical size={16} />
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                        {getOrdinal(slot.slotOrder)} Day
+                      </span>
                     </div>
                   </td>
                   <td className="px-4 py-6">
-                    <input 
-                      type="date" 
+                    <div className="relative group/sel min-w-[200px]">
+                      {/* Read-only subject display */}
+                      <div className="flex items-center h-full px-5 py-3 text-xs font-bold dark:text-white bg-slate-50 dark:bg-slate-800 rounded-xl border border-transparent">
+                        {mappingSubjects.find(s => s._id === slot.subjectId)?.subjectName?.toUpperCase() || "SELECT SUBJECT"}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-6">
+                    <input
+                      type="date"
                       value={slot.date}
                       onChange={(e) => updateSlot(index, 'date', e.target.value)}
                       className="bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-5 py-3 text-xs font-bold dark:text-white outline-none cursor-pointer"
+                      min={new Date().toISOString().split('T')[0]} // Disable past dates
                     />
                   </td>
                   <td className="px-4 py-6">
@@ -294,12 +473,11 @@ const SchedulingView = () => {
               </p>
             </div>
 
-            <button 
+            <button
               onClick={handleMappingSave}
               disabled={slots.some(s => s.subjectId === '' || s.date === '')}
-              className={`flex items-center gap-3 px-14 py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:grayscale ${
-                isMappingSaved ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'
-              }`}
+              className={`flex items-center gap-3 px-14 py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:grayscale ${isMappingSaved ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'
+                }`}
             >
               {isMappingSaved ? <CheckCircle2 size={20} /> : <Calendar size={20} />}
               {isMappingSaved ? 'Schedule Published' : 'Publish Term Schedule'}
@@ -312,7 +490,7 @@ const SchedulingView = () => {
       {isSetupModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsSetupModalOpen(false)} />
-          
+
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[48px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
             <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -324,7 +502,7 @@ const SchedulingView = () => {
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Configure Academic Cycles</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setIsSetupModalOpen(false)}
                 className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
               >
@@ -337,9 +515,9 @@ const SchedulingView = () => {
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">How many term exams in a calendar year?</label>
                 <div className="relative group">
-                  <select 
+                  <select
                     value={yearSetup.termsCount}
-                    onChange={(e) => setYearSetup({...yearSetup, termsCount: Number(e.target.value)})}
+                    onChange={(e) => setYearSetup({ ...yearSetup, termsCount: Number(e.target.value) })}
                     className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer"
                   >
                     {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n} terms</option>)}
@@ -352,9 +530,9 @@ const SchedulingView = () => {
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Include Mid-Term Exam?</label>
                 <div className="relative group">
-                  <select 
+                  <select
                     value={yearSetup.includeMidTerm ? "yes" : "no"}
-                    onChange={(e) => setYearSetup({...yearSetup, includeMidTerm: e.target.value === "yes"})}
+                    onChange={(e) => setYearSetup({ ...yearSetup, includeMidTerm: e.target.value === "yes" })}
                     className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer"
                   >
                     <option value="yes">Yes</option>
@@ -371,13 +549,13 @@ const SchedulingView = () => {
 
               {/* Modal Actions */}
               <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-50 dark:border-slate-800">
-                <button 
+                <button
                   onClick={() => setIsSetupModalOpen(false)}
                   className="px-8 py-4 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={() => setIsSetupModalOpen(false)}
                   className="flex items-center gap-3 px-10 py-4 bg-emerald-600 text-white rounded-[20px] font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all"
                 >

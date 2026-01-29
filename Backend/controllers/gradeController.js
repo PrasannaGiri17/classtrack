@@ -288,6 +288,46 @@ const removeSubjectFromAllGrades = async (req, res) => {
   }
 };
 
+// Update section's custom name
+const updateSectionName = async (req, res) => {
+  try {
+    const { gradeNumber, sectionName, classRoomName } = req.body;
+
+    const grade = await Grade.findOne({ schoolId: 1, gradeNumber });
+    if (!grade) return res.status(404).json({ message: "Grade not found" });
+
+    const section = grade.sections.find(s => s.sectionName === sectionName);
+    if (!section) return res.status(404).json({ message: "Section not found" });
+
+    section.classRoomName = classRoomName;
+    await grade.save();
+
+    res.status(200).json(grade);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Assign class teacher to a section
+const assignClassTeacher = async (req, res) => {
+  try {
+    const { gradeNumber, sectionName, teacherId } = req.body;
+
+    const grade = await Grade.findOne({ schoolId: 1, gradeNumber });
+    if (!grade) return res.status(404).json({ message: "Grade not found" });
+
+    const section = grade.sections.find(s => s.sectionName === sectionName);
+    if (!section) return res.status(404).json({ message: "Section not found" });
+
+    section.classTeacherId = teacherId || null;
+    await grade.save();
+
+    res.status(200).json(grade);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getGrades,
   updateGradeSections,
@@ -295,5 +335,7 @@ module.exports = {
   addSubjectToGrade,
   removeSubjectFromGrade,
   addSubjectToAllGrades,
-  removeSubjectFromAllGrades
+  removeSubjectFromAllGrades,
+  updateSectionName,
+  assignClassTeacher
 };
