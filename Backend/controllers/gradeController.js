@@ -328,6 +328,27 @@ const assignClassTeacher = async (req, res) => {
   }
 };
 
+// Update monthly fee for a grade
+const updateGradeFee = async (req, res) => {
+  try {
+    const { gradeNumber, monthlyFee } = req.body;
+
+    const grade = await Grade.findOneAndUpdate(
+      { schoolId: 1, gradeNumber },
+      { $set: { monthlyFee } },
+      { new: true }
+    );
+
+    if (!grade) {
+      return res.status(404).json({ message: "Grade not found" });
+    }
+
+    res.status(200).json(grade);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getGrades,
   updateGradeSections,
@@ -337,5 +358,6 @@ module.exports = {
   addSubjectToAllGrades,
   removeSubjectFromAllGrades,
   updateSectionName,
-  assignClassTeacher
+  assignClassTeacher,
+  updateGradeFee
 };

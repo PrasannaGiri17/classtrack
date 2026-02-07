@@ -15,6 +15,7 @@ const calendarRoutes = require("./routes/calendarRoutes");
 const examRoutes = require("./routes/examRoutes");
 const resultRoutes = require("./routes/resultRoutes");
 const authRoutes = require("./routes/UserAuth");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 const port = 7000;
@@ -26,7 +27,8 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
 }));
-app.use(express.json({ limit: "10mb" })); // Increase limit for base64 images
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // connect MongoDB
 connectDB();
@@ -46,6 +48,7 @@ app.use("/api/calendar", calendarRoutes); // Mount calendar routes
 app.use("/api/exams", examRoutes); // Mount exam routes
 app.use("/api/results", resultRoutes); // Mount result routes
 app.use("/api/auth", authRoutes);    // /api/auth/register, /api/auth/login, etc.
+app.use("/api/notifications", notificationRoutes);
 
 app.listen(port, () => {
   console.log(`Backend server is running on http://localhost:${port}`);

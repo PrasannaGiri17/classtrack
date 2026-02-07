@@ -13,7 +13,21 @@ import TimetablePage from './Adminpages/TimetablePage';
 import ClassroomPage from './Adminpages/ClassroomPage';
 import NotificationPage from './Adminpages/NotificationPage';
 import ExamManagement from './Adminpages/ExamManagement';
+import Fee from './Adminpages/Fee';
 import PlaceholderPage from './Adminpages/PlaceholderPage';
+
+
+import TeacherLayout from './TeacherComponents/Layout/TecaherLayout';
+import TeacherDashboard from './Teacherpages/tDashboard';
+import RoutinePage from './Teacherpages/RoutinePage';
+import AttendancePage from './Teacherpages/AttendancePage';
+import TeacherStudentRecord from './Teacherpages/StudentRecord';
+import TeacherCalendarPage from './Teacherpages/CalendarPage';
+import TeacherExamManagement from './Teacherpages/SExamManagement';
+import QuizPage from './Teacherpages/QuizPage';
+import DiaryPage from './Teacherpages/DiaryPage';
+import AssignmentsContent from './Teacherpages/AssignmentsContent';
+import TeacherNotificationPage from './Teacherpages/NotificationPage';
 
 
 import { GMainC } from './Components/GlobalMainCalender/GMainC';
@@ -64,6 +78,21 @@ function App() {
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="notification" element={<NotificationPage />} />
           <Route path="exam" element={<ExamManagement />} />
+          <Route path="fee" element={<Fee />} />
+        </Route>
+
+        <Route path="/teacher" element={<TeacherLayout />}>
+          <Route index element={<Navigate to="/teacher/dashboard" replace />} />
+          <Route path="dashboard" element={<TeacherDashboard />} />
+          <Route path="routine" element={<RoutinePage />} />
+          <Route path="attendance" element={<AttendancePage />} />
+          <Route path="student-record" element={<TeacherStudentRecord />} />
+          <Route path="calendar" element={<TeacherCalendarPage />} />
+          <Route path="exam" element={<TeacherExamManagement />} />
+          <Route path="quiz" element={<QuizPage />} />
+          <Route path="diary" element={<DiaryPage />} />
+          <Route path="assignments" element={<AssignmentsContent />} />
+          <Route path="notification" element={<TeacherNotificationPage />} />
         </Route>
 
             {/* ---------------- Public Website ---------------- */}

@@ -30,6 +30,7 @@ const addSchool = async (req, res) => {
       maxSectionsPerGrade,
       phoneNumbers,
       socialLinks,
+      admissionFee,
     } = req.body;
 
     const newSchool = new School({
@@ -43,6 +44,7 @@ const addSchool = async (req, res) => {
       maxSectionsPerGrade,
       phoneNumbers,
       socialLinks,
+      admissionFee,
     });
 
     await newSchool.save();

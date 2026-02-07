@@ -29,6 +29,7 @@ const schoolSchema = new mongoose.Schema({
     platform: { type: String, enum: ['facebook', 'instagram', 'tiktok', 'twitter', 'youtube'], required: true },
     url: { type: String, required: true }
   }],
+  admissionFee: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { collection: 'schools' });
@@ -55,6 +56,7 @@ const gradeSchema = new mongoose.Schema({
     creditHours: Number
   }],
   displayOrder: Number,
+  monthlyFee: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true }
 }, { collection: 'grades' });
 

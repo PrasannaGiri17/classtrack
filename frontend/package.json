@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@adhikarisaroj795/nepali-calendar-react": "^1.0.6",
     "@react-oauth/google": "^0.13.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -14,6 +15,7 @@
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
+    "react-datepicker": "^9.1.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
     "react-is": "^19.2.3",

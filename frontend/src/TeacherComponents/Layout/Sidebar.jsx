@@ -33,16 +33,16 @@ const Sidebar = ({ activePage }) => {
   }, []);
 
   const menuItems = [
-    { key: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
-    { key: 'school', icon: School, label: 'School', path: '/admin/school' },
-    { key: 'student', icon: Users, label: 'Students', path: '/admin/student-record' },
-    { key: 'teacher', icon: GraduationCap, label: 'Teachers', path: '/admin/teacher' },
-    { key: 'timetable', icon: Clock, label: 'Timetable', path: '/admin/timetable' },
-    { key: 'classroom', icon: Store, label: 'Classroom', path: '/admin/classroom' },
-    { key: 'calendar', icon: Calendar, label: 'Calendar', path: '/admin/calendar' },
-    { key: 'exam', icon: FileText, label: 'Exam', path: '/admin/exam' },
-    { key: 'notification', icon: Bell, label: 'Announcements', path: '/admin/notification' },
-    { key: 'fee', icon: GraduationCap, label: 'Fee', path: '/admin/fee' },
+    { key: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/teacher/dashboard' },
+    { key: 'routine', icon: Clock, label: 'Routine', path: '/teacher/routine' },
+    { key: 'attendance', icon: Users, label: 'Attendance', path: '/teacher/attendance' },
+    { key: 'student', icon: GraduationCap, label: 'Students', path: '/teacher/student-record' },
+    { key: 'calendar', icon: Calendar, label: 'Calendar', path: '/teacher/calendar' },
+    { key: 'exam', icon: FileText, label: 'Exam', path: '/teacher/exam' },
+    { key: 'quiz', icon: FileText, label: 'Quiz', path: '/teacher/quiz' },
+    { key: 'diary', icon: FileText, label: 'Diary', path: '/teacher/diary' },
+    { key: 'assignments', icon: FileText, label: 'Assignments', path: '/teacher/assignments' },
+    { key: 'notification', icon: Bell, label: 'Announcements', path: '/teacher/notification' },
   ];
   return (
     <div className="flex flex-col h-full">

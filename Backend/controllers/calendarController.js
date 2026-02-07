@@ -1,4 +1,5 @@
  const Event = require('../models/Event');
+const Holiday = require('../models/Holiday');
 const School = require('../models/School'); // Assuming School model exists, though we default to 1
 
 // @desc    Create a new calendar event
@@ -64,7 +65,7 @@ exports.getEvents = async (req, res) => {
       school_id: school_id || 1
     };
 
-    // Date range filter
+    // Date range filter for Events
     if (from && to) {
       query.$or = [
         // Event starts within range
@@ -79,10 +80,45 @@ exports.getEvents = async (req, res) => {
       ];
     }
 
-    const events = await Event.find(query).sort({ startDate: 1 });
+    // Fetch Events and Holidays concurrently
+    const [events, dbHolidays] = await Promise.all([
+      Event.find(query).sort({ startDate: 1 }),
+      Holiday.find({}) // Fetch all holidays (usually < 100 per year, very efficient)
+    ]);
 
-    res.json(events);
+    // Map and filter Holidays in memory for robustness against format variations (hyphens/slashes/leading zeros)
+    const mappedHolidays = dbHolidays
+      .map(h => {
+        // Normalize "2025/4/14" or "2025-4-14" to "2025-04-14"
+        const parts = h.gregorian_date.replace(/\//g, '-').split('-');
+        const normalizedDate = parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+        
+        return {
+          ...h.toObject(),
+          normalizedDate
+        };
+      })
+      .filter(h => {
+        if (!from || !to) return true;
+        return h.normalizedDate >= from && h.normalizedDate <= to;
+      })
+      .map(h => ({
+        _id: h._id,
+        title: h.title,
+        type: 'HOLIDAY',
+        description: h.titles.join(', '),
+        startDate: new Date(h.normalizedDate),
+        endDate: new Date(h.normalizedDate),
+        color: 'red',
+        audience: 'Whole School',
+        isPublicHoliday: true
+      }));
+
+    const allEvents = [...events, ...mappedHolidays].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+    res.json(allEvents);
   } catch (error) {
+    console.error('Error fetching events:', error);
     res.status(500).json({ message: 'Server error fetching events', error: error.message });
   }
 };

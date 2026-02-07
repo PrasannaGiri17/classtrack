@@ -29,6 +29,14 @@ const updateSectionName = async (payload) => {
   return response.data;
 };
 
+const updateGradeFee = async (gradeNumber, monthlyFee) => {
+  const response = await axios.post(`${API_URL}/update-fee`, {
+    gradeNumber,
+    monthlyFee
+  });
+  return response.data;
+};
+
 const assignClassTeacher = async (payload) => {
   const response = await axios.post(`${API_URL}/assign-class-teacher`, payload);
   return response.data;
@@ -39,7 +47,8 @@ const gradeService = {
   updateGradeSections,
   syncSections,
   updateSectionName,
-  assignClassTeacher
+  assignClassTeacher,
+  updateGradeFee
 };
 
 export default gradeService;

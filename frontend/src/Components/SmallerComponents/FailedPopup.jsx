@@ -4,7 +4,7 @@ import { IoIosCloseCircleOutline } from "react-icons/io";
 import { TiTickOutline } from "react-icons/ti";
 import { IoWarningOutline } from "react-icons/io5";
 
-const message = ({ message, onClose, duration = 5000, type = "error" }) => {
+const FailedPopup = ({ message, onClose, duration = 5000, type = "error" }) => {
   useEffect(() => {
     if (!message) return;
     const t = setTimeout(() => onClose?.(), duration);
@@ -55,4 +55,4 @@ const message = ({ message, onClose, duration = 5000, type = "error" }) => {
   );
 };
 
-export default message;
+export default FailedPopup;

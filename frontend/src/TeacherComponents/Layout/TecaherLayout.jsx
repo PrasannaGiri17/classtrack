@@ -7,7 +7,7 @@ import Navbar from "./Navbar";
 // src/MainSystemComponents/Toast.jsx
 import { ToastHost } from "../../MainSystemComponents/Toast";
 
-const AdminLayout = () => {
+const TecaherLayout = () => {
   const location = useLocation();
   const [activePage, setActivePage] = useState("dashboard");
 
@@ -35,15 +35,15 @@ const AdminLayout = () => {
   useEffect(() => {
     const path = location.pathname;
     if (path.includes("/dashboard")) setActivePage("dashboard");
-    else if (path.includes("/school")) setActivePage("school");
+    else if (path.includes("/routine")) setActivePage("routine");
+    else if (path.includes("/attendance")) setActivePage("attendance");
     else if (path.includes("/student-record")) setActivePage("student");
-    else if (path.includes("/teacher")) setActivePage("teacher");
-    else if (path.includes("/timetable")) setActivePage("timetable");
-    else if (path.includes("/classroom")) setActivePage("classroom");
     else if (path.includes("/calendar")) setActivePage("calendar");
     else if (path.includes("/exam")) setActivePage("exam");
+    else if (path.includes("/quiz")) setActivePage("quiz");
+    else if (path.includes("/diary")) setActivePage("diary");
+    else if (path.includes("/assignments")) setActivePage("assignments");
     else if (path.includes("/notification")) setActivePage("notification");
-    else if (path.includes("/fee")) setActivePage("fee");
   }, [location.pathname]);
 
   const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
@@ -80,4 +80,4 @@ const AdminLayout = () => {
   );
 };
 
-export default AdminLayout;
+export default TecaherLayout;
