@@ -18,8 +18,10 @@ const StudentSchema = new mongoose.Schema(
     birthdate: { type: Date, default: null },
     gender: { type: String, enum: ["male", "female", "other"], default: null },
 
-    parentName: { type: String, default: null, trim: true },
-    parentPhone: { type: String, default: null, trim: true },
+    fatherName: { type: String, default: null, trim: true },
+    fatherPhone: { type: String, default: null, trim: true },
+    motherName: { type: String, default: null, trim: true },
+    motherPhone: { type: String, default: null, trim: true },
     Address: { type: String, default: null, trim: true },
 
     // NEW: class as Number (1..10)

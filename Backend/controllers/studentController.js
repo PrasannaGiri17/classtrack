@@ -45,8 +45,10 @@ const addStudent = async (req, res) => {
     const {
       firstName,
       lastName,
-      parentName,
-      parentPhone,
+      fatherName,
+      fatherPhone,
+      motherName,
+      motherPhone,
       email,
       phone,
       Address,
@@ -69,22 +71,20 @@ const addStudent = async (req, res) => {
     const fieldErrors = {};
     if (!firstName?.trim()) fieldErrors.firstName = "First name is required";
     if (!lastName?.trim()) fieldErrors.lastName = "Last name is required";
-    if (!parentName?.trim()) fieldErrors.parentName = "Parent name is required";
-    if (!String(parentPhone || "").trim())
-      fieldErrors.parentPhone = "Parent contact is required";
+    if (!fatherName?.trim() && !motherName?.trim())
+      fieldErrors.guardian = "At least one of Father Name or Mother Name is required";
     if (!email?.trim()) fieldErrors.email = "Email is required (for student login)";
 
     if (Object.keys(fieldErrors).length) {
       return res.status(400).json({ message: "Validation failed", errors: fieldErrors });
     }
 
-    // Duplicate check (your rule)
+    // Duplicate check
     const existing = await Student.findOne({
       schoolId,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      parentName: parentName.trim(),
-      parentPhone: String(parentPhone).trim(),
+      ...(fatherName ? { fatherName: fatherName.trim() } : {}),
     });
 
     if (existing) {
@@ -106,13 +106,14 @@ const addStudent = async (req, res) => {
         ? Number(rawClass)
         : null;
 
-    // 1) Create Student
     const student = new Student({
       schoolId,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      parentName: parentName.trim(),
-      parentPhone: String(parentPhone).trim(),
+      fatherName: fatherName?.trim() || null,
+      fatherPhone: fatherPhone ? String(fatherPhone).trim() : null,
+      motherName: motherName?.trim() || null,
+      motherPhone: motherPhone ? String(motherPhone).trim() : null,
       email: email.trim(),
       phone: phone ? String(phone).trim() : null,
       Address: Address?.trim(),

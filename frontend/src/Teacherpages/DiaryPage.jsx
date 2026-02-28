@@ -9,16 +9,10 @@ import {
   Home,
   Loader2
 } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { toast } from '../MainSystemComponents/Toast';
 
-const INITIAL_CLASSES = [
-  { periodId: 'p1', className: '10A', subject: 'Mathematics', timeSlot: '09:00 - 09:45', activity: '', homework: '' },
-  { periodId: 'p2', className: '9B', subject: 'Calculus', timeSlot: '10:00 - 10:45', activity: '', homework: '' },
-  { periodId: 'p3', className: '12C', subject: 'Advanced Algebra', timeSlot: '11:00 - 11:45', activity: '', homework: '' },
-  { periodId: 'p4', className: '8A', subject: 'Geometry', timeSlot: '13:00 - 13:45', activity: '', homework: '' },
-  { periodId: 'p5', className: '11B', subject: 'Statistics', timeSlot: '14:00 - 14:45', activity: '', homework: '' },
-  { periodId: 'p6', className: '10C', subject: 'Trigonometry', timeSlot: '15:00 - 15:45', activity: '', homework: '' },
-];
 
 const DiaryCard = ({ entry, onSave }) => {
   const [activity, setActivity] = useState(entry.activity);
@@ -106,25 +100,30 @@ const DiaryCard = ({ entry, onSave }) => {
 };
 
 const DiaryPage = () => {
-  const [diaryEntries, setDiaryEntries] = useState(INITIAL_CLASSES);
+  const INITIAL_CLASSES = [
+    { periodId: 'p1', className: '10A', subject: 'Mathematics', timeSlot: '09:00 - 09:45', activity: '', homework: '' },
+    { periodId: 'p2', className: '9B', subject: 'Calculus', timeSlot: '10:00 - 10:45', activity: '', homework: '' },
+    { periodId: 'p3', className: '12C', subject: 'Advanced Algebra', timeSlot: '11:00 - 11:45', activity: '', homework: '' },
+    { periodId: 'p4', className: '8A', subject: 'Geometry', timeSlot: '13:00 - 13:45', activity: '', homework: '' },
+    { periodId: 'p5', className: '11B', subject: 'Statistics', timeSlot: '14:00 - 14:45', activity: '', homework: '' },
+    { periodId: 'p6', className: '10C', subject: 'Trigonometry', timeSlot: '15:00 - 15:45', activity: '', homework: '' },
+  ];
 
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const [diaryEntries, setDiaryEntries] = useState(INITIAL_CLASSES);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const handleSaveEntry = async (id, activity, homework) => {
+    // Simulated API Call
     await new Promise(resolve => setTimeout(resolve, 800));
     setDiaryEntries(prev => prev.map(e => e.periodId === id ? { ...e, activity, homework } : e));
     toast({
       type: 'success',
-      message: 'Class records updated successfully.',
+      message: `Class records updated for ${selectedDate.toLocaleDateString()}.`,
       duration: 3000
     });
   };
+
+  const isToday = selectedDate.toDateString() === new Date().toDateString();
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">
@@ -135,24 +134,37 @@ const DiaryPage = () => {
             <BookOpenCheck className="text-emerald-500 w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Daily Diary</h1>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Class Diary</h1>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Classroom progress & homework tracking</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 px-8 py-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[28px] shadow-sm">
-          <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-            <Calendar size={20} />
-          </div>
-          <div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1.5">Today's Session</p>
-            <h3 className="text-base font-black text-slate-900 dark:text-white leading-none tracking-tight">{formattedDate}</h3>
+        {/* Date Selector Box */}
+        <div className="relative group cursor-pointer shrink-0">
+          <div className="flex items-center gap-4 px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[28px] shadow-sm hover:border-emerald-500/30 transition-all">
+            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 shrink-0">
+              <Calendar size={20} />
+            </div>
+            <div className="flex flex-col justify-center -space-y-0.5">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-0.5">
+                {isToday ? "Today's Session" : "Selected Session"}
+              </p>
+              <div className="flex items-center">
+                <DatePicker
+                  selected={selectedDate}
+                  onChange={(date) => date && setSelectedDate(date)}
+                  dateFormat="MMMM d, yyyy"
+                  className="bg-transparent border-none p-0 text-base font-black text-slate-900 dark:text-white leading-none tracking-tight outline-none cursor-pointer w-auto min-w-[140px]"
+                  popperPlacement="bottom-end"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Grid of Classes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+      {/* Grid of Classes - Updated to 2 columns on larger screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {diaryEntries.map((entry) => (
           <DiaryCard
             key={entry.periodId}

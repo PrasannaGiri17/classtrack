@@ -2,32 +2,45 @@ import axios from "axios";
 
 const API_URL = "http://localhost:7000/api/timetables";
 
-const getTimetable = async (gradeNumber, sectionName) => {
+const getTimetable = async (gradeNumber, sectionName, weekday) => {
   const response = await axios.get(API_URL, {
-    params: { gradeNumber, sectionName }
+    params: { gradeId: gradeNumber, sectionId: sectionName, weekday }
   });
   return response.data;
 };
 
-const getTimetableOptions = async (gradeNumber) => {
+const getTimetableOptions = async (gradeNumber, sectionName, weekday) => {
   const response = await axios.get(`${API_URL}/options`, {
-    params: { gradeNumber }
+    params: { gradeNumber, sectionName, weekday }
   });
   return response.data;
 };
 
-const updateTimetable = async (gradeNumber, sectionName, assignments) => {
+const updateTimetable = async (gradeNumber, sectionName, weekday, assignments) => {
   const response = await axios.post(`${API_URL}/update`, {
     gradeNumber,
     sectionName,
+    weekday,
     assignments
   });
+  return response.data;
+};
+
+const getTeacherRoutine = async (teacherId) => {
+  const response = await axios.get(`${API_URL}/teacher/${teacherId}`);
+  return response.data;
+};
+
+const updateTeacherTopic = async (teacherId, data) => {
+  const response = await axios.post(`${API_URL}/teacher/${teacherId}/topic`, data);
   return response.data;
 };
 
 const timetableService = {
   getTimetable,
   getTimetableOptions,
+  getTeacherRoutine,
+  updateTeacherTopic,
   updateTimetable
 };
 

@@ -21,4 +21,8 @@ router.post(
   authController.changePasswordFirstLogin
 );
 
+// forgot / reset password via OTP
+router.post("/forgot-password-otp", authController.forgotPasswordOtp);
+router.post("/reset-password-otp", authController.resetPasswordOtp);
+
 module.exports = router;

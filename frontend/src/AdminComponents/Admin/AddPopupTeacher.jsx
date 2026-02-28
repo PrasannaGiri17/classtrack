@@ -61,9 +61,11 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
           phoneNo: teacherToEdit.phone || "",
           subject: teacherToEdit.primarySubject?.subjectName || "",
           secondarySubject: teacherToEdit.secondarySubject?.subjectName || "",
-          class: teacherToEdit.assignedGrades?.map(g => String(g.gradeNumber)) || [],
+          class: teacherToEdit.assignedGrades?.map(g => String(g.gradeNumber || g)) || [],
           email: teacherToEdit.email || "",
           currentAddress: teacherToEdit.currentAddress || "",
+          classTeacher: teacherToEdit.classTeacher || "",
+          assignedClasses: teacherToEdit.assignedClasses || null,
         });
       } else {
         setFormData({
@@ -102,7 +104,10 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
 
   const handleClassChange = (selectedClass) => {
     if (formData.class.includes(selectedClass)) {
-      setFormData({ ...formData, class: formData.class.filter((c) => c !== selectedClass) });
+      setFormData({
+        ...formData,
+        class: formData.class.filter((c) => c !== selectedClass),
+      });
     } else if (formData.class.length < 3) {
       setFormData({ ...formData, class: [...formData.class, selectedClass] });
     }
@@ -129,7 +134,6 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
         primarySubject: formData.subject,
         secondarySubject: formData.secondarySubject,
         assignedGrades: formData.class,
-        assignedSections: [],
       };
 
       let res;
@@ -175,7 +179,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-start justify-center p-4 sm:p-6 pt-2 sm:pt-4 animate-in fade-in duration-300 overflow-hidden"
+      className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300 overflow-hidden"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
@@ -200,7 +204,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
               <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
                 {teacherToEdit ? "Edit Teacher Record" : "Enroll Teacher"}
               </h2>
-              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-1.5">
+              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 tracking-[0.2em] mt-1.5">
                 {teacherToEdit ? "Update Faculty Details" : "New Academic Record"}
               </p>
             </div>
@@ -213,22 +217,22 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
             <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
           </button>
         </div>
-
         {/* Form (no scrolling) */}
         <form onSubmit={handleSubmit} className="p-8 space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
             {/* Left Column */}
             <div className="space-y-6">
+
               <div className="flex items-center gap-2">
                 <User size={12} className="text-emerald-500" />
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <span className="text-[9px] font-black text-slate-400 tracking-widest">
                   Personal Identification
                 </span>
                 <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-2" />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                   Full Legal Name
                 </label>
                 <input
@@ -242,7 +246,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                   Date of Birth
                 </label>
                 <input
@@ -255,9 +259,11 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                 />
               </div>
 
+
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Qualification
                   </label>
                   <input
@@ -272,7 +278,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Gender
                   </label>
                   <select
@@ -291,7 +297,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                   Residential Address
                 </label>
                 <textarea
@@ -311,7 +317,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <BookOpen size={12} className="text-emerald-500" />
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <span className="text-[9px] font-black text-slate-400 tracking-widest">
                     Academic Specialization
                   </span>
                   <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-2" />
@@ -319,7 +325,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                    <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                       Main Subject
                     </label>
                     <div className="relative group">
@@ -341,17 +347,16 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
 
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      Secondary Subject
+                      Secondary Subject <span className="text-[8px] opacity-70">(Optional)</span>
                     </label>
                     <div className="relative group">
                       <select
                         name="secondarySubject"
-                        required
                         onChange={handleChange}
                         value={formData.secondarySubject}
                         className="appearance-none w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer"
                       >
-                        <option value="">Secondary Subject</option>
+                        <option value="">None</option>
                         {allSubjects.map(sub => (
                           <option key={sub} value={sub}>{sub}</option>
                         ))}
@@ -362,7 +367,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Assigned Grades (Max 3)
                   </label>
                   <div className="flex flex-wrap gap-2 p-1">
@@ -371,7 +376,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                         key={cls}
                         type="button"
                         onClick={() => handleClassChange(cls)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.class.includes(cls)
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.class.includes(cls)
                           ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
                           : "bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500"
                           } ${formData.class.length >= 3 && !formData.class.includes(cls)
@@ -390,14 +395,14 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Phone size={12} className="text-emerald-500" />
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <span className="text-[9px] font-black text-slate-400 tracking-widest">
                     Contact & Portal Access
                   </span>
                   <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-2" />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Primary Phone Number
                   </label>
                   <input
@@ -412,7 +417,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Official Portal Email
                   </label>
                   <input
@@ -429,32 +434,26 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
             </div>
           </div>
 
-          <div className="p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100/50 dark:border-emerald-800/30 flex items-start gap-3">
-            <AlertCircle className="text-emerald-500 mt-0.5 shrink-0" size={16} />
-            <p className="text-[9px] font-medium text-emerald-800 dark:text-emerald-300 leading-relaxed uppercase tracking-wider">
-              Verification Notice: By publishing this record, you confirm that the academic qualifications
-              and contact details have been officially verified.
-            </p>
-          </div>
 
-          <div className="flex items-center justify-end gap-4 pt-4 border-t dark:border-slate-800">
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t dark:border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3.5 rounded-xl text-slate-500 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+              className="px-6 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95"
             >
-              Discard
+              Cancel
             </button>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-10 py-3.5 bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/30 active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-8 py-2.5 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all font-bold shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
             >
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <Check size={16} strokeWidth={3} />
+                <Check size={18} />
               )}
               {teacherToEdit ? "Update Record" : "Submit Record"}
             </button>

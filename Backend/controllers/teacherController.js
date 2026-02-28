@@ -118,12 +118,15 @@ const addTeacher = async (req, res) => {
       birthdate: birthdate || null,
       qualification: qualification?.trim() || null,
       currentAddress: currentAddress?.trim() || null,
+      profilePhoto: req.body.profilePhoto || null,
 
       primarySubject: primarySubId,
       secondarySubject: secondarySubId,
 
       assignedGrades: resolvedGradeIds,
       assignedSections: Array.isArray(assignedSections) ? assignedSections : [],
+      classTeacher: req.body.classTeacher || null,
+      assignedClasses: req.body.assignedClasses || null,
     });
 
     await teacher.save();
@@ -187,7 +190,10 @@ const addTeacher = async (req, res) => {
 
 const getTeacherById = async (req, res) => {
   try {
-    const teacher = await Teacher.findById(req.params.id);
+    const teacher = await Teacher.findById(req.params.id)
+      .populate("assignedGrades", "gradeNumber")
+      .populate("primarySubject", "subjectName")
+      .populate("secondarySubject", "subjectName");
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
     res.status(200).json(teacher);
   } catch (error) {
@@ -228,6 +234,7 @@ const updateTeacher = async (req, res) => {
     if (primarySubId !== undefined) updateData.primarySubject = primarySubId;
     if (secondarySubId !== undefined) updateData.secondarySubject = secondarySubId;
     if (resolvedGradeIds !== undefined) updateData.assignedGrades = resolvedGradeIds;
+    if (req.body.profilePhoto !== undefined) updateData.profilePhoto = req.body.profilePhoto;
 
     const updatedTeacher = await Teacher.findByIdAndUpdate(req.params.id, updateData, {
       new: true,

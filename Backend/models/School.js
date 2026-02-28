@@ -10,6 +10,10 @@ const schoolSchema = new mongoose.Schema({
   email: String,
   logo: String,
   website: String,
+  motto: String,
+  establishedYear: String,
+  affiliation: String,
+  principalName: String,
   gradeSpan: {
     start: { type: Number, default: 1 },
     end: { type: Number, default: 10 }
@@ -21,7 +25,7 @@ const schoolSchema = new mongoose.Schema({
   maxSectionsPerGrade: { type: Number, default: 10 },
   phoneNumbers: [{
     phoneNumber: { type: String, required: true },
-    type: { type: String, enum: ['main', 'office', 'emergency', 'fax', 'mobile'], default: 'main' },
+    type: { type: String, default: 'main' },  // Free-text label e.g. "Main Office"
     isPrimary: { type: Boolean, default: false },
     displayOrder: { type: Number, default: 0 }
   }],

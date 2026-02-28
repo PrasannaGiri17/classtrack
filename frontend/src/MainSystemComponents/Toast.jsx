@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
 
 /**
@@ -16,7 +17,7 @@ export const toast = (payload) => {
 
 /**
  * TOAST HOST COMPONENT
- * Mount this once at the top level of your app (e.g., in App.jsx).
+ * Mount this once at the top level of your app (e.g., in App.js).
  */
 export const ToastHost = () => {
   const [toasts, setToasts] = useState([]);
@@ -50,12 +51,13 @@ export const ToastHost = () => {
     };
   }, [removeToast]);
 
-  return (
-    <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+  return createPortal(
+    <div className="fixed top-6 right-6 z-[99999] flex flex-col gap-3 pointer-events-none">
       {toasts.map((t) => (
         <ToastItem key={t.id} instance={t} onManualClose={() => removeToast(t.id)} />
       ))}
-    </div>
+    </div>,
+    document.body
   );
 };
 

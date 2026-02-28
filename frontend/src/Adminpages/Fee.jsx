@@ -10,9 +10,11 @@ import {
   MoreVertical,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Eye
 } from 'lucide-react';
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from '../MainSystemComponents/Toast';
 import schoolService from '../Api/schoolService';
 import gradeService from '../Api/gradeService';
@@ -45,6 +47,7 @@ const INITIAL_STUDENTS = [
 ];
 
 const Fee = () => {
+  const navigate = useNavigate();
   const [feeConfig, setFeeConfig] = useState({});
   const [grades, setGrades] = useState([]);
   const [admissionFee, setAdmissionFee] = useState(0);
@@ -296,8 +299,14 @@ const Fee = () => {
                       {getStatusBadge(student.status)}
                     </td>
                     <td className="pr-12 pl-6 py-6">
-                      <div className="flex items-center justify-center">
-                        <button className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-500 hover:shadow-sm transition-all">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => navigate(`/admin/fee/student/${student.studentId}`)}
+                          className="px-4 py-2 flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                        >
+                          <Eye size={14} /> View Fee
+                        </button>
+                        <button className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-500 transition-all">
                           <MoreVertical size={18} />
                         </button>
                       </div>
@@ -318,24 +327,24 @@ const Fee = () => {
             </table>
           </div>
 
-          <div className="w-full px-12 py-8 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+          <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
             <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
               Record {currentPage} of {totalPages}
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                className="w-12 h-12 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-10 h-10 flex items-center justify-center rounded-[10px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeft size={18} />
               </button>
               <button
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                className="w-12 h-12 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-10 h-10 flex items-center justify-center rounded-[10px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ChevronRight size={20} />
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>

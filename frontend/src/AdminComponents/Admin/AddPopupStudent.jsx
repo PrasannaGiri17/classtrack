@@ -12,17 +12,52 @@ import {
 } from "lucide-react";
 import FailedPopup from "../SmallerComponents/FailedPopup";
 
-export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
+export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', studentData = null }) => {
+  const isEditMode = mode === 'edit';
   const [formData, setFormData] = useState({
     name: "",
     birthdate: "",
     gender: "",
-    parentName: "",
-    parentPhone: "",
+    fatherName: "",
+    fatherPhone: "",
+    motherName: "",
+    motherPhone: "",
     loginEmail: "",
     currentAddress: "",
     class: "",
   });
+
+  // Populate data when in edit mode
+  useEffect(() => {
+    if (isEditMode && studentData && isOpen) {
+      setFormData({
+        name: studentData.name || `${studentData.firstName || ''} ${studentData.lastName || ''}`.trim(),
+        birthdate: studentData.birthdate ? new Date(studentData.birthdate).toISOString().split('T')[0] : "",
+        gender: studentData.gender || "",
+        fatherName: studentData.fatherName || "",
+        fatherPhone: studentData.fatherPhone || "",
+        motherName: studentData.motherName || "",
+        motherPhone: studentData.motherPhone || "",
+        loginEmail: studentData.email || "",
+        currentAddress: studentData.Address || "",
+        class: studentData.studentClass || studentData.class || "",
+      });
+    } else if (!isEditMode && isOpen) {
+      // Reset for new enrollment
+      setFormData({
+        name: "",
+        birthdate: "",
+        gender: "",
+        fatherName: "",
+        fatherPhone: "",
+        motherName: "",
+        motherPhone: "",
+        loginEmail: "",
+        currentAddress: "",
+        class: "",
+      });
+    }
+  }, [isEditMode, studentData, isOpen]);
 
   const [popup, setPopup] = useState({ message: "", type: "error" });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,9 +91,21 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
     const firstName = parts[0] || "";
     const lastName = parts.slice(1).join(" ") || ".";
 
-    // Client-side validations
-    if (!/^\d{10}$/.test(formData.parentPhone)) {
-      setPopup({ message: "Parent phone number must be exactly 10 digits.", type: "error" });
+    // Validation: at least one guardian name required
+    if (!formData.fatherName.trim() && !formData.motherName.trim()) {
+      setPopup({ message: "Please enter at least Father Name or Mother Name.", type: "error" });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate phone numbers (if filled, must be 10 digits)
+    if (formData.fatherPhone && !/^\d{10}$/.test(formData.fatherPhone)) {
+      setPopup({ message: "Father's phone number must be exactly 10 digits.", type: "error" });
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.motherPhone && !/^\d{10}$/.test(formData.motherPhone)) {
+      setPopup({ message: "Mother's phone number must be exactly 10 digits.", type: "error" });
       setIsSubmitting(false);
       return;
     }
@@ -71,19 +118,37 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
     }
 
     try {
-      await axios.post("http://localhost:7000/api/students/add", {
-        firstName,
-        lastName,
-        parentName: formData.parentName,
-        parentPhone: formData.parentPhone,
-        email: formData.loginEmail,
-        Address: formData.currentAddress,
-        studentClass: Number(formData.class),
-        birthdate: formData.birthdate,
-        gender: formData.gender,
-      });
-
-      setPopup({ message: "Student record successfully saved.", type: "success" });
+      if (isEditMode && studentData?._id) {
+        await axios.put(`http://localhost:7000/api/students/${studentData._id}`, {
+          firstName,
+          lastName,
+          fatherName: formData.fatherName,
+          fatherPhone: formData.fatherPhone,
+          motherName: formData.motherName,
+          motherPhone: formData.motherPhone,
+          email: formData.loginEmail,
+          Address: formData.currentAddress,
+          studentClass: Number(formData.class),
+          birthdate: formData.birthdate,
+          gender: formData.gender,
+        });
+        setPopup({ message: "Student record updated successfully.", type: "success" });
+      } else {
+        await axios.post("http://localhost:7000/api/students/add", {
+          firstName,
+          lastName,
+          fatherName: formData.fatherName,
+          fatherPhone: formData.fatherPhone,
+          motherName: formData.motherName,
+          motherPhone: formData.motherPhone,
+          email: formData.loginEmail,
+          Address: formData.currentAddress,
+          studentClass: Number(formData.class),
+          birthdate: formData.birthdate,
+          gender: formData.gender,
+        });
+        setPopup({ message: "Student record successfully saved.", type: "success" });
+      }
 
       setTimeout(() => {
         if (onSuccess) onSuccess();
@@ -92,8 +157,10 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
           name: "",
           birthdate: "",
           gender: "",
-          parentName: "",
-          parentPhone: "",
+          fatherName: "",
+          fatherPhone: "",
+          motherName: "",
+          motherPhone: "",
           loginEmail: "",
           currentAddress: "",
           class: "",
@@ -114,7 +181,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-start justify-center p-4 sm:p-6 pt-6 sm:pt-12 animate-in fade-in duration-300 overflow-y-auto"
+      className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
@@ -137,10 +204,10 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
-                Enroll Student
+                {isEditMode ? 'Edit Student' : 'Enroll Student'}
               </h2>
-              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-1.5">
-                New Student Record
+              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 tracking-[0.2em] mt-1.5">
+                {isEditMode ? 'Update Student Record' : 'New Student Record'}
               </p>
             </div>
           </div>
@@ -160,14 +227,14 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
             <div className="space-y-6">
               <div className="flex items-center gap-2">
                 <User size={12} className="text-emerald-500" />
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <span className="text-[9px] font-black text-slate-400 tracking-widest">
                   Personal Details
                 </span>
                 <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-2" />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                   Full Name
                 </label>
                 <input
@@ -182,7 +249,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Birthdate
                   </label>
                   <input
@@ -197,7 +264,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Gender
                   </label>
                   <select
@@ -216,7 +283,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                   Residential Address
                 </label>
                 <textarea
@@ -237,14 +304,14 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <GraduationCap size={12} className="text-emerald-500" />
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <span className="text-[9px] font-black text-slate-400 tracking-widest">
                     Academic Placement
                   </span>
                   <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-2" />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Grade
                   </label>
                   <select
@@ -268,51 +335,83 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Phone size={12} className="text-emerald-500" />
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <span className="text-[9px] font-black text-slate-400 tracking-widest">
                     Guardian & Access
                   </span>
                   <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-2" />
                 </div>
 
+                {/* Father */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      Parent/Guardian Name
+                    <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
+                      Father Name <span className="text-emerald-500">*</span>
                     </label>
                     <input
-                      name="parentName"
-                      required
+                      name="fatherName"
                       onChange={handleChange}
-                      value={formData.parentName}
-                      placeholder="Full legal name"
+                      value={formData.fatherName}
+                      placeholder="Father's full name"
                       className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
                     />
                   </div>
-
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      Parent Number
+                    <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
+                      Father Number
                     </label>
                     <input
-                      name="parentPhone"
-                      required
+                      name="fatherPhone"
                       type="tel"
-                      pattern="\d{10}"
-                      title="Please enter a 10-digit phone number"
                       maxLength={10}
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, "");
-                        setFormData({ ...formData, parentPhone: val });
+                        setFormData({ ...formData, fatherPhone: val });
                       }}
-                      value={formData.parentPhone}
-                      placeholder="Primary phone number (10 digits)"
+                      value={formData.fatherPhone}
+                      placeholder="10-digit number"
                       className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
                     />
                   </div>
                 </div>
 
+                {/* Mother */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-slate-400 tracking-widests ml-1">
+                      Mother Name <span className="text-emerald-500">*</span>
+                    </label>
+                    <input
+                      name="motherName"
+                      onChange={handleChange}
+                      value={formData.motherName}
+                      placeholder="Mother's full name"
+                      className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-slate-400 tracking-widests ml-1">
+                      Mother Number
+                    </label>
+                    <input
+                      name="motherPhone"
+                      type="tel"
+                      maxLength={10}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setFormData({ ...formData, motherPhone: val });
+                      }}
+                      value={formData.motherPhone}
+                      placeholder="10-digit number"
+                      className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
+                    />
+                  </div>
+                </div>
+
+                {/* Note */}
+                <p className="text-[9px] text-slate-400 font-bold ml-1">* At least one of Father Name or Mother Name is required.</p>
+
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Login Email
                   </label>
                   <input
@@ -329,21 +428,13 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
             </div>
           </div>
 
-          {/* Warning Message */}
-          <div className="p-4 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100/50 dark:border-emerald-800/30 flex items-start gap-3">
-            <AlertCircle className="text-emerald-500 mt-0.5 shrink-0" size={16} />
-            <p className="text-[9px] font-medium text-emerald-800 dark:text-emerald-300 leading-relaxed uppercase tracking-wider">
-              Verification Notice: Data entered here will be synced with the official student records.
-              Ensure all credentials are correct before publishing.
-            </p>
-          </div>
 
           {/* Footer Actions */}
           <div className="flex items-center justify-end gap-4 pt-4 sticky bottom-0 bg-white dark:bg-slate-900 pb-2 border-t dark:border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3.5 rounded-xl text-slate-500 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+              className="px-6 py-3.5 rounded-xl text-slate-500 font-black text-[10px] tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
             >
               Cancel
             </button>
@@ -351,14 +442,14 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-10 py-3.5 bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 transition-all font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/30 active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-10 py-3.5 bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 transition-all font-black text-[10px] tracking-widest shadow-lg shadow-emerald-500/30 active:scale-95 disabled:opacity-50"
             >
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <Check size={16} strokeWidth={3} />
               )}
-              Enroll Student
+              {isEditMode ? 'Save Changes' : 'Enroll Student'}
             </button>
           </div>
         </form>

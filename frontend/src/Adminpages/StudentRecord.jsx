@@ -1,16 +1,21 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { Users, Search, Trash2, Plus, ChevronLeft, ChevronRight, Loader2, AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Users, Search, Trash2, Plus, ChevronLeft, ChevronRight, Loader2, AlertCircle, Pencil } from "lucide-react";
 import { AddPopupStudent } from "../AdminComponents/Admin/AddPopupStudent";
 import ConfirmDialog from "../MainSystemComponents/ConfirmDialog";
 import { toast } from "../MainSystemComponents/Toast";
+import Loading from "../MainSystemComponents/Loading";
 
 const StudentRecord = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [popupMode, setPopupMode] = useState("add");
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, studentId: null, studentName: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -84,7 +89,7 @@ const StudentRecord = () => {
             <Users className="text-emerald-500 w-7 h-7" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Total Students</p>
+            <p className="text-[10px] font-black text-slate-400 tracking-widest mb-0.5">Total Students</p>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-none">{students.length}</h2>
           </div>
         </div>
@@ -104,10 +109,14 @@ const StudentRecord = () => {
         </div>
 
         <button
-          onClick={() => setIsPopupOpen(true)}
+          onClick={() => {
+            setPopupMode("add");
+            setSelectedStudent(null);
+            setIsPopupOpen(true);
+          }}
           className="px-10 py-5 bg-emerald-500 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
         >
-          <Plus size={22} /> ADD STUDENT
+          <Plus size={22} /> Add Student
         </button>
       </div>
 
@@ -117,19 +126,18 @@ const StudentRecord = () => {
           <table className="w-full min-w-[800px] table-auto text-left">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Details</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Grade</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Flag</th>
-                <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
+                <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Id</th>
+                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Student Details</th>
+                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Grade</th>
+                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center">Flag</th>
+                <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-32 flex flex-col items-center justify-center">
-                    <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mb-4" />
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accessing Student Vault...</p>
+                  <td colSpan={5} className="py-24">
+                    <Loading text="Accessing Student Vault..." fullScreen={false} />
                   </td>
                 </tr>
               ) : error ? (
@@ -137,27 +145,34 @@ const StudentRecord = () => {
                   <td colSpan={5} className="py-32">
                     <div className="flex flex-col items-center justify-center text-red-500">
                       <AlertCircle className="w-10 h-10 mb-4" />
-                      <p className="text-sm font-bold uppercase tracking-widest">{error}</p>
+                      <p className="text-sm font-bold tracking-widest">{error}</p>
                     </div>
                   </td>
                 </tr>
               ) : currentItems.length > 0 ? (
                 currentItems.map((s) => (
-                  <tr key={s._id} className="group hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5 transition-all">
+                  <tr
+                    key={s._id}
+                    className="group hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5 transition-all cursor-pointer"
+                    onClick={() => navigate(`/admin/student/${s._id}`)}
+                  >
                     <td className="pl-12 pr-6 py-6 font-bold text-slate-400 text-xs">{s.studentId}</td>
                     <td className="px-6 py-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20 flex items-center justify-center text-emerald-600 font-black text-xs shadow-inner shrink-0">
-                          {s.firstName?.[0]}{s.lastName?.[0]}
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20 flex items-center justify-center text-emerald-600 font-black text-xs shadow-inner shrink-0 overflow-hidden">
+                          {s.profilePhoto ? (
+                            <img src={s.profilePhoto} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <>{s.firstName?.[0]}{s.lastName?.[0]}</>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-black text-slate-900 dark:text-white leading-tight truncate">{s.firstName} {s.lastName}</p>
-                          <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider truncate">{s.email || 'Student Record'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-6">
-                      <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700 whitespace-nowrap">
+                      <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black tracking-widest text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700 whitespace-nowrap">
                         Grade {s.studentClass}
                       </span>
                     </td>
@@ -167,8 +182,23 @@ const StudentRecord = () => {
                     <td className="pr-12 pl-6 py-6 text-center">
                       <div className="flex items-center justify-center transition-all">
                         <button
-                          onClick={() => handleDeleteClick(s)}
-                          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPopupMode("edit");
+                            setSelectedStudent(s);
+                            setIsPopupOpen(true);
+                          }}
+                          className="relative z-10 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl mr-1"
+                          title="Edit Record"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(s);
+                          }}
+                          className="relative z-10 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
                           title="Delete Record"
                         >
                           <Trash2 size={18} />
@@ -179,7 +209,7 @@ const StudentRecord = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-32 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No student records found</td>
+                  <td colSpan={5} className="py-32 text-center text-slate-400 font-bold tracking-widest text-xs">No Student Records Found</td>
                 </tr>
               )}
             </tbody>
@@ -188,7 +218,7 @@ const StudentRecord = () => {
 
         {/* Footer Section - Compact sizing */}
         <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
-          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Record {currentPage} of {totalPages}</p>
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-[0.2em]">Record {currentPage} of {totalPages}</p>
           <div className="flex items-center gap-3">
             <button
               disabled={currentPage === 1}
@@ -210,8 +240,13 @@ const StudentRecord = () => {
 
       <AddPopupStudent
         isOpen={isPopupOpen}
-        onClose={() => setIsPopupOpen(false)}
+        onClose={() => {
+          setIsPopupOpen(false);
+          setSelectedStudent(null);
+        }}
         onSuccess={fetchStudents}
+        mode={popupMode}
+        studentData={selectedStudent}
       />
 
       <ConfirmDialog

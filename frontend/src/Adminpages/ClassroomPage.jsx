@@ -3,6 +3,7 @@ import gradeService from '../Api/gradeService';
 import teacherService from '../Api/teacherService';
 import studentService from '../Api/studentService';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
+import PortalPopup from '../MainSystemComponents/PortalPopup';
 import { toast } from '../MainSystemComponents/Toast';
 import {
   Users,
@@ -338,8 +339,12 @@ const ClassroomPage = () => {
                       <td className="pl-10 pr-4 py-5 text-xs font-bold text-slate-400">{s.studentId}</td>
                       <td className="px-4 py-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-[10px] font-black text-emerald-600">
-                            {s.firstName?.[0]}
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-[10px] font-black text-emerald-600 overflow-hidden">
+                            {s.profilePhoto ? (
+                              <img src={s.profilePhoto} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              s.firstName?.[0]
+                            )}
                           </div>
                           <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{s.firstName} {s.lastName}</span>
                         </div>
@@ -455,231 +460,227 @@ const ClassroomPage = () => {
       </div>
 
       {/* Teacher Selection Modal */}
-      {isTeacherModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsTeacherModalOpen(false)} />
+      <PortalPopup isOpen={isTeacherModalOpen} onClose={() => setIsTeacherModalOpen(false)}>
+        <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300 overflow-hidden pointer-events-auto">
+          <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">Assign Class Teacher</h3>
+            <button onClick={() => setIsTeacherModalOpen(false)} className="text-slate-400 hover:text-slate-900"><X size={24} /></button>
+          </div>
 
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">Assign Class Teacher</h3>
-              <button onClick={() => setIsTeacherModalOpen(false)} className="text-slate-400 hover:text-slate-900"><X size={24} /></button>
-            </div>
-
-            <div className="p-4 max-h-[400px] overflow-y-auto space-y-2 scrollbar-hide">
-              {teachers
-                .filter(t => {
-                  if (!selectedGrade) return true;
-                  // Handle both populated grade objects and string IDs/numbers from assignedGrades
-                  return t.assignedGrades?.some(g => {
-                    const gNum = (g.gradeNumber || g).toString();
-                    return gNum === selectedGrade;
-                  });
-                })
-                .map(t => (
-                  <button
-                    key={t._id}
-                    onClick={() => handleAssignTeacher(t._id)}
-                    className={`w-full flex items-center justify-between p-5 rounded-3xl transition-all ${assignedTeacherId === t._id
-                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500'
-                      : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border-2 border-transparent'
-                      }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-black text-indigo-600">
-                        {t.firstName?.[0] || 'T'}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-black text-slate-900 dark:text-white">{t.firstName} {t.lastName}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          {t.primarySubject?.subjectName || 'Faculty'} Specialist
-                        </p>
-                      </div>
-                    </div>
-                    {assignedTeacherId === t._id && <CheckCircle2 className="text-emerald-500" size={20} />}
-                  </button>
-                ))}
-
-              {teachers.length > 0 && teachers.filter(t => {
+          <div className="p-4 max-h-[400px] overflow-y-auto space-y-2 scrollbar-hide">
+            {teachers
+              .filter(t => {
                 if (!selectedGrade) return true;
-                return t.assignedGrades?.some(g => (g.gradeNumber || g).toString() === selectedGrade);
-              }).length === 0 && (
-                  <div className="py-12 text-center">
-                    <Users className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No teachers assigned to Grade {selectedGrade}</p>
-                    <p className="text-[10px] text-slate-400 mt-2">Assign grades to teachers in the Teacher Profile page first.</p>
+                // Handle both populated grade objects and string IDs/numbers from assignedGrades
+                return t.assignedGrades?.some(g => {
+                  const gNum = (g.gradeNumber || g).toString();
+                  return gNum === selectedGrade;
+                });
+              })
+              .map(t => (
+                <button
+                  key={t._id}
+                  onClick={() => handleAssignTeacher(t._id)}
+                  className={`w-full flex items-center justify-between p-5 rounded-3xl transition-all ${assignedTeacherId === t._id
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500'
+                    : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border-2 border-transparent'
+                    }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-black text-indigo-600">
+                      {t.firstName?.[0] || 'T'}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-black text-slate-900 dark:text-white">{t.firstName} {t.lastName}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {t.primarySubject?.subjectName || 'Faculty'} Specialist
+                      </p>
+                    </div>
                   </div>
-                )}
+                  {assignedTeacherId === t._id && <CheckCircle2 className="text-emerald-500" size={20} />}
+                </button>
+              ))}
 
-              {teachers.length === 0 && !isLoading && (
+            {teachers.length > 0 && teachers.filter(t => {
+              if (!selectedGrade) return true;
+              return t.assignedGrades?.some(g => (g.gradeNumber || g).toString() === selectedGrade);
+            }).length === 0 && (
                 <div className="py-12 text-center">
-                  <AlertCircle className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No teachers found in database</p>
+                  <Users className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No teachers assigned to Grade {selectedGrade}</p>
+                  <p className="text-[10px] text-slate-400 mt-2">Assign grades to teachers in the Teacher Profile page first.</p>
                 </div>
               )}
-            </div>
 
-            <div className="p-8 bg-slate-50/50 dark:bg-slate-800/50 text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Showing Available Faculty</p>
-            </div>
+            {teachers.length === 0 && !isLoading && (
+              <div className="py-12 text-center">
+                <AlertCircle className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No teachers found in database</p>
+              </div>
+            )}
+          </div>
+
+          <div className="p-8 bg-slate-50/50 dark:bg-slate-800/50 text-center">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Showing Available Faculty</p>
           </div>
         </div>
-      )}
+      </PortalPopup>
 
       {/* Add Student Modal (Enrollment) */}
-      {isAddStudentModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={() => setIsAddStudentModalOpen(false)} />
+      <PortalPopup isOpen={isAddStudentModalOpen} onClose={() => setIsAddStudentModalOpen(false)}>
+        <div className="relative bg-white dark:bg-slate-950 w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300 flex flex-col overflow-hidden pointer-events-auto">
 
-          <div className="relative bg-white dark:bg-slate-950 w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300 flex flex-col overflow-hidden">
-
-            {/* Modal Header */}
-            <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-emerald-500/20">
-                  <UserPlus className="text-white w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Add Students to Section</h3>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-400 uppercase tracking-widest">SESSION</span>
-                    <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">GRADE {selectedGrade} - {selectedSection}</span>
-                  </div>
-                </div>
+          {/* Modal Header */}
+          <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-emerald-500/20">
+                <UserPlus className="text-white w-8 h-8" />
               </div>
-              <button onClick={() => setIsAddStudentModalOpen(false)} className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-                <X size={28} />
-              </button>
-            </div>
-
-            {/* Modal Search & Stats */}
-            <div className="px-10 py-6 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div className="relative flex-1 w-full max-w-md">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search by Student ID or Name..."
-                  value={modalSearchQuery}
-                  onChange={(e) => setModalSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-6 py-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-slate-200"
-                />
-              </div>
-
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Slots</p>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xl font-black ${remainingSlots <= 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                      {remainingSlots - selectedForEnrollment.length}
-                    </span>
-                    <span className="text-sm font-black text-slate-400">/ {capacity}</span>
-                  </div>
-                </div>
-                <div className="h-10 w-px bg-slate-200 dark:bg-slate-800" />
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Selected</p>
-                  <span className="text-xl font-black text-indigo-500">{selectedForEnrollment.length}</span>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Add Students to Section</h3>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-400 uppercase tracking-widest">SESSION</span>
+                  <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">GRADE {selectedGrade} - {selectedSection}</span>
                 </div>
               </div>
             </div>
+            <button onClick={() => setIsAddStudentModalOpen(false)} className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+              <X size={28} />
+            </button>
+          </div>
 
-            {/* Modal Table Container */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-20 bg-white dark:bg-slate-950 shadow-sm">
-                  <tr className="border-b border-slate-50 dark:border-slate-800">
-                    <th className="pl-10 pr-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest w-[80px]">Select</th>
-                    <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID</th>
-                    <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</th>
-                    <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Flag</th>
-                    <th className="pr-10 pl-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">GPA</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/30">
-                  {filteredModalPool.map((s) => {
-                    const isAlreadyInThisSection = enrolledStudents.some(item => item._id === s._id);
-                    const isSelected = selectedForEnrollment.includes(s._id);
-                    const isDisabled = isAlreadyInThisSection || (!isSelected && selectedForEnrollment.length >= remainingSlots);
+          {/* Modal Search & Stats */}
+          <div className="px-10 py-6 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="relative flex-1 w-full max-w-md">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search by Student ID or Name..."
+                value={modalSearchQuery}
+                onChange={(e) => setModalSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-6 py-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-slate-200"
+              />
+            </div>
 
-                    return (
-                      <tr
-                        key={s._id}
-                        onClick={() => !isDisabled && toggleStudentSelection(s._id)}
-                        className={`group transition-colors cursor-pointer ${isSelected ? 'bg-emerald-50/30 dark:bg-emerald-900/10' :
-                          isAlreadyInThisSection ? 'opacity-40 cursor-not-allowed bg-slate-50/50 dark:bg-slate-900/20' :
-                            'hover:bg-slate-50 dark:hover:bg-slate-900'
-                          }`}
-                      >
-                        <td className="pl-10 pr-4 py-5">
-                          <div className={`
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Slots</p>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xl font-black ${remainingSlots <= 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                    {remainingSlots - selectedForEnrollment.length}
+                  </span>
+                  <span className="text-sm font-black text-slate-400">/ {capacity}</span>
+                </div>
+              </div>
+              <div className="h-10 w-px bg-slate-200 dark:bg-slate-800" />
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Selected</p>
+                <span className="text-xl font-black text-indigo-500">{selectedForEnrollment.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Table Container */}
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 z-20 bg-white dark:bg-slate-950 shadow-sm">
+                <tr className="border-b border-slate-50 dark:border-slate-800">
+                  <th className="pl-10 pr-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest w-[80px]">Select</th>
+                  <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID</th>
+                  <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</th>
+                  <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Flag</th>
+                  <th className="pr-10 pl-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">GPA</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/30">
+                {filteredModalPool.map((s) => {
+                  const isAlreadyInThisSection = enrolledStudents.some(item => item._id === s._id);
+                  const isSelected = selectedForEnrollment.includes(s._id);
+                  const isDisabled = isAlreadyInThisSection || (!isSelected && selectedForEnrollment.length >= remainingSlots);
+
+                  return (
+                    <tr
+                      key={s._id}
+                      onClick={() => !isDisabled && toggleStudentSelection(s._id)}
+                      className={`group transition-colors cursor-pointer ${isSelected ? 'bg-emerald-50/30 dark:bg-emerald-900/10' :
+                        isAlreadyInThisSection ? 'opacity-40 cursor-not-allowed bg-slate-50/50 dark:bg-slate-900/20' :
+                          'hover:bg-slate-50 dark:hover:bg-slate-900'
+                        }`}
+                    >
+                      <td className="pl-10 pr-4 py-5">
+                        <div className={`
                             w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all
                             ${isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-200 dark:border-slate-700'}
                           `}>
-                            {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
+                          {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-5">
+                        <span className={`text-xs font-bold ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                          {s.studentId}
+                        </span>
+                      </td>
+                      <td className="px-4 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs overflow-hidden ${isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                            }`}>
+                            {s.profilePhoto ? (
+                              <img src={s.profilePhoto} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              s.firstName?.[0]
+                            )}
                           </div>
-                        </td>
-                        <td className="px-4 py-5">
-                          <span className={`text-xs font-bold ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                            {s.studentId}
-                          </span>
-                        </td>
-                        <td className="px-4 py-5">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs ${isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                              }`}>
-                              {s.firstName?.[0]}
-                            </div>
-                            <div>
-                              <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">{s.firstName} {s.lastName}</p>
-                              {isAlreadyInThisSection && (
-                                <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-0.5">Already Enrolled</p>
-                              )}
-                            </div>
+                          <div>
+                            <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">{s.firstName} {s.lastName}</p>
+                            {isAlreadyInThisSection && (
+                              <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-0.5">Already Enrolled</p>
+                            )}
                           </div>
-                        </td>
-                        <td className="px-4 py-5 text-center text-xl">
-                          {s.flag === 'red' ? '🔴' : s.flag === 'yellow' ? '🟡' : '🟢'}
-                        </td>
-                        <td className="pr-10 pl-4 py-5 text-center">
-                          <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
-                            {s.gpa || "N/A"}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+                      </td>
+                      <td className="px-4 py-5 text-center text-xl">
+                        {s.flag === 'red' ? '🔴' : s.flag === 'yellow' ? '🟡' : '🟢'}
+                      </td>
+                      <td className="pr-10 pl-4 py-5 text-center">
+                        <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                          {s.gpa || "N/A"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="px-10 py-8 bg-white dark:bg-slate-950 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100/50 dark:border-emerald-800/30">
+              <AlertCircle className="text-emerald-500 shrink-0" size={18} />
+              <p className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">
+                Students will be automatically linked to the <span className="underline">Academic Profile</span> upon confirmation.
+              </p>
             </div>
 
-            {/* Modal Footer */}
-            <div className="px-10 py-8 bg-white dark:bg-slate-950 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100/50 dark:border-emerald-800/30">
-                <AlertCircle className="text-emerald-500 shrink-0" size={18} />
-                <p className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">
-                  Students will be automatically linked to the <span className="underline">Academic Profile</span> upon confirmation.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setIsAddStudentModalOpen(false)}
-                  className="px-8 py-4 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={selectedForEnrollment.length === 0}
-                  onClick={handleAddSelectedStudents}
-                  className="px-12 py-4 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-emerald-500/20 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all flex items-center gap-3"
-                >
-                  <CheckCircle2 size={18} />
-                  Add {selectedForEnrollment.length} Students
-                </button>
-              </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIsAddStudentModalOpen(false)}
+                className="px-8 py-4 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={selectedForEnrollment.length === 0}
+                onClick={handleAddSelectedStudents}
+                className="px-12 py-4 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-emerald-500/20 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all flex items-center gap-3"
+              >
+                <CheckCircle2 size={18} />
+                Add {selectedForEnrollment.length} Students
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </PortalPopup>
 
       {/* Save Classroom Confirmation Dialog */}
       <ConfirmDialog

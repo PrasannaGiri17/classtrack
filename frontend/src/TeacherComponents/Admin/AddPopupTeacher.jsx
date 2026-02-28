@@ -341,17 +341,16 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
 
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      Secondary Subject
+                      Secondary Subject <span className="text-[8px] opacity-70">(Optional)</span>
                     </label>
                     <div className="relative group">
                       <select
                         name="secondarySubject"
-                        required
                         onChange={handleChange}
                         value={formData.secondarySubject}
                         className="appearance-none w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer"
                       >
-                        <option value="">Secondary Subject</option>
+                        <option value="">None</option>
                         {allSubjects.map(sub => (
                           <option key={sub} value={sub}>{sub}</option>
                         ))}

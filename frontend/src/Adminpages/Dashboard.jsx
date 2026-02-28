@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  Users, 
-  GraduationCap, 
-  TrendingUp, 
-  AlertCircle, 
-  ArrowUpRight, 
+import {
+  Users,
+  GraduationCap,
+  TrendingUp,
+  AlertCircle,
+  ArrowUpRight,
   ArrowDownRight,
   Bell,
   Sparkles,
@@ -62,11 +62,11 @@ const DashboardPage = () => {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Attendance Overview</h3>
               <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">Weekly student turnout analysis</p>
             </div>
-            
+
             <div className="flex items-center gap-3">
               {/* Enhanced Class/Section Filter */}
               <div className="relative group min-w-[180px]">
-                <select 
+                <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
                   className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:border-emerald-500/20 text-xs font-black text-slate-600 dark:text-slate-300 rounded-xl pl-4 pr-10 py-3 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm"
@@ -107,23 +107,23 @@ const DashboardPage = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={attendanceData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" opacity={0.1} />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }}
                   dy={10}
                 />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }} 
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }}
                 />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: 'rgba(148, 163, 184, 0.05)' }}
-                  contentStyle={{ 
-                    borderRadius: '24px', 
-                    border: 'none', 
+                  contentStyle={{
+                    borderRadius: '24px',
+                    border: 'none',
                     boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)',
                     backgroundColor: 'rgba(255, 255, 255, 0.98)',
                     padding: '20px'
@@ -135,13 +135,13 @@ const DashboardPage = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          
+
           {/* Legend */}
           <div className="flex items-center gap-10 mt-8 justify-center border-t border-slate-50 dark:border-slate-800 pt-6">
-             <div className="flex items-center gap-3">
-               <div className="w-4 h-4 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/20" />
-               <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Student Attendance</span>
-             </div>
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/20" />
+              <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Student Attendance</span>
+            </div>
           </div>
         </div>
 
@@ -183,17 +183,17 @@ const DashboardPage = () => {
               <h3 className="text-2xl font-black mb-2 tracking-tight">Academic Milestone</h3>
               <p className="text-emerald-100 text-sm font-medium mb-8 max-w-xs leading-relaxed">The school has achieved a record-breaking 94% pass rate this semester across all departments.</p>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="flex -space-x-3">
                 {[1, 2, 3, 4].map(i => (
-                  <img key={i} src={`https://picsum.photos/seed/${i+100}/50/50`} className="w-10 h-10 rounded-full border-2 border-emerald-600 dark:border-emerald-700 object-cover shadow-sm" alt="Teacher" />
+                  <img key={i} src={`https://picsum.photos/seed/${i + 100}/50/50`} className="w-10 h-10 rounded-full border-2 border-emerald-600 dark:border-emerald-700 object-cover shadow-sm" alt="Teacher" />
                 ))}
               </div>
               <p className="text-xs font-bold text-white/90 tracking-wide">+12 Faculty Members</p>
             </div>
           </div>
-          
+
           <div className="absolute top-[-20px] right-[-20px] w-48 h-48 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-700"></div>
           <div className="absolute bottom-[-40px] left-[-20px] w-64 h-64 bg-emerald-700/50 dark:bg-emerald-800/50 rounded-full blur-3xl"></div>
         </div>

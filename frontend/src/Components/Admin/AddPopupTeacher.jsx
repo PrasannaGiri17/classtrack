@@ -258,7 +258,7 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
                         htmlFor="secondarySubject"
                         className="block text-sm font-semibold text-gray-700 mb-2"
                       >
-                        Secondary Subject
+                        Secondary Subject <span className="text-xs font-normal opacity-50">(Optional)</span>
                       </label>
                       <input
                         type="text"
@@ -266,7 +266,6 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
                         name="secondarySubject"
                         value={formData.secondarySubject}
                         onChange={handleChange}
-                        required
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#22c55e] focus:border-transparent"
                         placeholder="Enter secondary subject"
                       />
@@ -283,15 +282,13 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
                             key={cls}
                             type="button"
                             onClick={() => handleClassChange(cls)}
-                            className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                              formData.class.includes(cls)
+                            className={`px-4 py-2 rounded-lg border-2 transition-all ${formData.class.includes(cls)
                                 ? "bg-[#22c55e] text-white border-[#22c55e]"
                                 : "bg-white text-gray-700 border-gray-300 hover:border-[#22c55e]"
-                            } ${
-                              formData.class.length >= 3 && !formData.class.includes(cls)
+                              } ${formData.class.length >= 3 && !formData.class.includes(cls)
                                 ? "opacity-50 cursor-not-allowed"
                                 : ""
-                            }`}
+                              }`}
                             disabled={formData.class.length >= 3 && !formData.class.includes(cls)}
                           >
                             {cls}

@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
+    schoolId: { type: Number, required: true, default: 1 },
     email: { type: String, required: true, unique: true, trim: true },
     password: { type: String, required: true }, // hashed by pre-save
 
@@ -26,6 +27,11 @@ const userSchema = new mongoose.Schema(
     // forgot/reset password (email link)
     resetPasswordToken: { type: String, default: null },
     resetPasswordExpires: { type: Date, default: null },
+
+    // forgot/reset password via OTP
+    resetPasswordOtp: { type: String, default: null },
+    resetPasswordOtpExpires: { type: Date, default: null },
+    resetPasswordOtpAttempts: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

@@ -14,7 +14,10 @@ import ClassroomPage from './Adminpages/ClassroomPage';
 import NotificationPage from './Adminpages/NotificationPage';
 import ExamManagement from './Adminpages/ExamManagement';
 import Fee from './Adminpages/Fee';
+import StudentFee from './Adminpages/StudentFee';
 import PlaceholderPage from './Adminpages/PlaceholderPage';
+import StudentPage from './Page/studentpage';
+import TeacherPage from './Page/teacherpage';
 
 
 import TeacherLayout from './TeacherComponents/Layout/TecaherLayout';
@@ -28,6 +31,22 @@ import QuizPage from './Teacherpages/QuizPage';
 import DiaryPage from './Teacherpages/DiaryPage';
 import AssignmentsContent from './Teacherpages/AssignmentsContent';
 import TeacherNotificationPage from './Teacherpages/NotificationPage';
+import TeacherMePage from './Teacherpages/TeacherMePage';
+
+
+import StudentLayout from './StudentComponents/Layout/StudentLayout'
+import SDashboard from './Studentpages/sDashboard';
+import SRoutinePage from './Studentpages/sRoutinePage';
+import SStudentRecord from './Studentpages/sStudentRecord';
+import SCalendarPage from './Studentpages/sCalendarPage';
+import SExamManagement from './Studentpages/sExamManagement';
+import SQuizPage from './Studentpages/sQuizPage';
+import SDiaryPage from './Studentpages/sDiaryPage';
+import SAssignmentsContent from './Studentpages/sAssignmentsContent';
+import SNotificationPage from './Studentpages/sNotificationPage';
+import SFeeManagement from './Studentpages/sFeeManagement';
+import SDiscussionsPage from './Studentpages/sDiscussionsPage';
+import StudentMePage from './Studentpages/StudentMePage';
 
 
 import { GMainC } from './Components/GlobalMainCalender/GMainC';
@@ -79,6 +98,9 @@ function App() {
           <Route path="notification" element={<NotificationPage />} />
           <Route path="exam" element={<ExamManagement />} />
           <Route path="fee" element={<Fee />} />
+          <Route path="fee/student/:id" element={<StudentFee />} />
+          <Route path="student/:id" element={<StudentPage />} />
+          <Route path="teacher/:id" element={<TeacherPage />} />
         </Route>
 
         <Route path="/teacher" element={<TeacherLayout />}>
@@ -93,6 +115,24 @@ function App() {
           <Route path="diary" element={<DiaryPage />} />
           <Route path="assignments" element={<AssignmentsContent />} />
           <Route path="notification" element={<TeacherNotificationPage />} />
+          <Route path="profile" element={<TeacherMePage />} />
+        </Route>
+
+        <Route path="/student" element={<StudentLayout />}>
+          <Route index element={<Navigate to="/student/dashboard" replace />} />
+          <Route path="dashboard" element={<SDashboard />} />
+          <Route path="routine" element={<SRoutinePage />} />
+          <Route path="classroom" element={<SStudentRecord />} />
+          <Route path="calendar" element={<SCalendarPage />} />
+          <Route path="exam" element={<SExamManagement />} />
+          <Route path="quiz" element={<SQuizPage />} />
+          <Route path="diary" element={<SDiaryPage />} />
+          <Route path="assignments" element={<SAssignmentsContent />} />
+          <Route path="notification" element={<SNotificationPage />} />
+          <Route path="fee" element={<SFeeManagement />} />
+          <Route path="discussions" element={<SDiscussionsPage />} />
+          <Route path="profile" element={<StudentMePage />} />
+          
         </Route>
 
             {/* ---------------- Public Website ---------------- */}

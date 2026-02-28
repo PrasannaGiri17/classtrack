@@ -26,6 +26,10 @@ const addSchool = async (req, res) => {
       email,
       logo,
       website,
+      motto,
+      establishedYear,
+      affiliation,
+      principalName,
       gradeSpan,
       maxSectionsPerGrade,
       phoneNumbers,
@@ -34,12 +38,16 @@ const addSchool = async (req, res) => {
     } = req.body;
 
     const newSchool = new School({
-      _id: 1, // Enforce singleton ID at controller level too
+      _id: 1,
       name,
       address,
       email,
       logo,
       website,
+      motto,
+      establishedYear,
+      affiliation,
+      principalName,
       gradeSpan,
       maxSectionsPerGrade,
       phoneNumbers,

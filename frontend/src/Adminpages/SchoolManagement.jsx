@@ -27,16 +27,17 @@ const SchoolManagement = () => {
 
   // --- Shared Global State ---
   const [schoolConfig, setSchoolConfig] = useState({
-    name: "Real Madrid Academy",
-    address: "Santiago Bernabéu, Madrid, Spain",
-    logo: "https://picsum.photos/seed/school/200/200",
-    schoolEmail: "contact@realmadrid-academy.edu",
-    phoneNumbers: ["+34 91 398 43 00"],
-    socialLinks: {
-      tiktok: "",
-      facebook: "https://facebook.com/realmadrid",
-      instagram: "https://instagram.com/realmadrid",
-    },
+    name: "",
+    address: "",
+    logo: "",
+    schoolEmail: "",
+    motto: "",
+    establishedYear: "",
+    affiliation: "",
+    principalName: "",
+    website: "",
+    phoneNumbers: [],
+    socialLinks: {},
     gradeSpan: { start: 1, end: 10 }
   });
 
@@ -58,11 +59,19 @@ const SchoolManagement = () => {
         const schoolData = await schoolService.getSchool();
         if (schoolData) {
           const transformedData = {
-            // ... existing transforms
-            ...schoolData,
-            logo: schoolData.logo || schoolConfig.logo,
+            name: schoolData.name || "",
+            address: schoolData.address || "",
+            logo: schoolData.logo || "",
+            // Backend stores 'email', frontend uses 'schoolEmail'
+            schoolEmail: schoolData.email || "",
+            motto: schoolData.motto || "",
+            establishedYear: schoolData.establishedYear || "",
+            affiliation: schoolData.affiliation || "",
+            principalName: schoolData.principalName || "",
+            website: schoolData.website || "",
+            gradeSpan: schoolData.gradeSpan || { start: 1, end: 10 },
             phoneNumbers: schoolData.phoneNumbers && Array.isArray(schoolData.phoneNumbers)
-              ? schoolData.phoneNumbers.map(p => p.phoneNumber)
+              ? schoolData.phoneNumbers.map(p => ({ number: p.phoneNumber, label: p.type || "Phone" }))
               : [],
             socialLinks: schoolData.socialLinks && Array.isArray(schoolData.socialLinks)
               ? schoolData.socialLinks.reduce((acc, curr) => ({ ...acc, [curr.platform]: curr.url }), {})
@@ -161,38 +170,52 @@ const SchoolManagement = () => {
     }
   };
 
+  const preparePayload = (config = schoolConfig) => {
+    const socialArray = Object.entries(config.socialLinks || {}).map(([key, val]) => ({
+      platform: key,
+      url: val
+    })).filter(item => item.url);
+
+    const phoneArray = (config.phoneNumbers || [])
+      .filter(p => p.number && p.number.trim() !== "")
+      .map(p => ({
+        phoneNumber: p.number,
+        type: p.label || 'Phone',
+        isPrimary: false
+      }));
+
+    const payload = {
+      ...config,
+      email: config.schoolEmail,
+      socialLinks: socialArray,
+      phoneNumbers: phoneArray
+    };
+
+    // Remove frontend-only state fields that backend doesn't expect
+    delete payload.schoolEmail;
+
+    return payload;
+  };
+
+  const saveConfig = async (payload) => {
+    try {
+      await schoolService.updateSchool(payload);
+      return true;
+    } catch (e) {
+      if (e.response?.status === 404) {
+        await schoolService.addSchool(payload);
+        return true;
+      }
+      throw e;
+    }
+  };
 
   const handleSaveSchool = async () => {
     setIsLoading(true);
     try {
-      // 1. Transform Social Links
-      const socialArray = Object.entries(schoolConfig.socialLinks || {}).map(([key, val]) => ({
-        platform: key,
-        url: val
-      })).filter(item => item.url);
-
-      const phoneArray = (schoolConfig.phoneNumbers || [])
-        .filter(p => p && p.trim() !== "")
-        .map(p => ({
-          phoneNumber: p,
-          type: 'main',
-          isPrimary: false
-        }));
-
-      const payload = {
-        ...schoolConfig,
-        socialLinks: socialArray,
-        phoneNumbers: phoneArray
-      };
-
-      try {
-        await schoolService.updateSchool(payload);
-        toast({ type: 'success', message: "School information updated successfully!", duration: 3000 });
-      } catch (updateError) {
-        await schoolService.addSchool(payload);
-        toast({ type: 'success', message: "School information created successfully!", duration: 3000 });
-      }
-
+      const payload = preparePayload();
+      await saveConfig(payload);
+      toast({ type: 'success', message: "School information saved successfully!", duration: 3000 });
     } catch (error) {
       console.error("Error saving school info:", error);
       toast({ type: 'error', message: `Failed to save changes. ${error.response?.data?.message || error.message}`, duration: 5000 });
@@ -203,15 +226,15 @@ const SchoolManagement = () => {
 
   const handleUpdateRange = async (from, to) => {
     try {
-      const socialArray = Object.entries(schoolConfig.socialLinks || {}).map(([key, val]) => ({ platform: key, url: val })).filter(item => item.url);
-      const phoneArray = (schoolConfig.phoneNumbers || []).filter(p => p && p.trim() !== "").map(p => ({ phoneNumber: p, type: 'main', isPrimary: false }));
-      const finalPayload = { ...schoolConfig, gradeSpan: { start: from, end: to }, socialLinks: socialArray, phoneNumbers: phoneArray };
+      const newConfig = { ...schoolConfig, gradeSpan: { start: from, end: to } };
+      const payload = preparePayload(newConfig);
+      await saveConfig(payload);
 
-      await schoolService.updateSchool(finalPayload);
       setRange({ from, to });
-      setSchoolConfig(prev => ({ ...prev, gradeSpan: { start: from, end: to } }));
+      setSchoolConfig(newConfig);
       toast({ type: 'success', message: "Grade range updated successfully!", duration: 3000 });
     } catch (error) {
+      console.error("Error updating range:", error);
       toast({ type: 'error', message: "Failed to update range.", duration: 3000 });
     }
   };
@@ -383,9 +406,9 @@ const SchoolManagement = () => {
             <p className="text-[12px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-3.5">Administrative Configuration Module</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <HubCard icon={Settings} color="bg-emerald-500" title="Institutional Settings" desc="Configure school identity, addresses, and global metadata." onClick={() => setActiveView('institutional')} />
+            <HubCard icon={Settings} color="bg-emerald-500" title="School Setup" desc="Configure school identity, addresses, and global metadata." onClick={() => setActiveView('institutional')} />
             <HubCard icon={Layers} color="bg-blue-500" title="Grade & Sections" desc="Define class hierarchies and active learning sections." onClick={() => setActiveView('grades')} />
-            <HubCard icon={BookOpen} color="bg-amber-500" title="Curriculum Builder" desc="Manage core mandatory subjects and specialized electives." onClick={() => setActiveView('curriculum')} />
+            <HubCard icon={BookOpen} color="bg-amber-500" title="School Subjects" desc="Manage core mandatory subjects and specialized electives." onClick={() => setActiveView('curriculum')} />
             <HubCard icon={Clock} color="bg-indigo-600" title="Routine Structure" desc="Set universal school day frameworks and period skeletons." onClick={() => setActiveView('routine')} />
           </div>
         </div>

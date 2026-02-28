@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Users,
-  GraduationCap,
+
   TrendingUp,
   AlertCircle,
   ArrowUpRight,
@@ -13,8 +13,8 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import GMainC from '../AdminComponents/Dashboard/GMainC';
 const stats = [
-  { title: 'Total Students', value: '1,248', icon: Users, color: 'bg-emerald-500', trend: '+12.5%', trendUp: true },
-  { title: 'Total Teachers', value: '84', icon: GraduationCap, color: 'bg-blue-500', trend: '+2.4%', trendUp: true },
+  { title: 'Your Students', value: '1,248', icon: Users, color: 'bg-emerald-500', trend: '+12.5%', trendUp: true },
+
   { title: 'Pass Rate', value: '94.2%', icon: TrendingUp, color: 'bg-emerald-500', trend: '+0.8%', trendUp: true },
   { title: 'Fail Rate', value: '5.8%', icon: AlertCircle, color: 'bg-red-500', trend: '-0.2%', trendUp: false },
 ];

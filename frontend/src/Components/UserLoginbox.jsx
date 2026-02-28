@@ -52,14 +52,26 @@ const UserLoginbox = () => {
         return;
       }
 
-      // Save JWT
+      // Save JWT and user details
       localStorage.setItem("token", data.token);
+      localStorage.setItem("role", data.role);
+
+      if (data.teacherId) localStorage.setItem("teacherId", data.teacherId);
+      if (data.studentId) localStorage.setItem("studentId", data.studentId);
 
       // Redirect based on first-login flag
       if (data.mustChangePassword) {
         navigate("/reset-first-login");
       } else {
-        navigate("/home");
+        // Role-based redirection
+        if (data.role === "teacher") {
+          navigate("/teacher/dashboard");
+        } else if (data.role === "student") {
+          navigate("/student/dashboard");
+        } else {
+          // Fallback or Admin
+          navigate("/dashboard");
+        }
       }
     } catch (err) {
       setPopupType("warning");
@@ -110,12 +122,24 @@ const UserLoginbox = () => {
         // 3) backend returned your JWT → save and go in
         localStorage.setItem("token", data.token);
         localStorage.setItem("googleUser", JSON.stringify(googleUser));
+        localStorage.setItem("role", data.role);
+
+        if (data.teacherId) localStorage.setItem("teacherId", data.teacherId);
+        if (data.studentId) localStorage.setItem("studentId", data.studentId);
 
         // Redirect based on first-login flag
         if (data.mustChangePassword) {
           navigate("/reset-first-login");
         } else {
-          navigate("/home");
+          // Role-based redirection
+          if (data.role === "teacher") {
+            navigate("/teacher/dashboard");
+          } else if (data.role === "student") {
+            navigate("/student/dashboard");
+          } else {
+            // Fallback or Admin
+            navigate("/dashboard");
+          }
         }
       } catch (err) {
         console.error("Google login error", err);
@@ -156,10 +180,9 @@ const UserLoginbox = () => {
                 setEmailError("");
               }}
               className={`w-full rounded-lg border px-4 py-3 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2
-                ${
-                  emailError
-                    ? "border-red-500 focus:border-red-500 focus:ring-red-200"
-                    : "border-gray-300 focus:border-[#4CAF50] focus:ring-[#4CAF50]/20"
+                ${emailError
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                  : "border-gray-300 focus:border-[#4CAF50] focus:ring-[#4CAF50]/20"
                 }`}
             />
             {emailError && <p className="mt-1 text-sm text-red-500">{emailError}</p>}

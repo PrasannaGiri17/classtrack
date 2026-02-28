@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   Clock,
   BookOpen,
-  User,
   Coffee,
   Trophy,
   ChevronDown,
@@ -28,9 +28,19 @@ const TimetablePage = () => {
   const [busyTeachers, setBusyTeachers] = useState({});
 
   const [teachers, setTeachers] = useState([]);
+  const [selectedWeekday, setSelectedWeekday] = useState('SUNDAY');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  const weekdays = [
+    { label: 'Sunday', value: 'SUNDAY' },
+    { label: 'Monday', value: 'MONDAY' },
+    { label: 'Tuesday', value: 'TUESDAY' },
+    { label: 'Wednesday', value: 'WEDNESDAY' },
+    { label: 'Thursday', value: 'THURSDAY' },
+    { label: 'Friday', value: 'FRIDAY' }
+  ];
 
   // Fetch initial data (Grades)
   useEffect(() => {
@@ -51,21 +61,26 @@ const TimetablePage = () => {
     fetchGrades();
   }, []);
 
-  // Update sections and options when grade changes
+  // Update available sections when grade changes
   useEffect(() => {
     if (!selectedGrade) return;
 
     const grade = grades.find(g => g.gradeNumber.toString() === selectedGrade);
     if (grade) {
       setAvailableSections(grade.sections || []);
-      if (grade.sections?.length > 0) {
+      if (grade.sections?.length > 0 && !selectedSection) {
         setSelectedSection(grade.sections[0].sectionName);
       }
     }
+  }, [selectedGrade, grades]);
+
+  // Update options (subjects, teachers, busy list) when grade, section or weekday changes
+  useEffect(() => {
+    if (!selectedGrade || !selectedSection || !selectedWeekday) return;
 
     const fetchOptions = async () => {
       try {
-        const options = await timetableService.getTimetableOptions(selectedGrade);
+        const options = await timetableService.getTimetableOptions(selectedGrade, selectedSection, selectedWeekday);
         setSubjects(options.subjects || []);
         setTeachers(options.teachers || []);
         setBusyTeachers(options.busyTeachers || {});
@@ -74,21 +89,20 @@ const TimetablePage = () => {
       }
     };
     fetchOptions();
-  }, [selectedGrade, grades]);
+  }, [selectedGrade, selectedSection, selectedWeekday]);
 
-  // Fetch timetable when grade or section changes
+  // Fetch timetable when grade, section or weekday changes
   useEffect(() => {
-    if (!selectedGrade || !selectedSection) return;
+    if (!selectedGrade || !selectedSection || !selectedWeekday) return;
 
     const fetchTimetable = async () => {
       setIsLoading(true);
       try {
-        const data = await timetableService.getTimetable(selectedGrade, selectedSection);
+        const data = await timetableService.getTimetable(selectedGrade, selectedSection, selectedWeekday);
         setRoutineSlots(data.slots || []);
         setAssignments(data.assignments || {});
       } catch (error) {
         console.error("Error fetching timetable:", error);
-        // If routine not found, we should probably show a better message
         setRoutineSlots([]);
         setAssignments({});
       } finally {
@@ -96,7 +110,7 @@ const TimetablePage = () => {
       }
     };
     fetchTimetable();
-  }, [selectedGrade, selectedSection]);
+  }, [selectedGrade, selectedSection, selectedWeekday]);
 
   const handleAssignmentChange = (periodId, field, value) => {
     // Conflict Check for Teacher
@@ -148,13 +162,14 @@ const TimetablePage = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await timetableService.updateTimetable(selectedGrade, selectedSection, assignments);
+      await timetableService.updateTimetable(selectedGrade, selectedSection, selectedWeekday, assignments);
       setIsSaved(true);
-      toast({ type: 'success', message: "Timetable updated successfully!" });
+      toast({ type: 'success', message: `Timetable for ${selectedWeekday} updated successfully!` });
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
       console.error("Error saving timetable:", error);
-      toast({ type: 'error', message: "Failed to save timetable." });
+      const errorMessage = error.response?.data?.message || "Failed to save timetable. Please try again.";
+      toast({ type: 'error', message: errorMessage });
     } finally {
       setIsSaving(false);
     }
@@ -189,8 +204,7 @@ const TimetablePage = () => {
             <CalendarDays className="text-emerald-500 w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Time Assignment</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1.5">Map Teachers & Subjects to the Matrix</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Assign Time Table</h1>
           </div>
         </div>
 
@@ -223,15 +237,39 @@ const TimetablePage = () => {
         </div>
       </div>
 
+      {/* Weekday Selection Slider (Ant Design Segmented Style) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2 rounded-[32px] shadow-sm overflow-hidden">
+        <div className="flex items-center gap-1">
+          {weekdays.map((day) => {
+            const isActive = selectedWeekday === day.value;
+            return (
+              <button
+                key={day.value}
+                onClick={() => setSelectedWeekday(day.value)}
+                className={`
+                  relative flex-1 py-4 text-[11px] font-black tracking-tight transition-all duration-500 rounded-2xl
+                  ${isActive ? 'text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}
+                `}
+              >
+                <span className="relative z-10">{day.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-emerald-500 rounded-2xl shadow-xl shadow-emerald-500/20"
+                    style={{ zIndex: 0 }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Main Timeline Matrix */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-8 lg:p-10 space-y-6">
-        <div className="flex items-center justify-between mb-8 border-b border-slate-50 dark:border-slate-800 pb-6">
-          <div className="flex items-center gap-3">
-            <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-              Matrix Loaded: G{selectedGrade}-{selectedSection}
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">
+        <div className="flex items-center justify-end mb-5 border-b border-slate-50 dark:border-slate-800 pb-4">
+
+          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 tracking-tight text-right">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> Subject
             </div>
@@ -248,12 +286,12 @@ const TimetablePage = () => {
           {isLoading ? (
             <div className="py-20 flex flex-col items-center gap-4">
               <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Sycing with Server...</p>
+              <p className="text-xs font-bold text-slate-400 tracking-tight">Syncing with Server...</p>
             </div>
           ) : routineSlots.length === 0 ? (
             <div className="py-20 flex flex-col items-center text-center bg-slate-50/50 dark:bg-slate-800/20 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700">
               <AlertCircle className="text-slate-300 mb-4" size={48} />
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">No Routine Framework Found</h3>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">No Routine Framework Found</h3>
               <p className="text-xs font-medium text-slate-500 mt-2">Please define the routine structure in the Routine View first.</p>
             </div>
           ) : (
@@ -289,7 +327,7 @@ const TimetablePage = () => {
                 >
                   {/* Time Indicator */}
                   <div className="w-full lg:w-[180px] shrink-0 flex items-center">
-                    <div className="flex items-center gap-2.5 text-slate-900 dark:text-white font-black text-[10px] uppercase tracking-widest whitespace-nowrap">
+                    <div className="flex items-center gap-2.5 text-slate-900 dark:text-white font-black text-[10px] tracking-tight whitespace-nowrap">
                       <Clock size={16} className="text-emerald-500 shrink-0" />
                       <span>{startTime} - {endTime}</span>
                     </div>
@@ -308,8 +346,8 @@ const TimetablePage = () => {
                           <BookOpen size={20} />}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{period.label}</h4>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white truncate tracking-tight">{period.label}</h4>
+                      <p className="text-[9px] font-bold text-slate-400 tracking-tight mt-0.5">
                         {period.type === 'subject' ? 'Academic Slot' : period.type === 'break' ? 'Recess' : 'Field Activity'}
                       </p>
                     </div>
@@ -355,7 +393,7 @@ const TimetablePage = () => {
                   ) : (
                     <div className="flex-1 w-full flex items-center justify-center lg:justify-start">
                       <div className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/50 dark:border-slate-700">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <p className="text-[10px] font-black text-slate-400 tracking-tight">
                           {isPhysical ? 'Sport Block' : `${period.breakType || 'Recess'} Block`}
                         </p>
                       </div>
@@ -368,26 +406,20 @@ const TimetablePage = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-10 border-t border-slate-50 dark:border-slate-800">
-          <div className="flex items-center gap-4 p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[28px] border border-emerald-100/50 dark:border-emerald-800/30">
-            <AlertCircle className="text-emerald-500 shrink-0" size={20} />
-            <p className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">
-              Verification Notice: Only teachers specializing in the selected subject are available for allocation.
-            </p>
-          </div>
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-end gap-4 pt-6 border-t border-slate-50 dark:border-slate-800">
 
           <button
             onClick={handleSave}
             disabled={routineSlots.length === 0 || isSaving}
             className={`
-              flex items-center gap-3 px-14 py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all hover:scale-105 active:scale-95
+              flex items-center gap-2 px-10 py-3.5 rounded-2xl font-black text-[11px] tracking-tight shadow-xl transition-all hover:scale-105 active:scale-95
               ${isSaved
                 ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-slate-900/20'
                 : 'bg-emerald-500 text-white shadow-emerald-500/20 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed'}
             `}
           >
             {isSaving ? <Loader2 size={20} className="animate-spin" /> : isSaved ? <CheckCircle2 size={20} /> : <Save size={20} />}
-            {isSaving ? 'Saving...' : isSaved ? 'Timetable Saved' : 'Publish Matrix'}
+            {isSaving ? 'Saving...' : isSaved ? 'Timetable Saved' : 'Save Routine'}
           </button>
         </div>
       </div>

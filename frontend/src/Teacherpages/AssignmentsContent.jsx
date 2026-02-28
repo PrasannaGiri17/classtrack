@@ -355,31 +355,9 @@ const AssignmentsContent = () => {
         <div className="space-y-8">
           {/* Top Control Row */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="relative w-full max-w-lg">
-              <input
-                type="text"
-                placeholder="Search Assignments"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-6 pr-12 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all shadow-sm"
-              />
-              <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-            </div>
 
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-medium text-slate-400">View as :</span>
-                <div className="flex items-center bg-slate-50 dark:bg-slate-800 p-1 rounded-lg">
-                  <button className="p-1.5 text-emerald-600"><LayoutGrid size={16} /></button>
-                  <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
-                  <button className="p-1.5 text-slate-400 hover:text-emerald-600"><ListIcon size={16} /></button>
-                </div>
-              </div>
 
-              <button className="flex items-center gap-2 px-6 py-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-all">
-                <Calendar size={16} /> View All Upcoming Deadlines
-              </button>
-            </div>
+
           </div>
 
           {/* Assignments Sections */}
