@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ChevronDown, Trash } from 'lucide-react';
 import DetailedCalendar from '../AdminComponents/Calendar/DetailedCalendar';
-import AddEventModal from '../AdminComponents/Calendar/AddEventModal';
+import AddEventModal from '../TeacherComponents/Calendar/AddEventModal';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import { toast } from '../MainSystemComponents/Toast';
 import axios from 'axios';
@@ -200,27 +200,31 @@ const CalendarPage = () => {
                   No upcoming events found
                 </div>
               ) : upcomingEvents.map((event) => {
-                const isBlue = event.type === 'EXAMS' || event.type === 'blue' || event.color === 'blue';
+                const isBlue = event.type === 'EXAMS' || event.type === 'CLASS TEST' || event.type === 'blue' || event.color === 'blue';
                 const isRed = event.type === 'HOLIDAY' || event.type === 'red' || event.color === 'red';
+                const isAmber = event.type === 'HOMEWORK';
 
                 return (
                   <div
                     key={event._id || event.id}
                     className={`p-8 rounded-[32px] border bg-white dark:bg-slate-900 shadow-sm transition-all hover:shadow-md ${isBlue ? 'border-blue-100 dark:border-blue-900/30' :
                       isRed ? 'border-red-100 dark:border-red-900/30' :
-                        'border-emerald-100 dark:border-emerald-900/30'
+                        isAmber ? 'border-amber-100 dark:border-amber-900/30' :
+                          'border-emerald-100 dark:border-emerald-900/30'
                       }`}
                   >
                     <div className="flex items-center justify-between mb-6">
                       <span className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-xl shadow-sm ${isBlue ? 'bg-blue-500 text-white' :
                         isRed ? 'bg-red-500 text-white' :
-                          'bg-emerald-500 text-white'
+                          isAmber ? 'bg-amber-500 text-white' :
+                            'bg-emerald-500 text-white'
                         }`}>
                         {event.type}
                       </span>
                       <span className={`text-sm font-black ${isBlue ? 'text-blue-600' :
                         isRed ? 'text-red-600' :
-                          'text-emerald-600'
+                          isAmber ? 'text-amber-600' :
+                            'text-emerald-600'
                         }`}>
                         {calendarMode === 'AD'
                           ? formatDateRange(event.startDate, event.endDate)
@@ -230,7 +234,8 @@ const CalendarPage = () => {
                     </div>
                     <h4 className={`text-xl font-black mb-2 ${isBlue ? 'text-blue-900 dark:text-blue-200' :
                       isRed ? 'text-red-900 dark:text-red-200' :
-                        'text-emerald-900 dark:text-emerald-200'
+                        isAmber ? 'text-amber-900 dark:text-amber-200' :
+                          'text-emerald-900 dark:text-emerald-200'
                       }`}>
                       {event.title}
                     </h4>
@@ -238,7 +243,8 @@ const CalendarPage = () => {
                     <div className="flex items-center justify-between mt-2">
                       <p className={`text-xs font-bold uppercase tracking-widest ${isBlue ? 'text-blue-500/70' :
                         isRed ? 'text-red-500/70' :
-                          'text-emerald-500/70'
+                          isAmber ? 'text-amber-500/70' :
+                            'text-emerald-500/70'
                         }`}>
                         {event.description}
                       </p>

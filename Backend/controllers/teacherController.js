@@ -2,6 +2,7 @@
 const Teacher = require("../models/teacherModel");
 const User = require("../models/UserModal");
 const { Grade, Subject } = require("../models/School");
+const Timetable = require("../models/Timetable");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 
@@ -46,13 +47,43 @@ const resolveTeacherRelations = async (schoolId, data) => {
   return { primarySubId, secondarySubId, resolvedGradeIds };
 };
 
+// Helper: compute assigned classes from timetable and persist to teacher
+const syncAssignedClasses = async (teacherId) => {
+  // Find all timetable entries where this teacher is assigned to at least one slot
+  const entries = await Timetable.find({ "assignments.teacherId": teacherId });
+  const uniqueClasses = new Set();
+  entries.forEach(entry => {
+    // Only add classes where this specific teacher appears in assignments
+    const hasTeacher = entry.assignments.some(
+      a => a.teacherId && a.teacherId.toString() === teacherId.toString()
+    );
+    if (hasTeacher) {
+      uniqueClasses.add(`Grade ${entry.gradeNumber}-${entry.sectionName}`);
+    }
+  });
+  const classList = Array.from(uniqueClasses).sort();
+  // Save back to teacher document
+  await Teacher.findByIdAndUpdate(teacherId, { assignedClasses: classList });
+  return classList;
+};
+
 const getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find()
       .populate("assignedGrades", "gradeNumber")
       .populate("primarySubject", "subjectName")
       .populate("secondarySubject", "subjectName");
-    res.status(200).json(teachers);
+
+    // Sync assignedClasses for each teacher from timetable
+    await Promise.all(teachers.map(t => syncAssignedClasses(t._id)));
+
+    // Re-fetch with updated assignedClasses
+    const updatedTeachers = await Teacher.find()
+      .populate("assignedGrades", "gradeNumber")
+      .populate("primarySubject", "subjectName")
+      .populate("secondarySubject", "subjectName");
+
+    res.status(200).json(updatedTeachers);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -190,6 +221,9 @@ const addTeacher = async (req, res) => {
 
 const getTeacherById = async (req, res) => {
   try {
+    // Sync assignedClasses from timetable first
+    await syncAssignedClasses(req.params.id);
+
     const teacher = await Teacher.findById(req.params.id)
       .populate("assignedGrades", "gradeNumber")
       .populate("primarySubject", "subjectName")

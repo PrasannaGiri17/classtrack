@@ -17,7 +17,9 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
     const pageNames = {
       dashboard: 'Dashboard',
       school: 'School Management',
-      student: 'Student Records',
+      student: 'Classroom',
+      routine: 'Routine',
+      attendance: 'Attendance',
       teacher: 'Teacher Management',
       timetable: 'Timetable',
       classroom: 'Classroom',

@@ -42,13 +42,25 @@ const assignClassTeacher = async (payload) => {
   return response.data;
 };
 
+const getSectionByTeacherId = async (teacherId) => {
+  const response = await axios.get(`${API_URL}/teacher/${teacherId}`);
+  return response.data;
+};
+
+const assignClassMonitor = async (payload) => {
+  const response = await axios.post(`${API_URL}/assign-monitor`, payload);
+  return response.data;
+};
+
 const gradeService = {
   getGrades,
   updateGradeSections,
   syncSections,
   updateSectionName,
   assignClassTeacher,
-  updateGradeFee
+  assignClassMonitor,
+  updateGradeFee,
+  getSectionByTeacherId
 };
 
 export default gradeService;

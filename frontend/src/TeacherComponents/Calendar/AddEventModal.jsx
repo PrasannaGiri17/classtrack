@@ -1,19 +1,76 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Calendar, Check, AlertCircle } from "lucide-react";
+import { X, Calendar as CalendarIcon, Check, AlertCircle, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "../../MainSystemComponents/Toast";
+import teacherService from "../../Api/teacherService";
+import calendarService from "../../Api/calendarService";
+import CustomNepaliHolidayCalendar from "../../MainSystemComponents/CustomNepaliHolidayCalendar";
 
 const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
   const [isRange, setIsRange] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    category: "event", // event, holiday, exam
-    startDate: "",
-    endDate: "",
+    category: "class test", // class test, homework
+    startDate: null,
+    endDate: null,
     sendTo: "",
     description: ""
   });
   const [loading, setLoading] = useState(false);
+  const [classOptions, setClassOptions] = useState([]);
+  const [holidays, setHolidays] = useState([]);
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
+  const startRef = useRef(null);
+  const endRef = useRef(null);
+
+  useEffect(() => {
+    const fetchHolidays = async () => {
+      try {
+        const events = await calendarService.getEvents();
+        const holidayMapped = (events || []).filter(e => e && (e.type?.toUpperCase() === 'HOLIDAY' || e.isPublicHoliday));
+        setHolidays(holidayMapped);
+      } catch (err) {
+        console.error("Failed to fetch holidays:", err);
+      }
+    };
+    fetchHolidays();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (startRef.current && !startRef.current.contains(event.target)) setShowStartCalendar(false);
+      if (endRef.current && !endRef.current.contains(event.target)) setShowEndCalendar(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchTeacherClasses = async () => {
+      const teacherId = localStorage.getItem('teacherId');
+      if (!teacherId || teacherId === 'undefined' || teacherId === 'null') return;
+      try {
+        const teacher = await teacherService.getTeacherById(teacherId);
+        const classes = teacher.assignedClasses || [];
+
+        // Derived options like Whole Grade X
+        const uniqueGrades = [...new Set(classes.map(c => {
+          const m = c.match(/(?:Grade\s+|G)(\d+)/i);
+          return m ? m[1] : null;
+        }).filter(Boolean))];
+
+        const wholeGradeOptions = uniqueGrades.map(g => `Whole Grade ${g}`);
+        const allOptions = [...wholeGradeOptions, ...classes];
+        setClassOptions(allOptions);
+      } catch (err) {
+        console.error('Failed to fetch teacher classes:', err);
+      }
+    };
+    fetchTeacherClasses();
+  }, [isOpen]);
 
   if (!isOpen) return null;
   if (typeof document === "undefined") return null;
@@ -26,8 +83,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
   const handleRangeToggle = (status) => {
     setIsRange(status);
     if (!status) {
-      // If switching to single, clear end date or sync it on submit
-      setFormData(prev => ({ ...prev, endDate: "" }));
+      setFormData(prev => ({ ...prev, endDate: null }));
     }
   };
 
@@ -35,12 +91,22 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
     e.preventDefault();
     setLoading(true);
 
+    if (!formData.title || !formData.startDate || !formData.sendTo || (isRange && !formData.endDate)) {
+      toast({
+        type: 'error',
+        message: 'Fill Title, Date, and Audience.',
+        duration: 4000
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       const payload = {
         title: formData.title,
         type: formData.category.toUpperCase(), // HOLIDAY, EXAMS, EVENT
-        startDate: formData.startDate,
-        endDate: isRange ? formData.endDate : formData.startDate,
+        startDate: formData.startDate ? formData.startDate.toISOString() : null,
+        endDate: isRange ? (formData.endDate ? formData.endDate.toISOString() : null) : (formData.startDate ? formData.startDate.toISOString() : null),
         audience: formData.sendTo,
         description: formData.description,
         school_id: 1, // Default
@@ -74,9 +140,9 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
       onEventAdded(); // Trigger refresh in parent
       setFormData({
         title: "",
-        category: "event",
-        startDate: "",
-        endDate: "",
+        category: "class test",
+        startDate: null,
+        endDate: null,
         sendTo: "",
         description: ""
       });
@@ -107,7 +173,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
         <div className="px-10 py-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-5">
             <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-500/20">
-              <Calendar className="text-white w-6 h-6" />
+              <CalendarIcon className="text-white w-6 h-6" />
             </div>
             <div>
               <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
@@ -162,9 +228,8 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
                 onChange={handleChange}
                 className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
               >
-                <option value="event">Campus Event</option>
-                <option value="holiday">School Holiday</option>
-                <option value="exams">Examination Period</option>
+                <option value="class test">Class Test</option>
+                <option value="homework">Homework</option>
               </select>
             </div>
 
@@ -202,29 +267,77 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                 {isRange ? "Start Date" : "Event Date"}
               </label>
-              <input
-                required
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                type="date"
-                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner"
-              />
+              <div className="relative group" ref={startRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowStartCalendar(!showStartCalendar)}
+                  className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner flex items-center justify-between group"
+                >
+                  <span className={formData.startDate ? "text-slate-900 dark:text-white" : "text-slate-400"}>
+                    {formData.startDate ? formData.startDate.toLocaleDateString() : (isRange ? "Select Start Date" : "Select Event Date")}
+                  </span>
+                  <CalendarIcon size={18} className="text-emerald-500 group-hover:scale-110 transition-transform" />
+                </button>
+
+                <AnimatePresence>
+                  {showStartCalendar && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9, x: "-50%", y: "-50%" }}
+                      animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
+                      exit={{ opacity: 0, scale: 0.9, x: "-50%", y: "-50%" }}
+                      className="absolute top-1/2 left-[70%] z-[9999] w-[480px] shadow-2xl"
+                    >
+                      <CustomNepaliHolidayCalendar
+                        selectedDate={formData.startDate || new Date()}
+                        onChange={(date) => {
+                          setFormData({ ...formData, startDate: date });
+                          setShowStartCalendar(false);
+                        }}
+                        holidays={holidays}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             <div className={`md:col-span-6 space-y-2.5 ${!isRange ? "hidden" : ""}`}>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                 End Date
               </label>
-              <input
-                disabled={!isRange}
-                required={isRange}
-                name="endDate"
-                value={formData.endDate}
-                onChange={handleChange}
-                type="date"
-                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner disabled:opacity-50"
-              />
+              <div className="relative group" ref={endRef}>
+                <button
+                  type="button"
+                  disabled={!isRange}
+                  onClick={() => setShowEndCalendar(!showEndCalendar)}
+                  className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner flex items-center justify-between group disabled:opacity-50"
+                >
+                  <span className={formData.endDate ? "text-slate-900 dark:text-white" : "text-slate-400"}>
+                    {formData.endDate ? formData.endDate.toLocaleDateString() : "Select End Date"}
+                  </span>
+                  <CalendarIcon size={18} className="text-emerald-500 group-hover:scale-110 transition-transform" />
+                </button>
+
+                <AnimatePresence>
+                  {showEndCalendar && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9, x: "-50%", y: "-50%" }}
+                      animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
+                      exit={{ opacity: 0, scale: 0.9, x: "-50%", y: "-50%" }}
+                      className="absolute top-1/2 left-[70%] z-[9999] w-[480px] shadow-2xl"
+                    >
+                      <CustomNepaliHolidayCalendar
+                        selectedDate={formData.endDate || new Date()}
+                        onChange={(date) => {
+                          setFormData({ ...formData, endDate: date });
+                          setShowEndCalendar(false);
+                        }}
+                        holidays={holidays}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             {/* Send To */}
@@ -240,9 +353,9 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
                 className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
               >
                 <option value="" disabled>Select audience</option>
-                <option value="Students">Students</option>
-                <option value="Teachers">Teachers</option>
-                <option value="Whole School">Whole School</option>
+                {classOptions.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
               <p className="text-[10px] font-medium text-slate-400 ml-1 mt-1.5">
                 Choose who will receive this event notification.
@@ -265,14 +378,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
             </div>
           </div>
 
-          {/* Smart Notification Banner */}
-          <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-[24px] border border-emerald-100 dark:border-emerald-900/30">
-            <AlertCircle className="text-emerald-500 shrink-0" size={20} />
-            <p className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">
-              Smart Notification Enabled: Push alerts will be broadcasted to all enrolled users
-              24h prior to the start date.
-            </p>
-          </div>
+
         </form>
 
         {/* Footer */}

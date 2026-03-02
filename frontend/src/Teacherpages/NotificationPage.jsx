@@ -27,6 +27,8 @@ import NotificationModal from '../AdminComponents/NotificationModal';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import { toast } from '../MainSystemComponents/Toast';
 import gradeService from '../Api/gradeService';
+import teacherService from '../Api/teacherService';
+import { BookOpen } from 'lucide-react';
 
 
 
@@ -50,8 +52,8 @@ const NotificationPage = () => {
 
   // Top Filters
   const [filterPriority, setFilterPriority] = useState('all');
-  const [filterGrade, setFilterGrade] = useState('');
-  const [filterSection, setFilterSection] = useState('');
+  const [filterTarget, setFilterTarget] = useState(''); // Combined target
+  const [targetOptions, setTargetOptions] = useState([]); // Combined grade + class options
   const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -102,20 +104,28 @@ const NotificationPage = () => {
 
   const fetchGrades = async () => {
     try {
+      const teacherId = localStorage.getItem('teacherId');
+      if (teacherId && teacherId !== 'undefined') {
+        const teacher = await teacherService.getTeacherById(teacherId);
+        const classes = teacher.assignedClasses || [];
+
+        const extractedGrades = [...new Set(classes.map(c => {
+          const m = c.match(/(?:Grade\s+|G)(\d+)/i);
+          return m ? m[1] : null;
+        }).filter(Boolean))].map(g => `Grade ${g}`);
+
+        setTargetOptions([...extractedGrades, ...classes]);
+      }
+
       const data = await gradeService.getGrades();
       setGrades(data || []);
     } catch (error) {
-      console.error("Error fetching grades:", error);
+      console.error("Error fetching context:", error);
     }
   };
 
-  const availableSectionsForFilter = useMemo(() => {
-    const grade = grades.find(g => g.gradeNumber.toString() === filterGrade);
-    return grade?.sections || [];
-  }, [filterGrade, grades]);
 
   const filteredAnnouncements = useMemo(() => {
-
     return announcements.filter(a => {
       const matchesPriority = filterPriority === 'all' || a.priority === filterPriority;
       const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -123,16 +133,13 @@ const NotificationPage = () => {
       const matchesMine = !showOnlyMine || a.senderId === CURRENT_ADMIN_ID;
 
       let matchesTarget = true;
-      if (filterGrade) {
-        matchesTarget = a.targetGroup.includes(`Grade ${filterGrade}`);
-        if (filterSection) {
-          matchesTarget = a.targetGroup.includes(`Grade ${filterGrade} - Section ${filterSection}`);
-        }
+      if (filterTarget) {
+        matchesTarget = a.targetGroup.includes(filterTarget);
       }
 
       return matchesPriority && matchesSearch && matchesMine && matchesTarget;
     });
-  }, [announcements, filterPriority, filterGrade, filterSection, showOnlyMine, searchQuery]);
+  }, [announcements, filterPriority, filterTarget, showOnlyMine, searchQuery]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -215,6 +222,7 @@ const NotificationPage = () => {
       case 'urgent': return 'bg-emerald-600 text-white border-emerald-500 shadow-sm';
       case 'warning': return 'bg-red-500 text-white border-red-400 shadow-sm';
       case 'important': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      case 'syllabus': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
   };
@@ -224,6 +232,7 @@ const NotificationPage = () => {
       case 'urgent': return <AlertCircle size={14} />;
       case 'warning': return <AlertTriangle size={14} />;
       case 'important': return <Info size={14} />;
+      case 'syllabus': return <BookOpen size={14} />;
       default: return <Bell size={14} />;
     }
   };
@@ -262,42 +271,26 @@ const NotificationPage = () => {
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all"
+            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all uppercase"
           >
             <option value="all">ALL PRIORITIES</option>
             <option value="important">IMPORTANT</option>
             <option value="urgent">URGENT</option>
             <option value="warning">WARNINGS</option>
+            <option value="syllabus">SYLLABUS</option>
           </select>
           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
         </div>
 
-        <div className="xl:col-span-2 relative group">
+        <div className="xl:col-span-3 relative group">
           <select
-            value={filterGrade}
-            onChange={(e) => {
-              setFilterGrade(e.target.value);
-              setFilterSection('');
-            }}
-            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all"
+            value={filterTarget}
+            onChange={(e) => setFilterTarget(e.target.value)}
+            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all uppercase"
           >
-            <option value="">WHOLE SCHOOL</option>
-            {grades.map(g => <option key={g._id} value={g.gradeNumber}>GRADE {g.gradeNumber}</option>)}
+            <option value="">SELECT TARGET</option>
+            {targetOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
-          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
-        </div>
-
-        <div className="xl:col-span-2 relative group">
-          <select
-            disabled={!filterGrade}
-            value={filterSection}
-            onChange={(e) => setFilterSection(e.target.value)}
-            className={`appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all ${!filterGrade ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}
-          >
-            <option value="">ALL SECTIONS</option>
-            {availableSectionsForFilter.map(s => <option key={s._id} value={s.sectionName}>SECTION {s.sectionName}</option>)}
-          </select>
-
           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
         </div>
 
@@ -313,7 +306,7 @@ const NotificationPage = () => {
           </button>
         </div>
 
-        <div className="xl:col-span-4 relative">
+        <div className="xl:col-span-5 relative">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
@@ -482,12 +475,7 @@ const NotificationPage = () => {
         newMessage={newMessage} setNewMessage={setNewMessage}
         newPriority={newPriority} setNewPriority={setNewPriority}
         targetCategory={targetCategory} setTargetCategory={setTargetCategory}
-        targetDept={targetDept} setTargetDept={setTargetDept}
-        targetGrade={targetGrade} setTargetGrade={setTargetGrade}
-        targetSection={targetSection} setTargetSection={setTargetSection}
-        newSender={newSender} setNewSender={setNewSender}
-        newSenderType={newSenderType} setNewSenderType={setNewSenderType}
-        dbGrades={grades}
+        teacherTargets={targetOptions}
       />
 
 

@@ -14,7 +14,7 @@ const eventSchema = new mongoose.Schema({
   type: {
     type: String,
     required: [true, 'Event type is required'],
-    enum: ['HOLIDAY', 'EXAMS', 'EVENT', 'DEADLINE', 'OTHER'],
+    enum: ['HOLIDAY', 'EXAMS', 'EVENT', 'DEADLINE', 'OTHER', 'CLASS TEST', 'HOMEWORK'],
     default: 'EVENT'
   },
   description: {
@@ -35,7 +35,6 @@ const eventSchema = new mongoose.Schema({
   },
   audience: {
     type: String,
-    enum: ['Students', 'Teachers', 'Whole School'],
     required: [true, 'Audience is required']
   },
   createdBy: {

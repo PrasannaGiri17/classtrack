@@ -19,6 +19,8 @@ router.post("/add-subject-global", gradeController.addSubjectToAllGrades);
 router.post("/remove-subject-global", gradeController.removeSubjectFromAllGrades);
 router.post("/update-section-name", gradeController.updateSectionName);
 router.post("/assign-class-teacher", gradeController.assignClassTeacher);
+router.post("/assign-monitor", gradeController.assignClassMonitor);
 router.post("/update-fee", gradeController.updateGradeFee);
+router.get("/teacher/:teacherId", gradeController.getSectionByTeacher);
 
 module.exports = router;

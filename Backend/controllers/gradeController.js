@@ -1,4 +1,6 @@
 const { Grade, School, Subject } = require("../models/School");
+const Teacher = require("../models/teacherModel");
+const { syncTeacherAssignedClasses } = require("../utils/teacherSync");
 
 // Helper to generate sections
 const generateSections = (count) => {
@@ -319,14 +321,58 @@ const assignClassTeacher = async (req, res) => {
     const section = grade.sections.find(s => s.sectionName === sectionName);
     if (!section) return res.status(404).json({ message: "Section not found" });
 
+    const oldTeacherId = section.classTeacherId;
     section.classTeacherId = teacherId || null;
     await grade.save();
+
+    const classRoomInfo = `Grade ${gradeNumber}-${sectionName}`;
+
+    // 1. If there was a previous teacher, clear their fields
+    if (oldTeacherId && oldTeacherId.toString() !== teacherId) {
+      await Teacher.findByIdAndUpdate(oldTeacherId, {
+        $set: { classTeacher: null }
+      });
+      // Sync their assignedClasses just in case, though it's mainly from timetable
+      await syncTeacherAssignedClasses(oldTeacherId);
+    }
+
+    // 2. Update the new teacher's fields
+    if (teacherId) {
+      await Teacher.findByIdAndUpdate(teacherId, {
+        $set: {
+          classTeacher: classRoomInfo
+        }
+      });
+      // Sync their assignedClasses from timetable
+      await syncTeacherAssignedClasses(teacherId);
+    }
 
     res.status(200).json(grade);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Assign class monitor to a section
+const assignClassMonitor = async (req, res) => {
+  try {
+    const { sectionId, studentId } = req.body;
+
+    const grade = await Grade.findOne({ "sections._id": sectionId });
+    if (!grade) return res.status(404).json({ message: "Section not found" });
+
+    const section = grade.sections.id(sectionId);
+    if (!section) return res.status(404).json({ message: "Section not found" });
+
+    section.classMonitorId = studentId || null;
+    await grade.save();
+
+    res.status(200).json({ message: "Class monitor updated successfully", classMonitorId: section.classMonitorId });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 
 // Update monthly fee for a grade
 const updateGradeFee = async (req, res) => {
@@ -349,6 +395,32 @@ const updateGradeFee = async (req, res) => {
   }
 };
 
+// Get section info by teacher ID
+const getSectionByTeacher = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const grade = await Grade.findOne({ "sections.classTeacherId": teacherId });
+    if (!grade) {
+      return res.status(404).json({ message: "No assigned class found for this teacher." });
+    }
+    const section = grade.sections.find(s => s.classTeacherId?.toString() === teacherId);
+    if (!section) {
+      return res.status(404).json({ message: "Section details not found." });
+    }
+    res.status(200).json({ 
+      gradeId: grade._id,
+      gradeNumber: grade.gradeNumber,
+      gradeName: grade.gradeName,
+      sectionId: section._id,
+      sectionName: section.sectionName,
+      classRoomName: section.classRoomName,
+      classMonitorId: section.classMonitorId
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getGrades,
   updateGradeSections,
@@ -359,5 +431,7 @@ module.exports = {
   removeSubjectFromAllGrades,
   updateSectionName,
   assignClassTeacher,
-  updateGradeFee
+  assignClassMonitor,
+  updateGradeFee,
+  getSectionByTeacher
 };

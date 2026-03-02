@@ -27,7 +27,9 @@ exports.createEvent = async (req, res) => {
     if (!eventColor) {
       switch (type) {
         case 'HOLIDAY': eventColor = 'red'; break;
-        case 'EXAMS': eventColor = 'blue'; break;
+        case 'EXAMS': 
+        case 'CLASS TEST': eventColor = 'blue'; break;
+        case 'HOMEWORK': eventColor = 'amber'; break;
         case 'EVENT': eventColor = 'green'; break;
         default: eventColor = 'blue';
       }
@@ -86,29 +88,41 @@ exports.getEvents = async (req, res) => {
       Holiday.find({}) // Fetch all holidays (usually < 100 per year, very efficient)
     ]);
 
-    // Map and filter Holidays in memory for robustness against format variations (hyphens/slashes/leading zeros)
+    // Map and filter Holidays in memory for robustness
     const mappedHolidays = dbHolidays
+      .filter(h => h.gregorian_date) // Only process if gregorian_date exists
       .map(h => {
-        // Normalize "2025/4/14" or "2025-4-14" to "2025-04-14"
-        const parts = h.gregorian_date.replace(/\//g, '-').split('-');
-        const normalizedDate = parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
-        
-        return {
-          ...h.toObject(),
-          normalizedDate
-        };
+        try {
+          // Normalize "2025/4/14" or "2025-4-14" to "2025-04-14"
+          const cleanDate = h.gregorian_date.toString().replace(/\//g, '-');
+          const parts = cleanDate.split('-');
+          if (parts.length !== 3) return null;
+          
+          const normalizedDate = parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+          
+          return {
+            ...h.toObject(),
+            normalizedDate
+          };
+        } catch (e) {
+          return null;
+        }
       })
+      .filter(h => h !== null)
       .filter(h => {
         if (!from || !to) return true;
         return h.normalizedDate >= from && h.normalizedDate <= to;
       })
       .map(h => ({
         _id: h._id,
+        id: h._id,
         title: h.title,
         type: 'HOLIDAY',
-        description: h.titles.join(', '),
+        description: h.titles ? h.titles.join(', ') : h.title,
         startDate: new Date(h.normalizedDate),
         endDate: new Date(h.normalizedDate),
+        dateStr: h.normalizedDate, // Send normalized YYYY-MM-DD string
+        nepali_date: h.nepali_date,
         color: 'red',
         audience: 'Whole School',
         isPublicHoliday: true

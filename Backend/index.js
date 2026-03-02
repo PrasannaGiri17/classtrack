@@ -16,6 +16,13 @@ const examRoutes = require("./routes/examRoutes");
 const resultRoutes = require("./routes/resultRoutes");
 const authRoutes = require("./routes/UserAuth");
 const notificationRoutes = require("./routes/notificationRoutes");
+const classroomNoticeRoutes = require("./routes/classroomNoticeRoutes");
+const attendanceRoutes = require("./routes/attendanceRoutes");
+const quizRoutes = require("./routes/quizRoutes");
+const teacherRoutineRoutes = require("./routes/teacherRoutineRoutes");
+const diaryRoutes = require("./routes/diaryRoutes");
+const assignmentRoutes = require("./routes/assignment.routes");
+const contentRoutes = require("./routes/content.routes");
 
 const app = express();
 const port = 7000;
@@ -49,6 +56,13 @@ app.use("/api/exams", examRoutes); // Mount exam routes
 app.use("/api/results", resultRoutes); // Mount result routes
 app.use("/api/auth", authRoutes);    // /api/auth/register, /api/auth/login, etc.
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/classroom-notices", classroomNoticeRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/quizzes", quizRoutes);
+app.use("/api/teacher-routine", teacherRoutineRoutes);
+app.use("/api/diary", diaryRoutes);
+app.use("/api/assignments", assignmentRoutes);
+app.use("/api/content", contentRoutes);
 
 app.listen(port, () => {
   console.log(`Backend server is running on http://localhost:${port}`);

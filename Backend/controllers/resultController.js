@@ -12,7 +12,20 @@ exports.upsertResult = async (req, res) => {
     if (result) {
       result.gradeId = gradeId;
       result.sectionName = sectionName;
-      result.marks = marks;
+      
+      // Merge marks: update if subject matches, otherwise push
+      const incomingMarks = Array.isArray(marks) ? marks : [marks];
+      incomingMarks.forEach(m => {
+        const idx = result.marks.findIndex(nm => nm.subjectId.toString() === m.subjectId.toString());
+        if (idx > -1) {
+          result.marks[idx].theoryMarks = m.theoryMarks;
+          result.marks[idx].practicalMarks = m.practicalMarks;
+          result.marks[idx].remark = m.remark || "";
+        } else {
+          result.marks.push(m);
+        }
+      });
+      
       await result.save();
     } else {
       result = new Result({
@@ -20,7 +33,7 @@ exports.upsertResult = async (req, res) => {
         gradeId,
         sectionName,
         term,
-        marks
+        marks: Array.isArray(marks) ? marks : [marks]
       });
       await result.save();
     }

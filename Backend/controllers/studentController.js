@@ -1,5 +1,5 @@
-// controllers/studentController.js
 const Student = require("../models/studentModel");
+const { Grade } = require("../models/School");
 const User = require("../models/UserModal");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
@@ -9,10 +9,27 @@ const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
 const getAllStudents = async (req, res) => {
   try {
-    const { studentClass, sectionId } = req.query;
+    const { studentClass, sectionId, classTeacherId } = req.query;
     const filter = {};
+    
+    if (sectionId) {
+      filter.sectionId = sectionId;
+    } else if (classTeacherId) {
+      // Find which section this teacher belongs to as Class Teacher
+      const grade = await Grade.findOne({ "sections.classTeacherId": classTeacherId });
+      if (grade) {
+        const section = grade.sections.find(s => s.classTeacherId?.toString() === classTeacherId);
+        if (section) {
+          filter.sectionId = section._id;
+        } else {
+          return res.status(200).json([]);
+        }
+      } else {
+        return res.status(200).json([]);
+      }
+    }
+
     if (studentClass) filter.studentClass = Number(studentClass);
-    if (sectionId) filter.sectionId = sectionId;
 
     const students = await Student.find(filter);
     res.status(200).json(students);
@@ -63,6 +80,7 @@ const addStudent = async (req, res) => {
       classId,
       sectionId,
       rollNumber,
+      profilePhoto,
     } = req.body;
 
     const schoolId = 1;
@@ -127,6 +145,7 @@ const addStudent = async (req, res) => {
       classId: classId || null,
       sectionId: sectionId || null,
       rollNumber: rollNumber ?? null,
+      profilePhoto: profilePhoto || null,
     });
 
     await student.save();

@@ -49,6 +49,7 @@ const gradeSchema = new mongoose.Schema({
     sectionName: { type: String, required: true },  // 'A', 'B', 'C' up to 10
     classRoomName: { type: String, default: "" }, // NEW: custom name like "Emerald Class"
     classTeacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher', default: null },
+    classMonitorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', default: null },
     capacity: { type: Number, default: 40 },
     roomNumber: String,
     isActive: { type: Boolean, default: true }

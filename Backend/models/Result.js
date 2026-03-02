@@ -8,7 +8,8 @@ const resultSchema = new mongoose.Schema({
   marks: [{
     subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
     theoryMarks: { type: Number, default: 0 },
-    practicalMarks: { type: Number, default: 0 }
+    practicalMarks: { type: Number, default: 0 },
+    remark: { type: String, default: "" }
   }],
   summary: {
     total: Number,

@@ -34,7 +34,7 @@ const TeacherSchema = new mongoose.Schema(
     secondarySubject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", default: null },
 
     classTeacher: { type: String, default: null, trim: true },
-    assignedClasses: { type: String, default: null, trim: true },
+    assignedClasses: [{ type: String, trim: true }],
   },
   { timestamps: true }
 );

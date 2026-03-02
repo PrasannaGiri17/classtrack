@@ -2,6 +2,7 @@ const { Grade, Subject, School } = require("../models/School");
 const Teacher = require("../models/teacherModel");
 const Timetable = require("../models/Timetable");
 const Routine = require("../models/Routine");
+const { syncTeacherAssignedClasses } = require("../utils/teacherSync");
 
 // Get Timetable for a specific grade and section
 const getTimetable = async (req, res) => {
@@ -141,6 +142,15 @@ const updateTimetable = async (req, res) => {
 
     const normalizedGradeNumber = gradeNumber.toString();
 
+    // Get old teachers before update to sync them as well (in case they are removed)
+    const existingTT = await Timetable.findOne({ 
+      schoolId: 1, 
+      gradeNumber: normalizedGradeNumber, 
+      sectionName, 
+      weekday: weekday.toUpperCase() 
+    });
+    const oldTeacherIds = existingTT ? existingTT.assignments.map(a => a.teacherId?.toString()).filter(id => id) : [];
+
     const updatedTimetable = await Timetable.findOneAndUpdate(
       { schoolId: 1, gradeNumber: normalizedGradeNumber, sectionName, weekday: weekday.toUpperCase() },
       { 
@@ -151,6 +161,15 @@ const updateTimetable = async (req, res) => {
       },
       { upsert: true, new: true, runValidators: true }
     );
+
+    // Sync all teachers involved (both new and potentially removed)
+    const newTeacherIds = assignmentsArray.map(a => a.teacherId?.toString()).filter(id => id);
+    const teachersToSync = [...new Set([...oldTeacherIds, ...newTeacherIds])];
+    
+    // We don't want to wait for syncing (can be background), but we want it to happen
+    Promise.all(teachersToSync.map(id => syncTeacherAssignedClasses(id))).catch(err => {
+      console.error("Error in batch syncTeacherAssignedClasses:", err);
+    });
 
     res.status(200).json({ message: "Timetable updated successfully", timetable: updatedTimetable });
 

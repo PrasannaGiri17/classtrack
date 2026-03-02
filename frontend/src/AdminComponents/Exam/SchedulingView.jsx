@@ -13,14 +13,16 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from '../../MainSystemComponents/Toast';
+import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
 
-// --- Mock Backend Data ---
-const TERMS = ["First Terminal", "Mid-Term", "Second Terminal", "Final Examination"];
+// Term ordinals used throughout - must match backend canonical names
+const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
 // Mock data removed (SESSIONS, GRADES, GRADE_SUBJECT_MAP, DEFAULT_SUBJECTS)
 
 const SchedulingView = () => {
   // --- Setup Modal State ---
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [yearSetup, setYearSetup] = useState({
     termsCount: 3,
     includeMidTerm: true
@@ -34,7 +36,7 @@ const SchedulingView = () => {
   // --- Mapping States ---
   // --- Mapping States ---
   // const [mappingSession, setMappingSession] = useState(SESSIONS[0]); // REMOVED
-  const [mappingTerm, setMappingTerm] = useState("Term 1");
+  const [mappingTerm, setMappingTerm] = useState("First Term");
   const [mappingGrade, setMappingGrade] = useState("");
   const [slots, setSlots] = useState([]);
   const [isMappingSaved, setIsMappingSaved] = useState(false);
@@ -134,6 +136,9 @@ const SchedulingView = () => {
         globalDuration: duration
       });
       setIsTemplateSaved(true);
+      // Reset mapping term to first valid term from new setup
+      const firstTerm = yearSetup.includeMidTerm ? `${ORDINALS[0]} Mid Term` : `${ORDINALS[0]} Term`;
+      setMappingTerm(firstTerm);
       toast({ type: 'success', message: 'Global exam template saved!' });
       setTimeout(() => setIsTemplateSaved(false), 3000);
     } catch (error) {
@@ -369,15 +374,19 @@ const SchedulingView = () => {
                   className="appearance-none bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-[10px] font-black text-slate-500 uppercase outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
                 >
                   {/* Dynamic Terms based on Setup */}
-                  {Array.from({ length: yearSetup.termsCount }).map((_, i) => (
-                    <React.Fragment key={i}>
-                      {yearSetup.includeMidTerm && (
-                        <option value={`Mid-Term ${i + 1}`}>{`MID-TERM ${i + 1}`}</option>
-                      )}
-                      <option value={`Term ${i + 1}`}>{`TERM ${i + 1}`}</option>
-                    </React.Fragment>
-                  ))}
-                  <option value="Final">FINAL</option>
+                  {(() => {
+                    const options = [];
+                    for (let i = 0; i < yearSetup.termsCount; i++) {
+                      const ord = ORDINALS[i] || `${i + 1}th`;
+                      if (yearSetup.includeMidTerm) {
+                        const midName = `${ord} Mid Term`;
+                        options.push(<option key={midName} value={midName}>{midName.toUpperCase()}</option>);
+                      }
+                      const termName = `${ord} Term`;
+                      options.push(<option key={termName} value={termName}>{termName.toUpperCase()}</option>);
+                    }
+                    return options;
+                  })()}
                 </select>
                 <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
               </div>
@@ -556,7 +565,7 @@ const SchedulingView = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => setIsSetupModalOpen(false)}
+                  onClick={() => setIsConfirmOpen(true)}
                   className="flex items-center gap-3 px-10 py-4 bg-emerald-600 text-white rounded-[20px] font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all"
                 >
                   Save Year Setup
@@ -566,6 +575,19 @@ const SchedulingView = () => {
           </div>
         </div>
       )}
+
+      {/* Confirm Save Year Setup */}
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={async () => {
+          setIsConfirmOpen(false);
+          await handleTemplateSave();
+          setIsSetupModalOpen(false);
+        }}
+        title="Save Year Setup?"
+        message={`This will update the academic calendar to ${yearSetup.termsCount} term${yearSetup.termsCount > 1 ? 's' : ''}${yearSetup.includeMidTerm ? ' with mid-term exams' : ''}. All existing term statuses will be re-synced.`}
+      />
     </div>
   );
 };

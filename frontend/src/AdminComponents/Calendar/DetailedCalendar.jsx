@@ -136,9 +136,10 @@ const DetailedCalendar = ({ currentDate, onMonthChange, events = [], mode = 'AD'
             const activeEvents = getEventsForDay(day);
 
             const isToday = isTodayDate(day);
-            const isExam = activeEvents.some(e => e.type === 'EXAMS');
+            const isExam = activeEvents.some(e => e.type === 'EXAMS' || e.type === 'CLASS TEST');
             const isHoliday = activeEvents.some(e => e.type === 'HOLIDAY');
-            const isEvent = activeEvents.some(e => e.type === 'EVENT' || e.type === 'event'); // Case sensitive check or normalized
+            const isHomeWork = activeEvents.some(e => e.type === 'HOMEWORK');
+            const isEvent = activeEvents.some(e => e.type === 'EVENT' || e.type === 'event');
 
             // Calculate if this date is a Saturday
             // (startDay + day - 1) % 7 will be 6 for Saturday
@@ -152,8 +153,9 @@ const DetailedCalendar = ({ currentDate, onMonthChange, events = [], mode = 'AD'
                   ${isToday ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 scale-110 z-10' : ''}
                   ${isExam && !isToday ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 ring-2 ring-blue-100 dark:ring-blue-900/30' : ''}
                   ${isHoliday && !isToday ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 ring-2 ring-red-100 dark:ring-red-900/30' : ''}
-                  ${isSaturday && !isToday && !isExam && !isHoliday ? 'text-red-600 dark:text-red-400 bg-red-50/30 dark:bg-red-900/10' : ''}
-                  ${!isToday && !isExam && !isHoliday && !isSaturday ? 'text-slate-600 dark:text-slate-400 group-hover:bg-slate-50 dark:group-hover:bg-slate-800' : ''}
+                  ${isHomeWork && !isToday ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400 ring-2 ring-amber-100 dark:ring-amber-900/30' : ''}
+                  ${isSaturday && !isToday && !isExam && !isHoliday && !isHomeWork ? 'text-red-600 dark:text-red-400 bg-red-50/30 dark:bg-red-900/10' : ''}
+                  ${!isToday && !isExam && !isHoliday && !isHomeWork && !isSaturday ? 'text-slate-600 dark:text-slate-400 group-hover:bg-slate-50 dark:group-hover:bg-slate-800' : ''}
                 `}>
                   {day}
                 </div>
@@ -163,6 +165,7 @@ const DetailedCalendar = ({ currentDate, onMonthChange, events = [], mode = 'AD'
                   {isToday && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />}
                   {isExam && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-sm" />}
                   {isHoliday && <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm" />}
+                  {isHomeWork && <div className="w-1.5 h-1.5 bg-amber-500 rounded-full shadow-sm" />}
                   {isEvent && <div className="w-1.5 h-1.5 bg-green-500 rounded-full shadow-sm" />}
                 </div>
 
@@ -178,8 +181,9 @@ const DetailedCalendar = ({ currentDate, onMonthChange, events = [], mode = 'AD'
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between">
                           <span className={`px-2.5 py-1 text-[8px] font-black uppercase rounded-lg tracking-widest ${activeEvents[0].type === 'HOLIDAY' ? 'bg-red-500 text-white' :
-                            activeEvents[0].type === 'EXAMS' ? 'bg-blue-500 text-white' :
-                              'bg-emerald-500 text-white'
+                            activeEvents[0].type === 'EXAMS' || activeEvents[0].type === 'CLASS TEST' ? 'bg-blue-500 text-white' :
+                              activeEvents[0].type === 'HOMEWORK' ? 'bg-amber-500 text-white' :
+                                'bg-emerald-500 text-white'
                             }`}>
                             {activeEvents[0].type}
                           </span>
@@ -237,6 +241,10 @@ const DetailedCalendar = ({ currentDate, onMonthChange, events = [], mode = 'AD'
         <div className="flex items-center gap-3 group">
           <div className="w-3 h-3 bg-red-500 rounded-full shadow-lg group-hover:scale-125 transition-transform" />
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Holiday</span>
+        </div>
+        <div className="flex items-center gap-3 group">
+          <div className="w-3 h-3 bg-amber-500 rounded-full shadow-lg group-hover:scale-125 transition-transform" />
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Homework</span>
         </div>
         <div className="flex items-center gap-3 group">
           <div className="w-3 h-3 bg-blue-500 rounded-full shadow-lg group-hover:scale-125 transition-transform" />

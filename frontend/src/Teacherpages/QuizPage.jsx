@@ -18,7 +18,10 @@ import {
   Target,
   Hash,
   Sparkles,
-  User
+  User,
+  Loader2,
+  Edit2,
+  Pencil
 } from 'lucide-react';
 import {
   BarChart,
@@ -32,106 +35,153 @@ import {
 } from 'recharts';
 import { toast } from '../MainSystemComponents/Toast';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
-import DatePicker from 'react-datepicker';
+import quizService from '../Api/quizService';
+import teacherService from '../Api/teacherService';
+import calendarService from '../Api/calendarService';
+import CustomNepaliHolidayCalendar from '../MainSystemComponents/CustomNepaliHolidayCalendar';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 
-const TEACHER_CLASSES = ["G6 - A", "G6 - B", "G9 - A", "G10 - C"];
-const SUBJECTS = ["Mathematics", "Science", "Computer", "English"];
-
-const INITIAL_QUIZZES = [
-  {
-    id: 'q1',
-    title: 'Algebraic Expressions Mid-Review',
-    subject: 'Mathematics',
-    grade: 'G9',
-    section: 'A',
-    startTime: new Date().toISOString(),
-    endTime: new Date(Date.now() + 86400000).toISOString(),
-    status: 'Active',
-    questions: [],
-    stats: {
-      attempted: 28,
-      avgScore: 74,
-      passRate: 85,
-      topScore: 96,
-      contestants: [
-        { name: 'C. Ronaldo', score: 96 },
-        { name: 'L. Messi', score: 92 },
-        { name: 'K. Mbappe', score: 88 },
-        { name: 'V. Junior', score: 85 },
-        { name: 'J. Bellingham', score: 82 },
-        { name: 'L. Modric', score: 78 },
-        { name: 'F. Valverde', score: 75 },
-        { name: 'E. Haaland', score: 70 },
-      ]
-    }
-  },
-  {
-    id: 'q2',
-    title: 'Introduction to React Hooks',
-    subject: 'Computer',
-    grade: 'G10',
-    section: 'C',
-    startTime: new Date(Date.now() - 172800000).toISOString(),
-    endTime: new Date(Date.now() - 86400000).toISOString(),
-    status: 'Completed',
-    questions: [],
-    stats: {
-      attempted: 22,
-      avgScore: 82,
-      passRate: 92,
-      topScore: 100,
-      contestants: [
-        { name: 'C. Ronaldo', score: 100 },
-        { name: 'L. Messi', score: 98 },
-        { name: 'V. Junior', score: 95 },
-        { name: 'F. Valverde', score: 85 },
-        { name: 'T. Courtois', score: 80 },
-        { name: 'L. Modric', score: 75 },
-      ]
-    }
-  },
-  {
-    id: 'q3',
-    title: 'Cell Biology Fundamentals',
-    subject: 'Science',
-    grade: 'G6',
-    section: 'B',
-    startTime: new Date(Date.now() - 345600000).toISOString(),
-    endTime: new Date(Date.now() - 259200000).toISOString(),
-    status: 'Completed',
-    questions: [],
-    stats: {
-      attempted: 30,
-      avgScore: 68,
-      passRate: 78,
-      topScore: 92,
-      contestants: [
-        { name: 'A. Guler', score: 92 },
-        { name: 'B. Diaz', score: 88 },
-        { name: 'E. Militao', score: 85 },
-        { name: 'D. Carvajal', score: 80 },
-        { name: 'A. Rudiger', score: 75 },
-        { name: 'F. Mendy', score: 60 },
-      ]
-    }
-  }
-];
+const INITIAL_QUIZZES = [];
 
 const QuizPage = () => {
-  const [quizzes, setQuizzes] = useState(INITIAL_QUIZZES);
+  const [loading, setLoading] = useState(true);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
+  const [quizzes, setQuizzes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [selectedQuizForStats, setSelectedQuizForStats] = useState(null);
-  const [selectedAnalyticsQuizId, setSelectedAnalyticsQuizId] = useState(INITIAL_QUIZZES[0].id);
+  const [selectedAnalyticsQuizId, setSelectedAnalyticsQuizId] = useState('');
+  const [editingQuizId, setEditingQuizId] = useState(null);
+
+  const [teacherData, setTeacherData] = useState({ classes: [], subjects: [] });
+  const [holidays, setHolidays] = useState([]);
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
+  const startCalendarRef = useRef(null);
+  const endCalendarRef = useRef(null);
 
   const [newQuiz, setNewQuiz] = useState({
     title: '',
-    subject: SUBJECTS[0],
-    classRef: TEACHER_CLASSES[0],
+    subject: '',
+    classRef: '',
     startDate: null,
     endDate: null,
     questions: []
   });
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        setLoading(true);
+        const teacherId = localStorage.getItem('teacherId');
+        if (!teacherId || teacherId === 'undefined' || teacherId === 'null') {
+          toast({ type: 'error', message: 'Evaluation session expired.' });
+          setLoading(false);
+          return;
+        }
+
+        // Fetch teacher profile
+        const teacher = await teacherService.getTeacherById(teacherId);
+        const classes = teacher.assignedClasses || [];
+
+        // Advanced: Derive "Whole Grade" options for multi-section teachers
+        const uniqueGrades = [...new Set(classes.map(c => {
+          const m = c.match(/(?:Grade\s+|G)(\d+)/i);
+          return m ? m[1] : null;
+        }).filter(Boolean))];
+
+        const wholeGradeOptions = uniqueGrades.map(g => `Whole Grade ${g}`);
+        const classOptions = [...wholeGradeOptions, ...classes];
+
+        const subjects = [];
+        if (teacher.primarySubject) {
+          const name = typeof teacher.primarySubject === 'object' ? (teacher.primarySubject.subjectName || teacher.primarySubject.title) : teacher.primarySubject;
+          if (name) subjects.push(name);
+        }
+        if (teacher.secondarySubject) {
+          const name = typeof teacher.secondarySubject === 'object' ? (teacher.secondarySubject.subjectName || teacher.secondarySubject.title) : teacher.secondarySubject;
+          if (name && !subjects.includes(name)) subjects.push(name);
+        }
+
+        setTeacherData({ classes, subjects, classOptions });
+
+        // Load draft assessment if exists
+        const draft = localStorage.getItem('quiz_draft');
+        if (draft) {
+          try {
+            const parsed = JSON.parse(draft);
+            setNewQuiz({
+              ...parsed,
+              startDate: parsed.startDate ? new Date(parsed.startDate) : null,
+              endDate: parsed.endDate ? new Date(parsed.endDate) : null
+            });
+          } catch (e) {
+            console.error("Draft recovery failed:", e);
+          }
+        } else {
+          // Initialize default assessment identity
+          setNewQuiz(prev => ({
+            ...prev,
+            classRef: classOptions[0] || '',
+            subject: subjects[0] || ''
+          }));
+        }
+
+        await fetchQuizzes();
+      } catch (err) {
+        console.error('Initialization error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+  }, []);
+
+  // Persistent assessment draft protocol
+  useEffect(() => {
+    if (!editingQuizId && isModalOpen) {
+      localStorage.setItem('quiz_draft', JSON.stringify(newQuiz));
+    }
+  }, [newQuiz, editingQuizId, isModalOpen]);
+
+  const fetchQuizzes = async () => {
+    try {
+      setLoadingQuizzes(true);
+      const data = await quizService.getAllQuizzes();
+      setQuizzes(data);
+      if (data.length > 0 && !selectedAnalyticsQuizId) {
+        setSelectedAnalyticsQuizId(data[0]._id);
+      }
+    } catch (error) {
+      console.error('Failed to fetch quizzes:', error);
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchHolidays = async () => {
+      try {
+        const events = await calendarService.getEvents();
+        const holidayMapped = (events || []).filter(e => e && (e.type?.toUpperCase() === 'HOLIDAY' || e.isPublicHoliday));
+        setHolidays(holidayMapped);
+      } catch (error) {
+        console.error("Failed to fetch holidays:", error);
+      }
+    };
+    fetchHolidays();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (startCalendarRef.current && !startCalendarRef.current.contains(event.target)) setShowStartCalendar(false);
+      if (endCalendarRef.current && !endCalendarRef.current.contains(event.target)) setShowEndCalendar(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
 
   const handleQuestionCountChange = (count) => {
     const safeCount = Math.max(0, Math.min(50, count));
@@ -174,8 +224,26 @@ const QuizPage = () => {
     setNewQuiz({ ...newQuiz, questions: updated });
   };
 
-  const handleCreateQuiz = (e) => {
+  const openEditModal = (quiz) => {
+    setEditingQuizId(quiz._id);
+    const classRef = quiz.section === 'ALL' ? `Whole Grade ${quiz.grade}` : `Grade ${quiz.grade}-${quiz.section}`;
+    setNewQuiz({
+      title: quiz.title,
+      subject: quiz.subject,
+      classRef: classRef,
+      startDate: new Date(quiz.startTime),
+      endDate: new Date(quiz.endTime),
+      questions: quiz.questions.map(q => ({ ...q, id: q._id || Date.now().toString() }))
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleCreateQuiz = async (e) => {
     e.preventDefault();
+    if (!newQuiz.title.trim()) {
+      toast({ type: 'warning', message: 'Evaluation identity (title) required.' });
+      return;
+    }
     if (!newQuiz.startDate || !newQuiz.endDate) {
       toast({ type: 'error', message: 'Please define the availability window.' });
       return;
@@ -185,33 +253,101 @@ const QuizPage = () => {
       return;
     }
 
-    const [grade, section] = newQuiz.classRef.split(' - ');
-    const entry = {
-      id: Date.now().toString(),
+    // Robust parsing for "Grade 6-A" or "Whole Grade 1"
+    let grade, section;
+    const wholeMatch = newQuiz.classRef.match(/Whole Grade\s+(\d+)/i);
+
+    if (wholeMatch) {
+      grade = wholeMatch[1];
+      section = 'ALL'; // Special signal for whole-grade broadcasting
+    } else {
+      const classMatch = newQuiz.classRef.match(/(?:Grade\s+|G)(\d+)(?:\s*-\s*|\s*)([A-Za-z]+)/i);
+      if (!classMatch) {
+        toast({ type: 'error', message: 'Invalid class format detected.' });
+        return;
+      }
+      grade = classMatch[1];
+      section = classMatch[2].toUpperCase();
+    }
+
+    const now = new Date();
+    let initialStatus = 'Upcoming';
+    if (now >= newQuiz.startDate && now <= newQuiz.endDate) initialStatus = 'Active';
+    else if (now > newQuiz.endDate) initialStatus = 'Completed';
+
+    const entryData = {
       title: newQuiz.title,
       subject: newQuiz.subject,
       grade,
       section,
       startTime: newQuiz.startDate.toISOString(),
       endTime: newQuiz.endDate.toISOString(),
-      questions: newQuiz.questions,
-      status: 'Upcoming',
-      stats: { attempted: 0, avgScore: 0, passRate: 0, topScore: 0, contestants: [] }
+      questions: newQuiz.questions.map(({ text, options, correctIndex }) => ({
+        text,
+        options,
+        correctIndex
+      })),
+      status: initialStatus
     };
 
-    setQuizzes([entry, ...quizzes]);
-    setIsModalOpen(false);
-    setNewQuiz({ title: '', subject: SUBJECTS[0], classRef: TEACHER_CLASSES[0], startDate: null, endDate: null, questions: [] });
-    toast({ type: 'success', message: 'Quiz created and auto-grading enabled.' });
+    try {
+      if (editingQuizId) {
+        const updated = await quizService.updateQuiz(editingQuizId, entryData);
+        setQuizzes(quizzes.map(q => q._id === editingQuizId ? updated : q));
+        toast({ type: 'success', message: 'Evaluation identity updated successfully.' });
+      } else {
+        const saved = await quizService.createQuiz(entryData);
+        setQuizzes([saved, ...quizzes]);
+        toast({ type: 'success', message: 'Quiz created and auto-grading enabled.' });
+        localStorage.removeItem('quiz_draft');
+      }
+      setIsModalOpen(false);
+      setEditingQuizId(null);
+      setNewQuiz({
+        title: '',
+        subject: teacherData.subjects[0] || '',
+        classRef: teacherData.classOptions?.[0] || '',
+        startDate: null,
+        endDate: null,
+        questions: []
+      });
+    } catch (err) {
+      console.error('Save error:', err);
+      const msg = err.response?.data?.message || 'Publication protocol failed.';
+      toast({ type: 'error', message: msg });
+    }
+  };
+
+  const handleDeleteQuiz = async (id) => {
+    if (!window.confirm('Are you sure you want to permanently remove this assessment?')) return;
+    try {
+      await quizService.deleteQuiz(id);
+      setQuizzes(quizzes.filter(q => q._id !== id));
+      toast({ type: 'success', message: 'Evaluation successfully archived.' });
+    } catch (err) {
+      console.error('Delete error:', err);
+      toast({ type: 'error', message: 'Failed to delete record.' });
+    }
   };
 
   const selectedAnalyticsQuiz = useMemo(() => {
-    return quizzes.find(q => q.id === selectedAnalyticsQuizId);
+    return quizzes.find(q => q._id === selectedAnalyticsQuizId);
   }, [quizzes, selectedAnalyticsQuizId]);
 
   const analyticsData = useMemo(() => {
     return selectedAnalyticsQuiz?.stats?.contestants || [];
   }, [selectedAnalyticsQuiz]);
+
+  if (loading) {
+    return (
+      <div className="w-full h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-slate-400">
+          <Loader2 size={40} className="animate-spin text-emerald-500" />
+          <p className="text-[10px] font-black uppercase tracking-widest">Initialising Quiz Portal...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-24">
@@ -255,15 +391,35 @@ const QuizPage = () => {
 
       {activeTab === 'all' ? (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {quizzes.map((q) => (
-            <div key={q.id} className="bg-white dark:bg-slate-900 p-10 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all group">
+          {loadingQuizzes ? (
+            <div className="xl:col-span-2 py-32 flex flex-col items-center justify-center gap-4 text-slate-400">
+              <div className="w-10 h-10 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+              <p className="text-[10px] font-black tracking-widest uppercase">Fetching Evaluation Data...</p>
+            </div>
+          ) : quizzes.map((q) => (
+            <div key={q._id} className="bg-white dark:bg-slate-900 p-10 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all group">
               <div className="flex items-center justify-between mb-8">
-                <span className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${q.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                  q.status === 'Completed' ? 'bg-slate-50 text-slate-400 border-slate-100' :
-                    'bg-blue-50 text-blue-600 border-blue-100'
-                  }`}>
-                  {q.status}
-                </span>
+                {(() => {
+                  const now = new Date();
+                  const start = new Date(q.startTime);
+                  const end = new Date(q.endTime);
+                  let label = 'Upcoming';
+                  let style = 'bg-blue-50 text-blue-600 border-blue-100';
+
+                  if (now > end) {
+                    label = 'Completed';
+                    style = 'bg-slate-50 text-slate-400 border-slate-100';
+                  } else if (now >= start) {
+                    label = 'Active';
+                    style = 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                  }
+
+                  return (
+                    <span className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${style}`}>
+                      {label}
+                    </span>
+                  );
+                })()}
                 <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">{q.grade} - {q.section}</span>
               </div>
               <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight mb-3 uppercase tracking-tight truncate">{q.title}</h3>
@@ -288,12 +444,28 @@ const QuizPage = () => {
                 )}
               </div>
 
-              <button
-                onClick={() => setSelectedQuizForStats(q)}
-                className="w-full py-5 bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 rounded-[24px] text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3"
-              >
-                <Trophy size={16} /> View Results
-              </button>
+              <div className="flex items-center justify-between gap-4">
+                <button
+                  onClick={() => setSelectedQuizForStats(q)}
+                  className="flex-1 py-5 bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-600 rounded-[24px] text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3"
+                >
+                  <Trophy size={16} /> View Results
+                </button>
+                <button
+                  onClick={() => openEditModal(q)}
+                  className="w-16 h-[60px] flex items-center justify-center bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-400 hover:text-blue-600 rounded-[24px] transition-all group-hover:scale-105"
+                  title="Edit Quiz"
+                >
+                  <Pencil size={18} />
+                </button>
+                <button
+                  onClick={() => handleDeleteQuiz(q._id)}
+                  className="w-16 h-[60px] flex items-center justify-center bg-slate-50 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 rounded-[24px] transition-all group-hover:scale-105"
+                  title="Delete Quiz"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -316,8 +488,9 @@ const QuizPage = () => {
                     onChange={(e) => setSelectedAnalyticsQuizId(e.target.value)}
                     className="appearance-none w-full bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-100 font-bold text-xs uppercase tracking-widest px-6 py-4 rounded-2xl border border-transparent focus:border-emerald-500/30 outline-none cursor-pointer pr-12 transition-all hover:bg-slate-200 dark:hover:bg-slate-700 shadow-inner"
                   >
+                    {quizzes.length === 0 && <option value="">No quizzes available</option>}
                     {quizzes.map(q => (
-                      <option key={q.id} value={q.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold py-2">
+                      <option key={q._id} value={q._id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold py-2">
                         {q.title.toUpperCase()}
                       </option>
                     ))}
@@ -448,13 +621,36 @@ const QuizPage = () => {
         <div className="bg-white dark:bg-slate-900 w-[95vw] max-w-5xl max-h-[90vh] rounded-[48px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col pointer-events-auto">
           <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-5">
-              <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white"><Plus size={24} /></div>
+              <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white">
+                {editingQuizId ? <Edit2 size={24} /> : <Plus size={24} />}
+              </div>
               <div>
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">New Quiz Portal</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Define Questions & Parameters</p>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">
+                  {editingQuizId ? 'Edit Evaluation' : 'New Quiz Portal'}
+                </h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
+                  {editingQuizId ? 'Modify Questions & Timing' : 'Define Questions & Parameters'}
+                </p>
               </div>
             </div>
-            <button onClick={() => setIsModalOpen(false)} className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><X size={28} /></button>
+            <button
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingQuizId(null);
+                localStorage.removeItem('quiz_draft');
+                setNewQuiz({
+                  title: '',
+                  subject: teacherData.subjects[0] || '',
+                  classRef: teacherData.classOptions?.[0] || '',
+                  startDate: null,
+                  endDate: null,
+                  questions: []
+                });
+              }}
+              className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            >
+              <X size={28} />
+            </button>
           </div>
 
           <form onSubmit={handleCreateQuiz} className="flex-1 overflow-y-auto p-10 space-y-10 scrollbar-hide">
@@ -468,15 +664,41 @@ const QuizPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade Assignment</label>
-                    <select value={newQuiz.classRef} onChange={e => setNewQuiz({ ...newQuiz, classRef: e.target.value })} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold dark:text-white cursor-pointer shadow-inner">
-                      {TEACHER_CLASSES.map(c => <option key={c} value={c} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{c}</option>)}
-                    </select>
+                    {teacherData.classOptions?.length <= 1 ? (
+                      <div className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-[11px] font-black text-slate-700 dark:text-white shadow-inner">
+                        {teacherData.classOptions?.[0] || '—'}
+                      </div>
+                    ) : (
+                      <div className="relative group">
+                        <select
+                          value={newQuiz.classRef}
+                          onChange={e => setNewQuiz({ ...newQuiz, classRef: e.target.value })}
+                          className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold dark:text-white cursor-pointer shadow-inner pr-10"
+                        >
+                          {teacherData.classOptions?.map(c => <option key={c} value={c} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{c}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subject</label>
-                    <select value={newQuiz.subject} onChange={e => setNewQuiz({ ...newQuiz, subject: e.target.value })} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold dark:text-white cursor-pointer shadow-inner">
-                      {SUBJECTS.map(s => <option key={s} value={s} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{s}</option>)}
-                    </select>
+                    {teacherData.subjects.length <= 1 ? (
+                      <div className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-[11px] font-black text-slate-700 dark:text-white shadow-inner">
+                        {teacherData.subjects[0] || '—'}
+                      </div>
+                    ) : (
+                      <div className="relative group">
+                        <select
+                          value={newQuiz.subject}
+                          onChange={e => setNewQuiz({ ...newQuiz, subject: e.target.value })}
+                          className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold dark:text-white cursor-pointer shadow-inner pr-10"
+                        >
+                          {teacherData.subjects.map(s => <option key={s} value={s} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{s}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -484,20 +706,86 @@ const QuizPage = () => {
               <div className="space-y-6">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Availability Window</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <DatePicker
-                    selected={newQuiz.startDate}
-                    onChange={date => setNewQuiz({ ...newQuiz, startDate: date })}
-                    showTimeSelect
-                    placeholderText="Start Date & Time"
-                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold dark:text-white outline-none shadow-inner"
-                  />
-                  <DatePicker
-                    selected={newQuiz.endDate}
-                    onChange={date => setNewQuiz({ ...newQuiz, endDate: date })}
-                    showTimeSelect
-                    placeholderText="End Date & Time"
-                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold dark:text-white outline-none shadow-inner"
-                  />
+                  {/* Start Date & Time */}
+                  <div className="relative" ref={startCalendarRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowStartCalendar(!showStartCalendar)}
+                      className="w-full flex items-center gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-[11px] font-black text-slate-700 dark:text-white outline-none shadow-inner transition-all hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                      <Calendar size={16} className="text-emerald-500" />
+                      <span className="truncate">
+                        {newQuiz.startDate
+                          ? newQuiz.startDate.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                          : "Start Date & Time"}
+                      </span>
+                    </button>
+                    <AnimatePresence>
+                      {showStartCalendar && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          className="absolute top-full left-0 mt-4 z-[100] origin-top-left"
+                        >
+                          <CustomNepaliHolidayCalendar
+                            selectedDate={newQuiz.startDate || new Date()}
+                            onChange={(date) => {
+                              const updates = { startDate: date };
+                              // If end date is null or before start date, auto-set it to 1 hour later
+                              if (!newQuiz.endDate || date >= newQuiz.endDate) {
+                                const defaultEnd = new Date(date);
+                                defaultEnd.setHours(defaultEnd.getHours() + 1);
+                                updates.endDate = defaultEnd;
+                              }
+                              setNewQuiz({ ...newQuiz, ...updates });
+                            }}
+                            holidays={holidays}
+                            showTime={true}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* End Date & Time */}
+                  <div className="relative" ref={endCalendarRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowEndCalendar(!showEndCalendar)}
+                      className="w-full flex items-center gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-[11px] font-black text-slate-700 dark:text-white outline-none shadow-inner transition-all hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                      <Clock size={16} className="text-emerald-500" />
+                      <span className="truncate">
+                        {newQuiz.endDate
+                          ? newQuiz.endDate.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                          : "End Date & Time"}
+                      </span>
+                    </button>
+                    <AnimatePresence>
+                      {showEndCalendar && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          className="absolute top-full right-0 mt-4 z-[100] origin-top-right"
+                        >
+                          <CustomNepaliHolidayCalendar
+                            selectedDate={newQuiz.endDate || new Date()}
+                            onChange={(date) => {
+                              if (newQuiz.startDate && date <= newQuiz.startDate) {
+                                toast({ type: 'warning', message: 'Termination must succeed initiation.' });
+                                return;
+                              }
+                              setNewQuiz({ ...newQuiz, endDate: date });
+                            }}
+                            holidays={holidays}
+                            showTime={true}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
             </div>
@@ -513,8 +801,9 @@ const QuizPage = () => {
                       type="number"
                       min="0"
                       max="50"
-                      value={newQuiz.questions.length}
+                      value={newQuiz.questions.length === 0 ? '' : newQuiz.questions.length}
                       onChange={(e) => handleQuestionCountChange(parseInt(e.target.value) || 0)}
+                      placeholder="0"
                       className="w-40 pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-emerald-500/10 focus:border-emerald-500/30 rounded-xl text-lg font-black text-slate-900 dark:text-white outline-none transition-all shadow-inner"
                     />
                   </div>
@@ -554,10 +843,32 @@ const QuizPage = () => {
             </div>
           </form>
 
-          <div className="px-10 py-8 border-t border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-end gap-4 shrink-0">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all rounded-2xl">Discard</button>
-            <button type="submit" onClick={handleCreateQuiz} className="px-14 py-4 bg-emerald-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
-              <Save size={18} /> Publish Quiz
+          <div className="px-10 py-5 border-t border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-end gap-4 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingQuizId(null);
+                localStorage.removeItem('quiz_draft');
+                setNewQuiz({
+                  title: '',
+                  subject: teacherData.subjects[0] || '',
+                  classRef: teacherData.classOptions?.[0] || '',
+                  startDate: null,
+                  endDate: null,
+                  questions: []
+                });
+              }}
+              className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all rounded-2xl"
+            >
+              Discard
+            </button>
+            <button
+              type="submit"
+              onClick={handleCreateQuiz}
+              className="px-14 py-4 bg-emerald-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+            >
+              <Save size={18} /> {editingQuizId ? 'Update Info' : 'Publish Quiz'}
             </button>
           </div>
         </div>

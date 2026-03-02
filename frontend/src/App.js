@@ -116,6 +116,7 @@ function App() {
           <Route path="assignments" element={<AssignmentsContent />} />
           <Route path="notification" element={<TeacherNotificationPage />} />
           <Route path="profile" element={<TeacherMePage />} />
+          <Route path="student-profile" element={<StudentMePage />} />
         </Route>
 
         <Route path="/student" element={<StudentLayout />}>

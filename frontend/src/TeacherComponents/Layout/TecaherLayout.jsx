@@ -37,7 +37,7 @@ const TecaherLayout = () => {
     if (path.includes("/dashboard")) setActivePage("dashboard");
     else if (path.includes("/routine")) setActivePage("routine");
     else if (path.includes("/attendance")) setActivePage("attendance");
-    else if (path.includes("/student-record")) setActivePage("student");
+    else if (path.includes("/student-record") || path.includes("/student-profile")) setActivePage("student");
     else if (path.includes("/calendar")) setActivePage("calendar");
     else if (path.includes("/exam")) setActivePage("exam");
     else if (path.includes("/quiz")) setActivePage("quiz");

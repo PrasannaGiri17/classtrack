@@ -36,7 +36,7 @@ const Sidebar = ({ activePage }) => {
     { key: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/teacher/dashboard' },
     { key: 'routine', icon: Clock, label: 'Routine', path: '/teacher/routine' },
     { key: 'attendance', icon: Users, label: 'Attendance', path: '/teacher/attendance' },
-    { key: 'student', icon: GraduationCap, label: 'Students', path: '/teacher/student-record' },
+    { key: 'student', icon: GraduationCap, label: 'Classroom', path: '/teacher/student-record' },
     { key: 'calendar', icon: Calendar, label: 'Calendar', path: '/teacher/calendar' },
     { key: 'exam', icon: FileText, label: 'Exam', path: '/teacher/exam' },
     { key: 'quiz', icon: FileText, label: 'Quiz', path: '/teacher/quiz' },

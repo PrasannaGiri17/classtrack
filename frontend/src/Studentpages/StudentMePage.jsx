@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   User,
   Phone,
@@ -15,6 +15,7 @@ import {
   BookOpen,
   CreditCard,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
   FileText,
   Pencil,
@@ -254,11 +255,15 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
   );
 };
 
-const StudentProfileHeader = ({ student, onUpdate }) => {
+const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
   const [currentAvatar, setCurrentAvatar] = useState(student.avatarUrl);
   const fileInputRef = useRef(null);
   const [isAvatarConfirmOpen, setIsAvatarConfirmOpen] = useState(false);
   const [pendingAvatar, setPendingAvatar] = useState(null);
+
+  useEffect(() => {
+    setCurrentAvatar(student.avatarUrl);
+  }, [student.avatarUrl]);
 
   const flag = (student.flag || 'green').toLowerCase();
   const flagThemes = {
@@ -325,7 +330,7 @@ const StudentProfileHeader = ({ student, onUpdate }) => {
 
           {/* Avatar & Basic Info */}
           <div className="flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8">
-            <div className="relative group cursor-pointer" onClick={handleImageClick}>
+            <div className={`relative group ${readOnly ? '' : 'cursor-pointer'}`} onClick={readOnly ? null : handleImageClick}>
               <div className="w-36 h-36 md:w-40 md:h-40 rounded-[36px] bg-[#0b1220] p-1.5 shadow-2xl border border-white/10 relative overflow-hidden">
                 <div className="w-full h-full rounded-[30px] overflow-hidden bg-slate-800 relative">
                   <img
@@ -334,11 +339,13 @@ const StudentProfileHeader = ({ student, onUpdate }) => {
                     className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:blur-[3px]"
                   />
                   {/* Pencil Overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-2xl">
-                      <Pencil size={20} className="text-white" />
+                  {!readOnly && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                      <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-2xl">
+                        <Pencil size={20} className="text-white" />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
               <div className={`absolute bottom-1 right-1 w-8 h-8 ${currentTheme.accent} rounded-xl flex items-center justify-center text-white border-4 border-[#0b1220] shadow-lg z-20 transition-colors`}>
@@ -599,14 +606,71 @@ const EditableInfoItem = ({ label, value, onChange, icon, placeholder, maxLength
 
 const StudentMePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const passedStudent = location.state?.studentData;
+  const isTeacherView = location.pathname.includes('/teacher/');
+
+  const [student, setStudent] = useState(() => {
+    if (passedStudent) {
+      const teacher = passedStudent.sectionId?.classTeacherId;
+      const teacherName = teacher ? (teacher.firstName + " " + (teacher.lastName || "")) : STUDENT_ME_INITIAL.classTeacher;
+
+      return {
+        ...STUDENT_ME_INITIAL,
+        ...passedStudent, // Keep all raw backend data
+        name: `${passedStudent.firstName} ${passedStudent.lastName}`,
+        studentId: passedStudent.studentId,
+        rollNo: passedStudent.rollNumber || passedStudent.rollNo || passedStudent.studentId?.split('-').pop(),
+        email: passedStudent.email || STUDENT_ME_INITIAL.email,
+        phone: passedStudent.phone || passedStudent.phoneNumber || STUDENT_ME_INITIAL.phone,
+        lastTermGPA: passedStudent.lastTerm || STUDENT_ME_INITIAL.lastTermGPA,
+        flag: passedStudent.flag || STUDENT_ME_INITIAL.flag,
+        grade: passedStudent.gradeId?.gradeName || passedStudent.studentClass || passedStudent.grade || STUDENT_ME_INITIAL.grade,
+        section: passedStudent.sectionId?.sectionName || passedStudent.section || STUDENT_ME_INITIAL.section,
+        avatarUrl: passedStudent.profilePhoto || STUDENT_ME_INITIAL.avatarUrl,
+        classTeacher: teacherName,
+        address: passedStudent.Address || STUDENT_ME_INITIAL.address,
+        fatherName: passedStudent.fatherName || STUDENT_ME_INITIAL.fatherName,
+        fatherPhone: passedStudent.fatherPhone || STUDENT_ME_INITIAL.fatherPhone,
+        motherName: passedStudent.motherName || STUDENT_ME_INITIAL.motherName,
+        motherPhone: passedStudent.motherPhone || STUDENT_ME_INITIAL.motherPhone
+      };
+    }
+    return STUDENT_ME_INITIAL;
+  });
+
   const [isLoaded, setIsLoaded] = useState(false);
-  const [student, setStudent] = useState(STUDENT_ME_INITIAL);
   const [selectedTerm, setSelectedTerm] = useState('First Term');
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoaded(true), 600);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (passedStudent) {
+      const teacher = passedStudent.sectionId?.classTeacherId;
+      const teacherName = teacher ? (teacher.firstName + " " + (teacher.lastName || "")) : STUDENT_ME_INITIAL.classTeacher;
+
+      setStudent(prev => ({
+        ...STUDENT_ME_INITIAL,
+        ...passedStudent,
+        name: `${passedStudent.firstName} ${passedStudent.lastName}`,
+        rollNo: passedStudent.rollNumber || passedStudent.rollNo || passedStudent.studentId?.split('-').pop(),
+        avatarUrl: passedStudent.profilePhoto || STUDENT_ME_INITIAL.avatarUrl,
+        grade: passedStudent.gradeId?.gradeName || passedStudent.studentClass || passedStudent.grade || STUDENT_ME_INITIAL.grade,
+        section: passedStudent.sectionId?.sectionName || passedStudent.section || STUDENT_ME_INITIAL.section,
+        classTeacher: teacherName,
+        address: passedStudent.Address || STUDENT_ME_INITIAL.address,
+        phone: passedStudent.phone || passedStudent.phoneNumber || STUDENT_ME_INITIAL.phone,
+        email: passedStudent.email || STUDENT_ME_INITIAL.email,
+        fatherName: passedStudent.fatherName || STUDENT_ME_INITIAL.fatherName,
+        fatherPhone: passedStudent.fatherPhone || STUDENT_ME_INITIAL.fatherPhone,
+        motherName: passedStudent.motherName || STUDENT_ME_INITIAL.motherName,
+        motherPhone: passedStudent.motherPhone || STUDENT_ME_INITIAL.motherPhone
+      }));
+    }
+  }, [passedStudent]);
 
   const handleUpdateStudent = (updatedFields) => {
     setStudent(prev => ({ ...prev, ...updatedFields }));
@@ -624,14 +688,24 @@ const StudentMePage = () => {
 
   return (
     <div className="w-full space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">
+      {location.pathname.includes('/teacher/') && (
+        <button
+          onClick={() => navigate(-1)}
+          className="group flex items-center gap-3 px-6 py-2.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-400 hover:text-emerald-500 transition-all shadow-sm w-fit"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Back to Records</span>
+        </button>
+      )}
+
 
 
       <div className="flex flex-col gap-8">
-        <StudentProfileHeader student={student} onUpdate={handleUpdateStudent} />
+        <StudentProfileHeader student={student} onUpdate={handleUpdateStudent} readOnly={isTeacherView} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <GuardianInfoCard student={student} onUpdate={handleUpdateStudent} />
-          <FeeStatusCard feeStatus={student.feeStatus} />
+          <GuardianInfoCard student={student} onUpdate={handleUpdateStudent} readOnly={isTeacherView} />
+          <FeeStatusCard feeStatus={student.feeStatus} readOnly={isTeacherView} />
         </div>
 
         <AttendanceSummaryCard monthly={student.attendance} yearly={student.yearlyAttendance} />
@@ -683,7 +757,7 @@ const StudentMePage = () => {
   );
 };
 
-const GuardianInfoCard = ({ student, onUpdate }) => {
+const GuardianInfoCard = ({ student, onUpdate, readOnly }) => {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [tempMotherName, setTempMotherName] = useState(student.motherName);
   const [tempMotherPhone, setTempMotherPhone] = useState(student.motherPhone);
@@ -723,8 +797,16 @@ const GuardianInfoCard = ({ student, onUpdate }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-10 gap-x-8">
         <InfoItem label="Father Name" value={student.fatherName} icon={<User size={14} className="text-emerald-500" />} />
         <InfoItem label="Father Number" value={student.fatherPhone} icon={<Phone size={14} className="text-emerald-500" />} />
-        {student.motherName ? (<InfoItem label="Mother Name" value={student.motherName} icon={<User size={14} className="text-emerald-500" />} />) : (<EditableInfoItem label="Mother Name" value={tempMotherName} onChange={setTempMotherName} icon={<User size={14} className="text-emerald-500" />} />)}
-        {student.motherPhone ? (<InfoItem label="Mother Number" value={student.motherPhone} icon={<Phone size={14} className="text-emerald-500" />} />) : (<EditableInfoItem label="Mother Number" value={tempMotherPhone} onChange={handleMotherPhoneChange} icon={<Phone size={14} className="text-emerald-500" />} maxLength={10} />)}
+        {student.motherName || readOnly ? (
+          <InfoItem label="Mother Name" value={student.motherName} icon={<User size={14} className="text-emerald-500" />} />
+        ) : (
+          <EditableInfoItem label="Mother Name" value={tempMotherName} onChange={setTempMotherName} icon={<User size={14} className="text-emerald-500" />} />
+        )}
+        {student.motherPhone || readOnly ? (
+          <InfoItem label="Mother Number" value={student.motherPhone} icon={<Phone size={14} className="text-emerald-500" />} />
+        ) : (
+          <EditableInfoItem label="Mother Number" value={tempMotherPhone} onChange={handleMotherPhoneChange} icon={<Phone size={14} className="text-emerald-500" />} maxLength={10} />
+        )}
         <div className="sm:col-span-2 pt-2 border-t border-slate-50 dark:border-white/5">
           <InfoItem label="Permanent Address" value={student.permanentAddress} icon={<MapPin size={14} className="text-emerald-500" />} />
         </div>
@@ -736,7 +818,7 @@ const GuardianInfoCard = ({ student, onUpdate }) => {
 
 const SkeletonBlock = ({ height }) => (<div className={`w-full ${height} bg-slate-200 dark:bg-slate-800/50 rounded-[40px]`} />);
 
-const FeeStatusCard = ({ feeStatus }) => (
+const FeeStatusCard = ({ feeStatus, readOnly }) => (
   <div className="bg-white dark:bg-[#0b1220] rounded-[40px] border border-slate-100 dark:border-white/5 shadow-xl p-6 lg:p-8 transition-all relative overflow-hidden group/card shadow-indigo-500/5 h-full flex flex-col justify-between">
     {/* Decorative background elements */}
     <div className="absolute top-[-80px] left-[-80px] w-64 h-64 bg-indigo-500/[0.05] blur-[100px] rounded-full pointer-events-none" />
@@ -789,10 +871,12 @@ const FeeStatusCard = ({ feeStatus }) => (
       </div>
     </div>
 
-    <button className="w-full mt-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[24px] font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3">
-      Make Payment
-      <CreditCard size={14} />
-    </button>
+    {!readOnly && (
+      <button className="w-full mt-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[24px] font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3">
+        Make Payment
+        <CreditCard size={14} />
+      </button>
+    )}
   </div>
 );
 

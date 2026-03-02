@@ -22,6 +22,7 @@ import ForgotPasswordModal from "../TeacherComponents/Layout/ForgotPasswordModal
 import teacherService from "../Api/teacherService";
 import gradeService from "../Api/gradeService";
 import axios from "axios";
+import timetableService from "../Api/timetableService";
 import { toast } from "../MainSystemComponents/Toast";
 import Loading from "../MainSystemComponents/Loading";
 import ConfirmDialog from "../MainSystemComponents/ConfirmDialog";
@@ -61,6 +62,7 @@ const TeacherMePage = () => {
         secondarySubject: "",
         class: [],
         assignedSections: [],
+        assignedClasses: [],
         email: "",
         currentAddress: "",
     });
@@ -99,9 +101,29 @@ const TeacherMePage = () => {
                     secondarySubject: typeof teacherData.secondarySubject === 'object' ? teacherData.secondarySubject?.subjectName : teacherData.secondarySubject || "",
                     class: teacherData.assignedGrades?.map(g => String(g.gradeNumber || g)) || [],
                     assignedSections: teacherData.assignedSections || [],
+                    assignedClasses: teacherData.assignedClasses || [],
                     email: teacherData.email || "",
                     currentAddress: teacherData.currentAddress || "",
                 });
+
+                // Fetch Routine to get live assigned classes
+                try {
+                    const routine = await timetableService.getTeacherRoutine(targetId);
+                    if (routine && Array.isArray(routine)) {
+                        const uniqueClasses = new Set();
+                        routine.forEach(slot => {
+                            if (slot.gradeNumber && slot.sectionName) {
+                                uniqueClasses.add(`Grade ${slot.gradeNumber} • Section ${slot.sectionName}`);
+                            }
+                        });
+                        setFormData(prev => ({
+                            ...prev,
+                            assignedClasses: Array.from(uniqueClasses).sort()
+                        }));
+                    }
+                } catch (routineErr) {
+                    console.error("Failed to fetch routine for classes:", routineErr);
+                }
 
                 // Fetch school config and subjects
                 const [schoolRes, gradesData] = await Promise.all([
@@ -526,7 +548,16 @@ const TeacherMePage = () => {
                                     <div className="md:col-span-1 space-y-3">
                                         <label className="text-[10px] font-bold text-slate-400 ml-1">Assigned Classrooms</label>
                                         <div className="flex flex-wrap gap-2">
-                                            {formData.assignedSections && formData.assignedSections.length > 0 ? (
+                                            {(formData.assignedClasses && formData.assignedClasses.length > 0) ? (
+                                                formData.assignedClasses.map((room) => (
+                                                    <div
+                                                        key={room}
+                                                        className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-500 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 rounded-xl text-[10px] font-black"
+                                                    >
+                                                        {room}
+                                                    </div>
+                                                ))
+                                            ) : formData.assignedSections && formData.assignedSections.length > 0 ? (
                                                 formData.assignedSections.map((room) => (
                                                     <div
                                                         key={room}

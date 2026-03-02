@@ -278,7 +278,7 @@ const RoutinePage = () => {
         <div className="flex flex-col sm:flex-row items-center justify-between mb-6 pb-6 border-b border-slate-50 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              {selectedDay}'s Matrix
+              {selectedDay}'s Routine
             </h3>
           </div>
 

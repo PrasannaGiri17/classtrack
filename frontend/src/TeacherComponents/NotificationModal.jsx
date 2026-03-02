@@ -19,12 +19,7 @@ const NotificationModal = ({
     newMessage, setNewMessage,
     newPriority, setNewPriority,
     targetCategory, setTargetCategory,
-    targetDept, setTargetDept,
-    targetGrade, setTargetGrade,
-    targetSection, setTargetSection,
-    newSender, setNewSender,
-    newSenderType, setNewSenderType,
-    dbGrades = []
+    teacherTargets = [] // These are the specific classes/grades assigned to the teacher
 }) => {
 
     const modalSections = React.useMemo(() => {
@@ -62,110 +57,26 @@ const NotificationModal = ({
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 space-y-8 scrollbar-hide">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-6">
                         <div className="space-y-3">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Group</label>
                             <div className="relative group">
                                 <select
                                     value={targetCategory}
                                     onChange={(e) => setTargetCategory(e.target.value)}
-                                    className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-white cursor-pointer"
+                                    className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-white cursor-pointer uppercase"
                                 >
+                                    <option value="">SELECT TARGET RECIPIENTS</option>
                                     <option value="All School">ALL SCHOOL</option>
-                                    <option value="All Teachers">ALL TEACHERS</option>
-                                    <option value="Department">BY DEPARTMENT</option>
-                                    <option value="Grade">BY GRADE / SECTION</option>
-                                </select>
-                                <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
-                            </div>
-                        </div>
-
-                        {targetCategory === 'Department' && (
-                            <div className="space-y-3 animate-in slide-in-from-left-2 duration-300">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Department</label>
-                                <div className="relative group">
-                                    <select
-                                        value={targetDept}
-                                        onChange={(e) => setTargetDept(e.target.value)}
-                                        className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-white cursor-pointer"
-                                    >
-                                        <option value="">SELECT DEPT</option>
-                                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d.toUpperCase()}</option>)}
-                                    </select>
-                                    <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
-                                </div>
-                            </div>
-                        )}
-
-                        {targetCategory === 'Grade' && (
-                            <>
-                                <div className="space-y-3 animate-in slide-in-from-left-2 duration-300">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Grade</label>
-                                    <div className="relative group">
-                                        <select
-                                            value={targetGrade}
-                                            onChange={(e) => {
-                                                setTargetGrade(e.target.value);
-                                                setTargetSection('');
-                                            }}
-                                            className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-white cursor-pointer"
-                                        >
-                                            <option value="">SELECT GRADE</option>
-                                            {dbGrades.map(g => <option key={g._id} value={g.gradeNumber}>GRADE {g.gradeNumber}</option>)}
-                                        </select>
-
-                                        <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
-                                    </div>
-                                </div>
-                                {targetGrade && (
-                                    <div className="space-y-3 animate-in slide-in-from-left-2 duration-300">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Section (Optional)</label>
-                                        <div className="relative group">
-                                            <select
-                                                value={targetSection}
-                                                onChange={(e) => setTargetSection(e.target.value)}
-                                                className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-white cursor-pointer"
-                                            >
-                                                <option value="">WHOLE GRADE</option>
-                                                {modalSections.map(s => <option key={s._id} value={s.sectionName}>SECTION {s.sectionName}</option>)}
-                                            </select>
-
-                                            <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sender Name</label>
-                            <input
-                                type="text"
-                                required
-                                value={newSender}
-                                onChange={(e) => setNewSender(e.target.value)}
-                                placeholder="Admin Name / Office..."
-                                className="w-full px-8 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-white"
-                            />
-                        </div>
-                        <div className="space-y-3">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sender Type</label>
-                            <div className="relative group">
-                                <select
-                                    value={newSenderType}
-                                    onChange={(e) => setNewSenderType(e.target.value)}
-                                    className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-white cursor-pointer"
-                                >
-                                    <option value="admin">ADMINISTRATOR</option>
-                                    <option value="teacher">TEACHER</option>
-                                    <option value="student">STUDENT / REP</option>
+                                    {teacherTargets.map(target => (
+                                        <option key={target} value={target}>{target}</option>
+                                    ))}
                                 </select>
                                 <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
                             </div>
                         </div>
                     </div>
+
 
                     <div className="space-y-3">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Priority Level</label>
@@ -240,7 +151,7 @@ const NotificationModal = ({
                             type="submit"
                             onClick={handleSubmit}
                             className="px-12 py-4 bg-emerald-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50 disabled:grayscale ml-auto w-fit"
-                            disabled={!newTitle || !newMessage || (targetCategory === 'Department' && !targetDept) || (targetCategory === 'Grade' && !targetGrade)}
+                            disabled={!newTitle || !newMessage || !targetCategory}
                         >
                             <Send size={18} /> Send Dispatch
                         </button>

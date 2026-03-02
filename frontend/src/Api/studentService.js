@@ -16,6 +16,11 @@ const getStudentsBySection = async (grade, sectionId) => {
   return response.data;
 };
 
+const getStudentsByClassTeacher = async (teacherId) => {
+  const response = await axios.get(API_URL, { params: { classTeacherId: teacherId } });
+  return response.data;
+};
+
 const bulkEnrollment = async (studentIds, sectionId, studentClass) => {
   const response = await axios.post(`${API_URL}/bulk-enrollment`, { studentIds, sectionId, studentClass });
   return response.data;
@@ -29,6 +34,7 @@ const removeFromSection = async (studentId) => {
 const studentService = {
   getStudents,
   getStudentsBySection,
+  getStudentsByClassTeacher,
   bulkEnrollment,
   removeFromSection
 };

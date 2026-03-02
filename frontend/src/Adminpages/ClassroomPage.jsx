@@ -410,8 +410,12 @@ const ClassroomPage = () => {
               {currentTeacher ? (
                 <div className="space-y-6">
                   <div className="flex items-center gap-5">
-                    <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-indigo-500/20">
-                      {currentTeacher.firstName[0]}{currentTeacher.lastName[0]}
+                    <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-indigo-500/20 overflow-hidden">
+                      {currentTeacher.profilePhoto ? (
+                        <img src={currentTeacher.profilePhoto} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <>{currentTeacher.firstName[0]}{currentTeacher.lastName[0]}</>
+                      )}
                     </div>
                     <div>
                       <h4 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
@@ -487,8 +491,12 @@ const ClassroomPage = () => {
                     }`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-black text-indigo-600">
-                      {t.firstName?.[0] || 'T'}
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-black text-indigo-600 overflow-hidden">
+                      {t.profilePhoto ? (
+                        <img src={t.profilePhoto} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        t.firstName?.[0] || 'T'
+                      )}
                     </div>
                     <div className="text-left">
                       <p className="text-sm font-black text-slate-900 dark:text-white">{t.firstName} {t.lastName}</p>

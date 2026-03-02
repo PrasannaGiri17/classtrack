@@ -58,7 +58,7 @@ const ExamManagement = () => {
         }
         // Initialize resPhase from exam data config
         const { termsCount, includeMidTerm } = examRes.data.config || { termsCount: 3, includeMidTerm: true };
-        const initialPhase = includeMidTerm ? "MID-TERM 1" : "TERM 1";
+        const initialPhase = includeMidTerm ? 'First Mid Term' : 'First Term';
         setResPhase(initialPhase);
       } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -71,35 +71,28 @@ const ExamManagement = () => {
     if (!examData || !examData.config) return [];
 
     const { termsCount, includeMidTerm } = examData.config;
+    const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
     const generatedPhases = [];
 
     for (let i = 0; i < termsCount; i++) {
+      const ord = ordinals[i] || `${i + 1}th`;
       if (includeMidTerm) {
-        const name = `Mid-Term ${i + 1}`;
-        const upperName = name.toUpperCase();
-        const statusObj = examData.termStatuses?.find(s => s.term.toUpperCase() === upperName);
+        const midName = `${ord} Mid Term`;
+        const statusObj = examData.termStatuses?.find(s => s.term === midName);
         generatedPhases.push({
-          id: upperName,
-          name: upperName,
+          id: midName,
+          name: midName.toUpperCase(),
           status: statusObj?.isOpen ? 'Open' : 'Closed'
         });
       }
-      const name = `Term ${i + 1}`;
-      const upperName = name.toUpperCase();
-      const statusObj = examData.termStatuses?.find(s => s.term.toUpperCase() === upperName);
+      const termName = `${ord} Term`;
+      const statusObj = examData.termStatuses?.find(s => s.term === termName);
       generatedPhases.push({
-        id: upperName,
-        name: upperName,
+        id: termName,
+        name: termName.toUpperCase(),
         status: statusObj?.isOpen ? 'Open' : 'Closed'
       });
     }
-
-    const finalName = 'FINAL';
-    generatedPhases.push({
-      id: finalName,
-      name: finalName,
-      status: examData.termStatuses?.find(s => s.term.toUpperCase() === finalName)?.isOpen ? 'Open' : 'Closed'
-    });
 
     return generatedPhases;
   }, [examData]);
@@ -206,11 +199,27 @@ const ExamManagement = () => {
     const newStatus = !currentStatus;
 
     try {
-      const response = await axios.patch('http://localhost:7000/api/exams/term-status', {
+      await axios.patch('http://localhost:7000/api/exams/term-status', {
         term: termName,
         isOpen: newStatus
       });
-      setExamData(response.data);
+
+      // Optimistically update local state: flip the matching termStatus entry
+      setExamData(prev => {
+        if (!prev) return prev;
+        const existingStatuses = prev.termStatuses || [];
+        const idx = existingStatuses.findIndex(s => s.term === termName);
+        let updatedStatuses;
+        if (idx > -1) {
+          updatedStatuses = existingStatuses.map((s, i) =>
+            i === idx ? { ...s, isOpen: newStatus } : s
+          );
+        } else {
+          updatedStatuses = [...existingStatuses, { term: termName, isOpen: newStatus }];
+        }
+        return { ...prev, termStatuses: updatedStatuses };
+      });
+
       toast({
         type: 'success',
         message: `Marking portal for ${termName} is now ${newStatus ? 'OPEN' : 'CLOSED'}`

@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   Search,
-  Trash2,
   ChevronLeft,
   ChevronRight,
   Activity,
@@ -15,43 +15,21 @@ import {
   MessageSquareQuote,
   X,
   Pin,
-  User
+  User,
+  UserCheck,
+  Paperclip,
+  ChevronDown,
+  ArrowLeft,
+  Filter,
+  MoreVertical
 } from "lucide-react";
 import { AddPopupStudent } from "../TeacherComponents/Admin/AddPopupStudent";
+import Loading from "../MainSystemComponents/Loading";
 import { toast } from "../MainSystemComponents/Toast";
-
-const initialStudents = [
-  { _id: "1", studentId: "2024001", firstName: "Cristiano", lastName: "Ronaldo", flag: "green", lastTerm: "3.8", attendance: "98%", section: "A", studentClass: "10" },
-  { _id: "2", studentId: "2024002", firstName: "Luka", lastName: "Modric", flag: "yellow", lastTerm: "4.0", attendance: "95%", section: "A", studentClass: "10" },
-  { _id: "3", studentId: "2024003", firstName: "Vinicius", lastName: "Junior", flag: "red", lastTerm: "3.2", attendance: "88%", section: "A", studentClass: "10" },
-  { _id: "4", studentId: "2024004", firstName: "Jude", lastName: "Bellingham", flag: "green", lastTerm: "3.9", attendance: "99%", section: "A", studentClass: "10" },
-  { _id: "5", studentId: "2024005", firstName: "Federico", lastName: "Valverde", flag: "green", lastTerm: "3.5", attendance: "92%", section: "A", studentClass: "10" },
-  { _id: "6", studentId: "2024010", firstName: "Dani", lastName: "Carvajal", flag: "green", lastTerm: "3.0", attendance: "96%", section: "A", studentClass: "10" },
-  { _id: "7", studentId: "2024011", firstName: "David", lastName: "Alaba", flag: "yellow", lastTerm: "3.6", attendance: "89%", section: "A", studentClass: "10" },
-  { _id: "8", studentId: "2024012", firstName: "Eder", lastName: "Militao", flag: "green", lastTerm: "3.2", attendance: "93%", section: "A", studentClass: "10" },
-  { _id: "9", studentId: "2024013", firstName: "Thibaut", lastName: "Courtois", flag: "green", lastTerm: "3.7", attendance: "94%", section: "A", studentClass: "10" },
-  { _id: "10", studentId: "2024014", firstName: "Eduardo", lastName: "Camavinga", flag: "green", lastTerm: "3.4", attendance: "97%", section: "A", studentClass: "10" },
-  { _id: "11", studentId: "2024015", firstName: "Rodrygo", lastName: "Goes", flag: "yellow", lastTerm: "3.3", attendance: "91%", section: "A", studentClass: "10" },
-  { _id: "12", studentId: "2024016", firstName: "Antonio", lastName: "Rudiger", flag: "green", lastTerm: "3.1", attendance: "95%", section: "A", studentClass: "10" },
-  { _id: "13", studentId: "2024017", firstName: "Arda", lastName: "Guler", flag: "green", lastTerm: "3.8", attendance: "90%", section: "A", studentClass: "10" },
-  { _id: "14", studentId: "2024018", firstName: "Brahim", lastName: "Diaz", flag: "green", lastTerm: "3.6", attendance: "93%", section: "A", studentClass: "10" },
-  { _id: "15", studentId: "2024019", firstName: "Ferland", lastName: "Mendy", flag: "yellow", lastTerm: "2.9", attendance: "85%", section: "A", studentClass: "10" },
-  { _id: "16", studentId: "2024020", firstName: "Lucas", lastName: "Vazquez", flag: "green", lastTerm: "3.2", attendance: "98%", section: "A", studentClass: "10" },
-  { _id: "17", studentId: "2024021", firstName: "Aurelien", lastName: "Tchouameni", flag: "green", lastTerm: "3.5", attendance: "94%", section: "A", studentClass: "10" },
-  { _id: "18", studentId: "2024022", firstName: "Andriy", lastName: "Lunin", flag: "green", lastTerm: "3.9", attendance: "99%", section: "A", studentClass: "10" },
-  { _id: "19", studentId: "2024023", firstName: "Fran", lastName: "Garcia", flag: "green", lastTerm: "3.0", attendance: "92%", section: "A", studentClass: "10" },
-  { _id: "20", studentId: "2024024", firstName: "Kylian", lastName: "Mbappe", flag: "green", lastTerm: "4.0", attendance: "96%", section: "A", studentClass: "10" },
-  { _id: "21", studentId: "2024025", firstName: "Endrick", lastName: "Felipe", flag: "green", lastTerm: "3.3", attendance: "90%", section: "A", studentClass: "10" },
-  { _id: "22", studentId: "2024026", firstName: "Nico", lastName: "Paz", flag: "yellow", lastTerm: "3.2", attendance: "88%", section: "A", studentClass: "10" },
-  { _id: "23", studentId: "2024027", firstName: "Mario", lastName: "Martin", flag: "green", lastTerm: "3.1", attendance: "94%", section: "A", studentClass: "10" },
-  { _id: "24", studentId: "2024028", firstName: "Rafael", lastName: "Obrador", flag: "red", lastTerm: "2.8", attendance: "82%", section: "A", studentClass: "10" },
-  { _id: "25", studentId: "2024029", firstName: "Jacob", lastName: "Ramon", flag: "green", lastTerm: "3.0", attendance: "91%", section: "A", studentClass: "10" },
-  { _id: "26", studentId: "2024030", firstName: "Fran", lastName: "Gonzalez", flag: "green", lastTerm: "3.6", attendance: "95%", section: "A", studentClass: "10" },
-  { _id: "27", studentId: "2024031", firstName: "Jeremy", lastName: "de Leon", flag: "yellow", lastTerm: "3.1", attendance: "87%", section: "A", studentClass: "10" },
-  { _id: "28", studentId: "2024032", firstName: "Gonzalo", lastName: "Garcia", flag: "green", lastTerm: "3.4", attendance: "93%", section: "A", studentClass: "10" },
-  { _id: "29", studentId: "2024033", firstName: "Chema", lastName: "Andres", flag: "green", lastTerm: "3.2", attendance: "90%", section: "A", studentClass: "10" },
-  { _id: "30", studentId: "2024034", firstName: "Iker", lastName: "Bravo", flag: "green", lastTerm: "3.5", attendance: "92%", section: "A", studentClass: "10" },
-];
+import teacherService from "../Api/teacherService";
+import studentService from "../Api/studentService";
+import classroomNoticeService from "../Api/classroomNoticeService";
+import gradeService from "../Api/gradeService";
 
 const INITIAL_NOTICES = [
   { id: "n1", text: "Please ensure all student IDs are visible during tomorrow's morning assembly.", timestamp: "2 hours ago", isPinned: true, authorType: 'teacher', authorName: 'Class Teacher' },
@@ -60,15 +38,70 @@ const INITIAL_NOTICES = [
 ];
 
 const SStudentRecord = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [students, setStudents] = useState(initialStudents);
+  const [students, setStudents] = useState([]);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [monitorId, setMonitorId] = useState("5");
+  const [monitorId, setMonitorId] = useState(null);
   const itemsPerPage = 8;
 
-  const [notices, setNotices] = useState(INITIAL_NOTICES);
+  const [notices, setNotices] = useState([]);
+  const [sectionInfo, setSectionInfo] = useState(null);
   const [newNoticeText, setNewNoticeText] = useState("");
+  const [teacherInfo, setTeacherInfo] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Notice Pagination
+  const [noticePage, setNoticePage] = useState(1);
+  const noticesPerPage = 4;
+
+  const teacherId = localStorage.getItem("teacherId");
+
+  useEffect(() => {
+    const fetchTeacherAndStudents = async () => {
+      if (!teacherId) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const [teacherRes, studentsRes, sectionRes] = await Promise.allSettled([
+          teacherService.getTeacherById(teacherId),
+          studentService.getStudentsByClassTeacher(teacherId),
+          gradeService.getSectionByTeacherId(teacherId)
+        ]);
+
+        if (teacherRes.status === 'fulfilled') setTeacherInfo(teacherRes.value);
+        if (studentsRes.status === 'fulfilled') setStudents(studentsRes.value || []);
+
+        if (sectionRes.status === 'fulfilled') {
+          const secData = sectionRes.value;
+          setSectionInfo(secData);
+          setMonitorId(secData?.classMonitorId);
+
+          if (secData?.sectionId) {
+            try {
+              const noticeData = await classroomNoticeService.getNoticesBySection(secData.sectionId);
+              setNotices(noticeData);
+            } catch (err) {
+              console.error("Failed to load notices:", err);
+            }
+          }
+        } else {
+          console.warn("Section info not found:", sectionRes.reason);
+        }
+
+        if (teacherRes.status === 'rejected' && studentsRes.status === 'rejected') {
+          toast({ type: 'error', message: 'Failed to load classroom records.' });
+        }
+      } catch (error) {
+        console.error("Error in fetch sequence:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTeacherAndStudents();
+  }, [teacherId]);
 
   const currentMonitor = students.find(s => s._id === monitorId);
 
@@ -90,75 +123,101 @@ const SStudentRecord = () => {
   const currentItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Remove student from class roster?")) return;
-    setStudents(prev => prev.filter(s => s._id !== id));
-    if (id === monitorId) setMonitorId(null);
-    if (currentItems.length === 1 && currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
+
+
+  const handleToggleMonitor = async (id) => {
+    if (!sectionInfo?.sectionId) return;
+
+    try {
+      const isRemoving = monitorId === id;
+      const payload = {
+        sectionId: sectionInfo.sectionId,
+        studentId: isRemoving ? null : id
+      };
+
+      await gradeService.assignClassMonitor(payload);
+
+      if (isRemoving) {
+        setMonitorId(null);
+        toast({ type: 'info', message: 'Class monitor unassigned.' });
+      } else {
+        setMonitorId(id);
+        const student = students.find(s => s._id === id);
+        toast({ type: 'success', message: `${student?.firstName} assigned as Class Monitor.` });
+      }
+    } catch (error) {
+      console.error("Error updating monitor:", error);
+      toast({ type: 'error', message: 'Failed to update class monitor.' });
     }
   };
 
-  const handleToggleMonitor = (id) => {
-    if (monitorId === id) {
-      setMonitorId(null);
-      toast({ type: 'info', message: 'Class monitor unassigned.' });
-    } else {
-      setMonitorId(id);
-      const student = students.find(s => s._id === id);
-      toast({ type: 'success', message: `${student?.firstName} assigned as Class Monitor.` });
-    }
-  };
-
-  const handlePostNotice = (e) => {
+  const handlePostNotice = async (e) => {
     e.preventDefault();
-    if (!newNoticeText.trim()) return;
+    if (!newNoticeText.trim() || !sectionInfo?.sectionId) return;
 
-    const newNotice = {
-      id: Date.now().toString(),
-      text: newNoticeText.trim(),
-      timestamp: "Just now",
-      isPinned: false,
-      authorType: 'teacher',
-      authorName: 'Class Teacher'
-    };
+    try {
+      const noticeData = {
+        text: newNoticeText.trim(),
+        authorId: teacherId,
+        authorName: 'Class Teacher',
+        authorType: 'teacher',
+        sectionId: sectionInfo.sectionId
+      };
 
-    setNotices([newNotice, ...notices]);
-    setNewNoticeText("");
-    toast({ type: 'success', message: 'Class notice posted successfully.' });
+      const createdNotice = await classroomNoticeService.createNotice(noticeData);
+      setNotices([createdNotice, ...notices]);
+      setNewNoticeText("");
+      toast({ type: 'success', message: 'Class notice posted successfully.' });
+    } catch (error) {
+      toast({ type: 'error', message: 'Failed to post notice.' });
+    }
   };
 
-  const handleDeleteNotice = (id) => {
-    setNotices(prev => prev.filter(n => n.id !== id));
-    toast({ type: 'info', message: 'Notice removed.' });
+  const handleStudentClick = (student) => {
+    navigate('/teacher/student-profile', { state: { studentData: student } });
   };
 
-  const handleTogglePin = (id) => {
-    const target = notices.find(n => n.id === id);
-    setNotices(prev => prev.map(n => n.id === id ? { ...n, isPinned: !n.isPinned } : n));
-    toast({ type: 'success', message: !target?.isPinned ? 'Notice pinned to top.' : 'Notice unpinned.' });
+  const handleDeleteNotice = async (id) => {
+    try {
+      await classroomNoticeService.deleteNotice(id, teacherId, 'teacher');
+      setNotices(prev => prev.filter(n => n._id !== id));
+      toast({ type: 'info', message: 'Notice removed.' });
+    } catch (error) {
+      toast({ type: 'error', message: 'Failed to delete notice.' });
+    }
+  };
+
+  const handleTogglePin = async (id) => {
+    try {
+      const updated = await classroomNoticeService.togglePinNotice(id, teacherId, 'teacher');
+      setNotices(prev => prev.map(n => n._id === id ? updated : n));
+      toast({ type: 'success', message: updated.isPinned ? 'Notice pinned to top.' : 'Notice unpinned.' });
+    } catch (error) {
+      toast({ type: 'error', message: 'Failed to update notice.' });
+    }
   };
 
   const sortedNotices = [...notices].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+
+  // Notice Pagination Logic
+  const totalNoticePages = Math.ceil(sortedNotices.length / noticesPerPage) || 1;
+  const currentNotices = sortedNotices.slice((noticePage - 1) * noticesPerPage, noticePage * noticesPerPage);
 
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-0 space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-24">
       {/* Identity Row */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="bg-white dark:bg-slate-900 px-6 py-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 transition-colors">
-            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-              <Users className="text-emerald-500 w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Members</p>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-none">{students.length}</h2>
-            </div>
+          <div className="bg-white dark:bg-slate-900 px-6 py-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center transition-colors">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Students</p>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white leading-none flex items-center gap-2">
+              <Users size={16} className="text-emerald-500" /> {students.length}
+            </h3>
           </div>
           <div className="bg-white dark:bg-slate-900 px-6 py-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center transition-colors">
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Assigned Class</p>
             <h3 className="text-lg font-black text-slate-900 dark:text-white leading-none flex items-center gap-2">
-              <GraduationCap size={16} className="text-emerald-500" /> Grade 10-A
+              <GraduationCap size={16} className="text-emerald-500" /> {teacherInfo?.classTeacher || "Not Assigned"}
             </h3>
           </div>
           <div className="bg-white dark:bg-slate-900 px-6 py-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center transition-colors">
@@ -200,17 +259,49 @@ const SStudentRecord = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-              {currentItems.length > 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="py-20">
+                    <Loading fullScreen={false} text="Syncing classroom data..." />
+                  </td>
+                </tr>
+              ) : currentItems.length > 0 ? (
                 currentItems.map((s) => {
                   const isMonitor = s._id === monitorId;
                   return (
-                    <tr key={s._id} className={`group transition-all ${isMonitor ? 'bg-emerald-50/20 dark:bg-emerald-900/5' : 'hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5'}`}>
-                      <td className="pl-12 pr-6 py-6"><span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${isMonitor ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-slate-700'}`}>{s.studentId}</span></td>
-                      <td className="px-6 py-6"><div className="flex items-center gap-4"><div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs shadow-inner shrink-0 transition-colors ${isMonitor ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20 text-emerald-600'}`}>{s.firstName?.[0]}{s.lastName?.[0]}</div><div className="min-w-0"><div className="flex items-center gap-2"><p className={`font-black leading-tight truncate text-base ${isMonitor ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-white"}`}>{s.firstName} {s.lastName}</p>{isMonitor && <Crown size={14} className="text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)] animate-pulse" />}</div>{isMonitor && <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-0.5">Current Class Monitor</p>}</div></div></td>
+                    <tr
+                      key={s._id}
+                      onClick={() => handleStudentClick(s)}
+                      className={`group cursor-pointer transition-all ${isMonitor ? 'bg-emerald-50/20 dark:bg-emerald-900/5' : 'hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5'}`}
+                    >
+                      <td className="pl-12 pr-6 py-6"><span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${isMonitor ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-slate-700'}`}>
+                        {s.studentId?.includes('-') ? (() => {
+                          const parts = s.studentId.split('-');
+                          return `${parts[0]}-${parts[parts.length - 1]}`;
+                        })() : s.studentId}
+                      </span></td>
+                      <td className="px-6 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs shadow-inner shrink-0 transition-colors overflow-hidden ${isMonitor ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20 text-emerald-600'}`}>
+                            {s.profilePhoto ? (
+                              <img src={s.profilePhoto} alt={s.firstName} className="w-full h-full object-cover" />
+                            ) : (
+                              <>{s.firstName?.[0]}{s.lastName?.[0]}</>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className={`font-black leading-tight truncate text-base ${isMonitor ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-white"}`}>{s.firstName} {s.lastName}</p>
+                              {isMonitor && <Crown size={14} className="text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)] animate-pulse" />}
+                            </div>
+                            {isMonitor && <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-0.5">Current Class Monitor</p>}
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-6 py-6 text-center"><div className="inline-flex flex-col items-center"><div className={`flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400`}><Award size={14} /><span className="text-sm font-black tracking-tight">{s.lastTerm}</span></div><span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Last Term</span></div></td>
-                      <td className="px-6 py-6 text-center"><div className="inline-flex flex-col items-center"><div className={`flex items-center gap-1.5 text-slate-700 dark:text-slate-200`}><Activity size={14} className="text-emerald-500" /><span className="text-sm font-black tracking-tight">{s.attendance}</span></div><span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Current Rate</span></div></td>
+                      <td className="px-6 py-6 text-center"><div className="inline-flex flex-col items-center"><div className={`flex items-center gap-1.5 text-slate-700 dark:text-slate-200`}><UserCheck size={14} className="text-emerald-500" /><span className="text-sm font-black tracking-tight">{s.attendance}</span></div><span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Current Rate</span></div></td>
                       <td className="px-6 py-6 text-center"><div className={`mx-auto w-4 h-4 rounded-md ring-4 shadow-lg transition-transform hover:scale-110 ${getFlagColor(s.flag)}`} /></td>
-                      <td className="pr-12 pl-6 py-6 text-center"><div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all"><button onClick={() => handleToggleMonitor(s._id)} className={`w-10 h-10 flex items-center justify-center transition-all rounded-xl ${isMonitor ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-500' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`} title={isMonitor ? "Remove Monitor Role" : "Assign as Monitor"}><Crown size={18} /></button><button onClick={() => handleDelete(s._id)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl" title="Remove Member"><Trash2 size={18} /></button></div></td>
+                      <td className="pr-12 pl-6 py-6 text-center"><div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all"><button onClick={(e) => { e.stopPropagation(); handleToggleMonitor(s._id); }} className={`w-10 h-10 flex items-center justify-center transition-all rounded-xl ${isMonitor ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-500' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`} title={isMonitor ? "Remove Monitor Role" : "Assign as Monitor"}><Crown size={18} /></button></div></td>
                     </tr>
                   );
                 })
@@ -221,143 +312,158 @@ const SStudentRecord = () => {
           </table>
         </div>
 
-        <div className="w-full px-12 py-8 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+        <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filtered.length)} of {filtered.length} Classroom Members</p>
           <div className="flex items-center gap-3">
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="w-11 h-11 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft size={18} /></button>
-            <div className="flex items-center gap-2">{Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (<button key={page} onClick={() => setCurrentPage(page)} className={`w-11 h-11 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${currentPage === page ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400" : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500"}`}>{page}</button>))}</div>
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="w-11 h-11 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight size={18} /></button>
+            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft size={16} /></button>
+            <div className="flex items-center gap-2">{Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (<button key={page} onClick={() => setCurrentPage(page)} className={`w-9 h-9 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${currentPage === page ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400" : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500"}`}>{page}</button>))}</div>
+            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight size={16} /></button>
           </div>
         </div>
       </div>
 
-      {/* Notice Board Section - Restructured to Vertical Stack */}
-      <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-8 lg:p-12 animate-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-12">
+      {/* REDESIGNED NOTICE BOARD - Mobile App Style (Adaptive Light/Dark) */}
+      <div className="bg-white dark:bg-[#071425] rounded-[40px] border border-slate-100 dark:border-white/5 shadow-2xl overflow-hidden p-6 sm:p-8 space-y-8 transition-all duration-500">
 
-          {/* Top: Input Section */}
-          <div className="w-full space-y-8">
-            <div className="flex items-center gap-4 mb-2">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-600">
-                <Megaphone size={24} />
-              </div>
-              <div>
+        {/* 1. Header Area (Reduced Height) */}
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-6">
+          <div className="flex items-center gap-4">
+            <div>
+              <div className="flex items-center gap-2">
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Notice Board</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Post class announcements</p>
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
               </div>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Post class announcements</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. New Notice Composer (Compact) */}
+        <div className="bg-slate-50 dark:bg-[#0B1B2E] rounded-[24px] border border-slate-100 dark:border-white/5 p-5 shadow-inner group focus-within:border-emerald-500/30 transition-all">
+          <form onSubmit={handlePostNotice} className="space-y-4">
+            <div className="relative">
+              <textarea
+                value={newNoticeText}
+                onChange={(e) => setNewNoticeText(e.target.value)}
+                placeholder="Type a new notice for your class..."
+                className="w-full min-h-[100px] bg-transparent border-none text-slate-900 dark:text-white text-sm font-semibold outline-none resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500 scrollbar-hide"
+              />
             </div>
 
-            <form onSubmit={handlePostNotice} className="space-y-6">
-              <div className="relative group">
-                <MessageSquareQuote className="absolute left-6 top-6 text-slate-300 group-focus-within:text-emerald-500 transition-colors" size={24} />
-                <textarea
-                  value={newNoticeText}
-                  onChange={(e) => setNewNoticeText(e.target.value)}
-                  placeholder="Type a new notice for your class here..."
-                  className="w-full min-h-[140px] pl-16 pr-8 py-7 bg-slate-50 dark:bg-slate-800 border-none rounded-[32px] text-base font-medium dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all resize-none shadow-inner"
-                />
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={!newNoticeText.trim()}
-                  className="px-12 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale"
-                >
-                  <Send size={18} /> Post to Board
-                </button>
-              </div>
-            </form>
+            <div className="flex items-center justify-end border-t border-slate-200/50 dark:border-white/5 pt-4">
+              <button
+                type="submit"
+                disabled={!newNoticeText.trim()}
+                className="px-6 py-2.5 bg-emerald-600 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white rounded-[12px] font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-emerald-600/10 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Send size={14} /> Post
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* 3. Announcements Feed */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Latest Announcements</span>
+            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[9px] font-black rounded-lg border border-emerald-500/20">
+              {notices.length} ACTIVE
+            </span>
           </div>
 
-          <div className="h-px bg-slate-100 dark:bg-slate-800 w-full" />
-
-          {/* Bottom: List Section */}
-          <div className="w-full space-y-8 min-w-0">
-            <div className="flex items-center justify-between px-2">
-              <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">Latest Announcements</span>
-              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-4 py-1.5 rounded-lg">
-                {notices.length} ACTIVE
-              </span>
-            </div>
-
-            <div className="space-y-6 max-h-[600px] overflow-y-auto scrollbar-hide pr-2">
-              {sortedNotices.length > 0 ? (
-                sortedNotices.map((notice) => (
-                  <div
-                    key={notice.id}
-                    className={`group relative border rounded-[32px] p-8 transition-all hover:bg-white dark:hover:bg-slate-800/80 hover:shadow-xl animate-in slide-in-from-right-4 duration-300 min-w-0 overflow-hidden flex flex-col gap-6 ${notice.isPinned
-                      ? 'bg-emerald-50/20 dark:bg-emerald-900/20 border-emerald-500/30 shadow-emerald-500/5'
-                      : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800'
-                      }`}
-                  >
-                    {/* Header Info */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${notice.isPinned ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-500'}`} />
-                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                          <Clock size={14} className="text-emerald-500" />
-                          {notice.timestamp}
-                        </div>
+          <div className="space-y-4">
+            {isLoading ? (
+              <div className="py-12">
+                <Loading fullScreen={false} text="Fetching announcements..." />
+              </div>
+            ) : currentNotices.length > 0 ? (
+              currentNotices.map((notice) => (
+                <div
+                  key={notice._id}
+                  className={`group relative rounded-[24px] p-5 border transition-all duration-300 ${notice.isPinned
+                    ? 'bg-emerald-50 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/20 shadow-xl shadow-emerald-500/5'
+                    : 'bg-slate-50 dark:bg-[#0B1B2E] border-slate-100 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100 dark:hover:bg-[#0E1F35]'
+                    }`}
+                >
+                  <div className="flex flex-col gap-4">
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${notice.isPinned ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{new Date(notice.createdAt).toLocaleString()}</span>
                       </div>
 
-                      <div className={`flex items-center gap-2 self-start sm:self-auto px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors ${notice.authorType === 'teacher'
-                        ? 'bg-emerald-500/5 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-500/10'
-                        : 'bg-indigo-500/5 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-500/10'
+                      <div className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${notice.authorType === 'teacher' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500' : 'bg-slate-200 dark:bg-white/5 text-slate-500 dark:text-slate-400'
                         }`}>
-                        {notice.authorType === 'teacher' ? <Users size={12} /> : <User size={12} />}
-                        By {notice.authorName} {notice.authorType === 'student' ? '(Student)' : ''}
+                        By {notice.authorName}
                       </div>
                     </div>
 
-                    {/* Notice Text */}
-                    <div className="min-w-0 flex-1 px-1">
-                      <p className="text-base font-semibold text-slate-700 dark:text-slate-200 leading-relaxed break-all overflow-wrap-anywhere whitespace-pre-wrap">
+                    {/* Card Content */}
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 leading-relaxed line-clamp-3">
                         {notice.text}
                       </p>
                     </div>
 
-                    {/* Actions Row - Compact & Always Visible */}
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-end gap-3">
+                    {/* Card Actions (Compact Icon Buttons) */}
+                    <div className="flex items-center justify-between border-t border-slate-200/50 dark:border-white/5 pt-3">
                       <div className="flex items-center gap-2">
+                        {notice.isPinned && (
+                          <div className="flex items-center gap-1 text-[8px] font-black text-emerald-500 uppercase tracking-widest">
+                            <Pin size={10} className="fill-emerald-500" /> Pinned
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => handleTogglePin(notice.id)}
-                          className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 border ${notice.isPinned
-                            ? 'bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20'
-                            : 'text-slate-400 border-slate-100 dark:border-slate-800 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                          onClick={() => handleTogglePin(notice._id)}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${notice.isPinned ? 'text-emerald-500 bg-emerald-500/10' : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5'
                             }`}
-                          title={notice.isPinned ? "Unpin Notice" : "Pin to Top"}
                         >
-                          <Pin size={14} className={notice.isPinned ? 'fill-white' : ''} />
-                          <span className="text-[9px] font-black uppercase tracking-widest">{notice.isPinned ? 'PINNED' : 'PIN POST'}</span>
+                          <Pin size={14} className={notice.isPinned ? 'fill-emerald-500' : ''} />
                         </button>
                         <button
-                          onClick={() => handleDeleteNotice(notice.id)}
-                          className="px-3 py-1.5 text-slate-400 border border-slate-100 dark:border-slate-800 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all flex items-center gap-1.5"
-                          title="Delete Notice"
+                          onClick={() => handleDeleteNotice(notice._id)}
+                          className="w-8 h-8 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center justify-center transition-all"
                         >
                           <X size={14} />
-                          <span className="text-[9px] font-black uppercase tracking-widest">DELETE</span>
                         </button>
                       </div>
                     </div>
-
-                    {/* Highlighted Pin Badge decoration */}
-                    {notice.isPinned && (
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 blur-3xl pointer-events-none rounded-full" />
-                    )}
                   </div>
-                ))
-              ) : (
-                <div className="py-24 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[48px] flex flex-col items-center gap-4">
-                  <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-200">
-                    <Megaphone size={32} />
-                  </div>
-                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">No active notices for this classroom session</p>
                 </div>
-              )}
-            </div>
+              ))
+            ) : (
+              <div className="py-12 text-center text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest">No active notices</div>
+            )}
           </div>
+        </div>
 
+        {/* 4. Pagination (Paddington Style) */}
+        <div className="pt-6 border-t border-slate-100 dark:border-white/5 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-1 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+            <button
+              type="button"
+              disabled={noticePage === 1}
+              onClick={() => setNoticePage(p => p - 1)}
+              className="px-3 py-2 hover:text-emerald-500 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+            >
+              « PREV
+            </button>
+            <div className="mx-2 bg-slate-50 dark:bg-[#0B1B2E] border border-slate-200 dark:border-white/10 px-4 py-3 rounded-full text-slate-900 dark:text-white min-h-[44px] flex items-center justify-center shadow-inner">
+              PAGE {noticePage} OF {totalNoticePages}
+            </div>
+            <button
+              type="button"
+              disabled={noticePage === totalNoticePages}
+              onClick={() => setNoticePage(p => p + 1)}
+              className="px-3 py-2 hover:text-emerald-500 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+            >
+              NEXT »
+            </button>
+          </div>
         </div>
       </div>
 
