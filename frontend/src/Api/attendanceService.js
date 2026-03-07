@@ -19,10 +19,16 @@ const getStudentMonthlyAttendance = async (studentId, year, month) => {
   return response.data;
 };
 
+const getStudentYearlyAttendance = async (studentId, year) => {
+  const response = await axios.get(`${API_URL}/student/${studentId}/${year}`);
+  return response.data;
+};
+
 const attendanceService = {
   getAttendance,
   saveAttendance,
-  getStudentMonthlyAttendance
+  getStudentMonthlyAttendance,
+  getStudentYearlyAttendance
 };
 
 export default attendanceService;

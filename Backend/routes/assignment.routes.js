@@ -8,6 +8,9 @@ router.post('/create', assignmentController.createAssignment);
 // Get all assignments for a teacher
 router.get('/teacher/:teacherId', assignmentController.getAllAssignments);
 
+// Get assignments for a student
+router.get('/student/:grade/:section', assignmentController.getStudentAssignments);
+
 // Get submission report for a specific assignment
 router.get('/:id/report', assignmentController.getAssignmentReport);
 
@@ -28,5 +31,8 @@ router.patch('/:id/submission/:submissionId/grade', assignmentController.gradeSu
 
 // Update remark for a specific submission
 router.patch('/:id/submission/:submissionId/remark', assignmentController.updateSubmissionRemark);
+
+// Submit an assignment
+router.post('/:id/submit', assignmentController.submitAssignment);
 
 module.exports = router;

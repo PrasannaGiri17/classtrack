@@ -26,13 +26,16 @@ exports.getExamData = async (req, res) => {
     const { termsCount = 2, includeMidTerm = true } = exam.config || {};
     const canonicalTerms = buildTermNames(termsCount, includeMidTerm);
 
-    // Build new termStatuses — preserve existing isOpen values for matching names
+    // Build new termStatuses — preserve existing values for matching names
     const existingMap = {};
-    (exam.termStatuses || []).forEach(ts => { existingMap[ts.term] = ts.isOpen; });
+    (exam.termStatuses || []).forEach(ts => {
+      existingMap[ts.term] = { isOpen: ts.isOpen, isPublished: ts.isPublished };
+    });
 
     const newStatuses = canonicalTerms.map(term => ({
       term,
-      isOpen: existingMap[term] ?? false
+      isOpen: existingMap[term]?.isOpen ?? false,
+      isPublished: existingMap[term]?.isPublished ?? false
     }));
 
     // Only update if something changed (different set of terms)
@@ -139,6 +142,32 @@ exports.updateTermStatus = async (req, res) => {
     res.json(exam);
   } catch (error) {
     console.error("Error updating term status:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+// @desc    Update Term Publish Status (Show/Hide Results for Students)
+// @route   PATCH /api/exams/publish-status
+exports.updatePublishStatus = async (req, res) => {
+  try {
+    const { term, isPublished } = req.body;
+ 
+    let exam = await Exam.findOne({ schoolId: 1 });
+    if (!exam) {
+      exam = new Exam({ schoolId: 1 });
+    }
+ 
+    const statusIndex = exam.termStatuses.findIndex(s => s.term === term);
+ 
+    if (statusIndex > -1) {
+      exam.termStatuses[statusIndex].isPublished = isPublished;
+    } else {
+      exam.termStatuses.push({ term, isPublished });
+    }
+ 
+    await exam.save();
+    res.json(exam);
+  } catch (error) {
+    console.error("Error updating publish status:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

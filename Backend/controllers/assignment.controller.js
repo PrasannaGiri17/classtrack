@@ -179,3 +179,76 @@ exports.updateSubmissionRemark = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+/**
+ * @desc    Get assignments for a specific student (based on grade/section)
+ * @route   GET /api/assignments/student/:grade/:section
+ */
+exports.getStudentAssignments = async (req, res) => {
+  try {
+    const { grade, section } = req.params;
+    const { studentId } = req.query;
+    
+    // Find assignments that target 'ALL' sections of that grade OR the specific section
+    const assignments = await Assignment.find({
+      grade: grade,
+      $or: [
+        { section: 'ALL' },
+        { section: section }
+      ]
+    }).sort({ createdAt: -1 });
+
+    // Privacy: Only return the submission of the requesting student if studentId is provided
+    const filteredAssignments = assignments.map(doc => {
+      const a = doc.toObject({ virtuals: true });
+      const submissions = a.submissions || [];
+      if (studentId) {
+        a.submissions = submissions.filter(s => s.studentId && s.studentId.toString() === studentId);
+      } else {
+        // If no studentId provided, don't return any submissions to avoid leaking data
+        a.submissions = [];
+      }
+      return a;
+    });
+
+    res.status(200).json(filteredAssignments);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Submit an assignment
+ * @route   POST /api/assignments/:id/submit
+ */
+exports.submitAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { studentId, studentName, fileName, fileUrl } = req.body;
+
+    const assignment = await Assignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
+
+    // Check if portal is closed
+    const status = assignment.status;
+    if (status === 'closed') {
+      return res.status(403).json({ message: "Assignment portal is closed" });
+    }
+
+    // Add submission to the array
+    assignment.submissions.push({
+      studentId,
+      studentName,
+      fileName,
+      fileUrl,
+      submittedAt: new Date()
+    });
+
+    await assignment.save();
+    res.status(200).json(assignment);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

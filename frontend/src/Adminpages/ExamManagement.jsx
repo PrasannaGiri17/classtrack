@@ -82,7 +82,8 @@ const ExamManagement = () => {
         generatedPhases.push({
           id: midName,
           name: midName.toUpperCase(),
-          status: statusObj?.isOpen ? 'Open' : 'Closed'
+          status: statusObj?.isOpen ? 'Open' : 'Closed',
+          publishStatus: statusObj?.isPublished ? 'Published' : 'Hidden'
         });
       }
       const termName = `${ord} Term`;
@@ -90,7 +91,8 @@ const ExamManagement = () => {
       generatedPhases.push({
         id: termName,
         name: termName.toUpperCase(),
-        status: statusObj?.isOpen ? 'Open' : 'Closed'
+        status: statusObj?.isOpen ? 'Open' : 'Closed',
+        publishStatus: statusObj?.isPublished ? 'Published' : 'Hidden'
       });
     }
 
@@ -230,6 +232,41 @@ const ExamManagement = () => {
     }
   };
 
+  const togglePublish = async (termName) => {
+    const currentStatus = phases.find(p => p.id === termName)?.publishStatus === 'Published';
+    const newStatus = !currentStatus;
+
+    try {
+      await axios.patch('http://localhost:7000/api/exams/publish-status', {
+        term: termName,
+        isPublished: newStatus
+      });
+
+      setExamData(prev => {
+        if (!prev) return prev;
+        const existingStatuses = prev.termStatuses || [];
+        const idx = existingStatuses.findIndex(s => s.term === termName);
+        let updatedStatuses;
+        if (idx > -1) {
+          updatedStatuses = existingStatuses.map((s, i) =>
+            i === idx ? { ...s, isPublished: newStatus } : s
+          );
+        } else {
+          updatedStatuses = [...existingStatuses, { term: termName, isPublished: newStatus }];
+        }
+        return { ...prev, termStatuses: updatedStatuses };
+      });
+
+      toast({
+        type: 'success',
+        message: `Results for ${termName} are now ${newStatus ? 'PUBLISHED' : 'HIDDEN'}`
+      });
+    } catch (error) {
+      console.error("Failed to update publish status:", error);
+      toast({ type: 'error', message: "Failed to update publish status" });
+    }
+  };
+
   return (
     <div className="min-h-full animate-in fade-in duration-500 pb-20">
       {activeView === 'menu' ? (
@@ -277,6 +314,7 @@ const ExamManagement = () => {
             <ControlView
               phases={phases}
               togglePhase={togglePhase}
+              togglePublish={togglePublish}
               analyticsGrade={analyticsGrade}
               setAnalyticsGrade={setAnalyticsGrade}
               analyticsSection={analyticsSection}

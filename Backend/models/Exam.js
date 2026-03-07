@@ -18,7 +18,8 @@ const examSchema = new mongoose.Schema({
   }],
   termStatuses: [{
     term: { type: String, required: true },
-    isOpen: { type: Boolean, default: false }
+    isOpen: { type: Boolean, default: false },
+    isPublished: { type: Boolean, default: false }
   }]
 }, { collection: 'exams' });
 

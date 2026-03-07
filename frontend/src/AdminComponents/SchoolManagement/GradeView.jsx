@@ -212,9 +212,9 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                     <select
                       value={pendingCount}
                       onChange={(e) => setPendingCount(parseInt(e.target.value))}
-                      className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-black dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer shadow-inner"
+                      className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-black dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer shadow-inner dark:[color-scheme:dark]"
                     >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Section' : 'Sections'}</option>)}
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{n} {n === 1 ? 'Section' : 'Sections'}</option>)}
                     </select>
                     <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
                   </div>
@@ -297,9 +297,9 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                   <select
                     value={syncCount}
                     onChange={(e) => setSyncCount(parseInt(e.target.value))}
-                    className="appearance-none w-full bg-white dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-base font-black dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer shadow-inner"
+                    className="appearance-none w-full bg-white dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-base font-black dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer shadow-inner dark:[color-scheme:dark]"
                   >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n} Sections</option>)}
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{n} Sections</option>)}
                   </select>
                   <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
                 </div>
@@ -343,9 +343,9 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                   <select
                     value={tempRange.from}
                     onChange={(e) => setTempRange({ ...tempRange, from: parseInt(e.target.value) })}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none dark:[color-scheme:dark]"
                   >
-                    {[...Array(13)].map((_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+                    {[...Array(13)].map((_, i) => <option key={i + 1} value={i + 1} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{i + 1}</option>)}
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
@@ -356,9 +356,9 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                   <select
                     value={tempRange.to}
                     onChange={(e) => setTempRange({ ...tempRange, to: parseInt(e.target.value) })}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none dark:[color-scheme:dark]"
                   >
-                    {[...Array(13)].map((_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+                    {[...Array(13)].map((_, i) => <option key={i + 1} value={i + 1} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{i + 1}</option>)}
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>

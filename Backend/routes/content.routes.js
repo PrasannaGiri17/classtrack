@@ -8,6 +8,9 @@ router.post('/create', contentController.createResource);
 // Get all resources for a specific teacher
 router.get('/teacher/:teacherId', contentController.getAllResources);
 
+// Get resources for a student
+router.get('/student/:grade/:section', contentController.getStudentResources);
+
 // Get resources by type
 router.get('/type/:type', contentController.getResourcesByType);
 

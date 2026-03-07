@@ -3,7 +3,7 @@
 import { useState } from "react"
 import axios from "axios"
 import { motion, AnimatePresence } from "framer-motion"
-import { IoAddSharp } from "react-icons/io5"
+import { IoAddSharp, IoChevronDown } from "react-icons/io5"
 import { IoIosCloseCircle } from "react-icons/io"
 import { MdDone } from "react-icons/md"
 import FailedPopup from "../SmallerComponents/FailedPopup.jsx"
@@ -144,7 +144,7 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-xl shadow-2xl w-full max-w-4xl"
+                className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-4xl border border-gray-200 dark:border-slate-800"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -152,7 +152,7 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
                     <div className="p-2 bg-[#22c55e] rounded-lg">
                       <IoAddSharp size={24} className="text-white" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900">Add Teacher</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add Teacher</h2>
                   </div>
                   <button
                     onClick={onClose}
@@ -203,19 +203,24 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
                       <label htmlFor="gender" className="block text-sm font-semibold text-gray-700 mb-2">
                         Gender
                       </label>
-                      <select
-                        id="gender"
-                        name="gender"
-                        value={formData.gender}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#22c55e] focus:border-transparent"
-                      >
-                        <option value="">Select gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </select>
+                      <div className="relative group">
+                        <select
+                          id="gender"
+                          name="gender"
+                          value={formData.gender}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#22c55e] focus:border-transparent appearance-none pr-10 text-gray-900 dark:text-white cursor-pointer dark:[color-scheme:dark]"
+                        >
+                          <option value="" className="bg-white dark:bg-slate-900">Select gender</option>
+                          <option value="male" className="bg-white dark:bg-slate-900">Male</option>
+                          <option value="female" className="bg-white dark:bg-slate-900">Female</option>
+                          <option value="other" className="bg-white dark:bg-slate-900">Other</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-[#22c55e] transition-colors">
+                          <IoChevronDown size={18} />
+                        </div>
+                      </div>
                     </div>
 
                     {/* Phone No */}
@@ -283,8 +288,8 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
                             type="button"
                             onClick={() => handleClassChange(cls)}
                             className={`px-4 py-2 rounded-lg border-2 transition-all ${formData.class.includes(cls)
-                                ? "bg-[#22c55e] text-white border-[#22c55e]"
-                                : "bg-white text-gray-700 border-gray-300 hover:border-[#22c55e]"
+                              ? "bg-[#22c55e] text-white border-[#22c55e]"
+                              : "bg-white text-gray-700 border-gray-300 hover:border-[#22c55e]"
                               } ${formData.class.length >= 3 && !formData.class.includes(cls)
                                 ? "opacity-50 cursor-not-allowed"
                                 : ""

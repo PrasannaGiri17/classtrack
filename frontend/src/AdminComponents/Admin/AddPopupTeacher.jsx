@@ -286,12 +286,12 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                     required
                     onChange={handleChange}
                     value={formData.gender}
-                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white cursor-pointer shadow-inner"
+                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white cursor-pointer shadow-inner dark:[color-scheme:dark]"
                   >
-                    <option value="">Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
+                    <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Select</option>
+                    <option value="male" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Male</option>
+                    <option value="female" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Female</option>
+                    <option value="other" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Other</option>
                   </select>
                 </div>
               </div>
@@ -334,11 +334,11 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                         required
                         onChange={handleChange}
                         value={formData.subject}
-                        className="appearance-none w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer"
+                        className="appearance-none w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer dark:[color-scheme:dark]"
                       >
-                        <option value="">Main Subject</option>
+                        <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Main Subject</option>
                         {allSubjects.map(sub => (
-                          <option key={sub} value={sub}>{sub}</option>
+                          <option key={sub} value={sub} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{sub}</option>
                         ))}
                       </select>
                       <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
@@ -354,11 +354,11 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                         name="secondarySubject"
                         onChange={handleChange}
                         value={formData.secondarySubject}
-                        className="appearance-none w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer"
+                        className="appearance-none w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer dark:[color-scheme:dark]"
                       >
-                        <option value="">None</option>
+                        <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">None</option>
                         {allSubjects.map(sub => (
-                          <option key={sub} value={sub}>{sub}</option>
+                          <option key={sub} value={sub} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{sub}</option>
                         ))}
                       </select>
                       <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />

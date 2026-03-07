@@ -30,7 +30,7 @@ const StudentSchema = new mongoose.Schema(
     // NEW: flag
     flag: { type: String, enum: ["red", "green", "yellow"], default: "green" },
 
-    classId: { type: mongoose.Schema.Types.ObjectId, ref: "Class", default: null },
+    classId: { type: mongoose.Schema.Types.ObjectId, ref: "Grade", default: null },
     sectionId: { type: mongoose.Schema.Types.ObjectId, ref: "Section", default: null },
 
     rollNumber: { type: Number, default: null },

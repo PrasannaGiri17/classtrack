@@ -23,7 +23,8 @@ import {
   Trash2
 } from 'lucide-react';
 import notificationService from '../Api/notificationService';
-import NotificationModal from '../AdminComponents/NotificationModal';
+import NotificationModal from '../TeacherComponents/NotificationModal';
+import PortalPopup from '../MainSystemComponents/PortalPopup';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import { toast } from '../MainSystemComponents/Toast';
 import gradeService from '../Api/gradeService';
@@ -33,7 +34,7 @@ import { BookOpen } from 'lucide-react';
 
 
 // --- Constants ---
-const CURRENT_ADMIN_ID = 'admin_001';
+const CURRENT_ADMIN_ID = localStorage.getItem('teacherId') || 'teacher_001';
 
 const GRADES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 const SECTIONS = ["A", "B", "C"];
@@ -62,12 +63,12 @@ const NotificationPage = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [newPriority, setNewPriority] = useState('important');
-  const [targetCategory, setTargetCategory] = useState('All School');
+  const [targetCategory, setTargetCategory] = useState('');
   const [targetDept, setTargetDept] = useState('');
   const [targetGrade, setTargetGrade] = useState('');
   const [targetSection, setTargetSection] = useState('');
-  const [newSender, setNewSender] = useState('Admin User');
-  const [newSenderType, setNewSenderType] = useState('admin');
+  const [newSender, setNewSender] = useState('');
+  const [newSenderType, setNewSenderType] = useState('teacher');
 
 
   // Preview State
@@ -115,6 +116,8 @@ const NotificationPage = () => {
         }).filter(Boolean))].map(g => `Grade ${g}`);
 
         setTargetOptions([...extractedGrades, ...classes]);
+        setNewSender(teacher.teacherName || 'Teacher');
+        setNewSenderType('teacher');
       }
 
       const data = await gradeService.getGrades();
@@ -203,12 +206,10 @@ const NotificationPage = () => {
     setNewTitle('');
     setNewMessage('');
     setNewPriority('important');
-    setTargetCategory('All School');
+    setTargetCategory('');
     setTargetDept('');
     setTargetGrade('');
     setTargetSection('');
-    setNewSender('Admin User');
-    setNewSenderType('admin');
   };
 
 
@@ -253,13 +254,13 @@ const NotificationPage = () => {
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Announcements</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Campus-wide Notification Dispatch</p>
+            <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">Campus-wide Notification Dispatch</p>
           </div>
         </div>
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-10 py-5 bg-emerald-600 text-white rounded-[28px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+          className="px-10 py-5 bg-emerald-600 text-white rounded-[28px] font-black text-xs tracking-[0.2em] shadow-2xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
         >
           <Plus size={20} /> Create Announcement
         </button>
@@ -271,13 +272,13 @@ const NotificationPage = () => {
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all uppercase"
+            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all"
           >
-            <option value="all">ALL PRIORITIES</option>
-            <option value="important">IMPORTANT</option>
-            <option value="urgent">URGENT</option>
-            <option value="warning">WARNINGS</option>
-            <option value="syllabus">SYLLABUS</option>
+            <option value="all">All Priorities</option>
+            <option value="important">Important</option>
+            <option value="urgent">Urgent</option>
+            <option value="warning">Warnings</option>
+            <option value="syllabus">Syllabus</option>
           </select>
           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
         </div>
@@ -286,9 +287,9 @@ const NotificationPage = () => {
           <select
             value={filterTarget}
             onChange={(e) => setFilterTarget(e.target.value)}
-            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all uppercase"
+            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all"
           >
-            <option value="">SELECT TARGET</option>
+            <option value="">Select Target</option>
             {targetOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
@@ -297,7 +298,7 @@ const NotificationPage = () => {
         <div className="xl:col-span-2">
           <button
             onClick={() => setShowOnlyMine(!showOnlyMine)}
-            className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${showOnlyMine
+            className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-[10px] font-black tracking-widest transition-all border ${showOnlyMine
               ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20'
               : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
@@ -323,7 +324,7 @@ const NotificationPage = () => {
         {loading ? (
           <div className="py-32 text-center space-y-4">
             <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Loading announcements...</p>
+            <p className="text-[10px] font-black text-slate-400 tracking-[0.3em]">Loading announcements...</p>
           </div>
         ) : filteredAnnouncements.length > 0 ? (
           filteredAnnouncements.map((a) => {
@@ -341,11 +342,11 @@ const NotificationPage = () => {
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                   <div className="flex-1 space-y-4">
                     <div className="flex flex-wrap items-center gap-3">
-                      <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest ${getPriorityStyles(a.priority)}`}>
+                      <div className={`flex items-center gap-2 px-4 py-1.5 rounded-xl border text-[9px] font-black tracking-widest ${getPriorityStyles(a.priority)}`}>
                         {getPriorityIcon(a.priority)}
                         {a.priority}
                       </div>
-                      <div className="flex items-center gap-1.5 px-4 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-[9px] font-black text-slate-400 uppercase tracking-widest border border-transparent">
+                      <div className="flex items-center gap-1.5 px-4 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-[9px] font-black text-slate-400 tracking-widest border border-transparent">
                         <Target size={10} className="text-emerald-500" />
                         {a.targetGroup}
                       </div>
@@ -357,15 +358,14 @@ const NotificationPage = () => {
                     </div>
                   </div>
 
-                  <div className="shrink-0 flex md:flex-col items-center md:items-end justify-between md:justify-start gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <div className="shrink-0 flex md:flex-col items-center md:items-end justify-between md:justify-start gap-4 text-[10px] font-bold text-slate-400 tracking-widest">
                     <div className="flex items-center gap-2">
                       <Calendar size={12} className="text-emerald-500" />
                       {formatTimestamp(a.createdAt)}
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-emerald-600/70 border border-emerald-500/10 flex items-center gap-2">
-                        <User size={10} />
-                        By {a.sender} ({a.senderType})
+                        {a.senderId === CURRENT_ADMIN_ID ? 'Your Announcement' : `${a.sender} (${a.senderType})`}
                       </div>
 
                       <button
@@ -385,21 +385,19 @@ const NotificationPage = () => {
             <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/10 rounded-[32px] flex items-center justify-center mx-auto">
               <Bell size={40} className="text-emerald-500/30" />
             </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">System clear - no notifications</p>
+            <p className="text-[10px] font-black text-slate-400 tracking-[0.3em]">System clear - no notifications</p>
           </div>
         )}
       </div>
 
       {/* Message Preview Mini Panel */}
-      {previewItem && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => setPreviewItem(null)} />
-
+      <PortalPopup isOpen={!!previewItem} onClose={() => setPreviewItem(null)}>
+        {previewItem && (
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in slide-in-from-bottom-8 duration-300 overflow-hidden flex flex-col max-h-[85vh]">
 
             <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 flex items-start justify-between gap-6">
               <div className="flex-1">
-                <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest mb-4 ${getPriorityStyles(previewItem.priority)}`}>
+                <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl border text-[10px] font-black tracking-widest mb-4 ${getPriorityStyles(previewItem.priority)}`}>
                   {getPriorityIcon(previewItem.priority)}
                   {previewItem.priority}
                 </div>
@@ -419,7 +417,7 @@ const NotificationPage = () => {
                   <Target size={16} />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Target Scope</p>
+                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Target Scope</p>
                   <p className="text-xs font-black text-slate-700 dark:text-slate-300">{previewItem.targetGroup}</p>
                 </div>
               </div>
@@ -429,15 +427,17 @@ const NotificationPage = () => {
                   <User size={16} />
                 </div>
                 <div className="text-left">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sender</p>
-                  <p className="text-xs font-black text-slate-700 dark:text-slate-300">{previewItem.sender} ({previewItem.senderType})</p>
+                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Sender</p>
+                  <p className="text-xs font-black text-slate-700 dark:text-slate-300">
+                    {previewItem.senderId === CURRENT_ADMIN_ID ? 'Your Announcement' : `${previewItem.sender} (${previewItem.senderType})`}
+                  </p>
 
                 </div>
               </div>
 
               <div className="flex items-center gap-3 justify-end text-right">
                 <div className="text-right">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Timestamp</p>
+                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Timestamp</p>
                   <p className="text-xs font-black text-slate-700 dark:text-slate-300">{formatTimestamp(previewItem.createdAt)}</p>
                 </div>
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
@@ -457,26 +457,28 @@ const NotificationPage = () => {
             <div className="py-6 px-10 border-t border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-center">
               <button
                 onClick={() => setPreviewItem(null)}
-                className="px-8 py-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                className="px-8 py-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 rounded-2xl text-[10px] font-black tracking-widest transition-all"
               >
                 Dismiss Preview
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </PortalPopup>
 
       {/* Creation Modal Component */}
-      <NotificationModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSend={handleSend}
-        newTitle={newTitle} setNewTitle={setNewTitle}
-        newMessage={newMessage} setNewMessage={setNewMessage}
-        newPriority={newPriority} setNewPriority={setNewPriority}
-        targetCategory={targetCategory} setTargetCategory={setTargetCategory}
-        teacherTargets={targetOptions}
-      />
+      <PortalPopup isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <NotificationModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSend={handleSend}
+          newTitle={newTitle} setNewTitle={setNewTitle}
+          newMessage={newMessage} setNewMessage={setNewMessage}
+          newPriority={newPriority} setNewPriority={setNewPriority}
+          targetCategory={targetCategory} setTargetCategory={setTargetCategory}
+          teacherTargets={targetOptions}
+        />
+      </PortalPopup>
 
 
 

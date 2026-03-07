@@ -68,3 +68,31 @@ exports.getDiaryForDate = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+/**
+ * GET /api/diary/class?className=&date=
+ * Returns all diary entries for a specific class and date.
+ */
+exports.getDiaryForClass = async (req, res) => {
+  try {
+    const { className, date } = req.query;
+
+    if (!className || !date) {
+      return res.status(400).json({ message: "Class name and date are required" });
+    }
+
+    const queryDate = new Date(date);
+    const startOfDay = new Date(queryDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(queryDate.setHours(23, 59, 59, 999));
+
+    const diaries = await Diary.find({
+      className,
+      date: { $gte: startOfDay, $lte: endOfDay }
+    }).populate('teacherId', 'firstName lastName profilePhoto');
+
+    res.status(200).json(diaries);
+  } catch (error) {
+    console.error("Error fetching class diary:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

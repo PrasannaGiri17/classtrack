@@ -47,6 +47,19 @@ const updateRemark = async (id, submissionId, remark) => {
   return response.data;
 };
 
+const getStudentAssignments = async (grade, section, studentId) => {
+  const url = studentId 
+    ? `${API_URL}/student/${grade}/${section}?studentId=${studentId}`
+    : `${API_URL}/student/${grade}/${section}`;
+  const response = await axios.get(url);
+  return response.data;
+};
+
+const submitAssignment = async (id, submissionData) => {
+  const response = await axios.post(`${API_URL}/${id}/submit`, submissionData);
+  return response.data;
+};
+
 const assignmentService = {
   createAssignment,
   getTeacherAssignments,
@@ -56,7 +69,9 @@ const assignmentService = {
   toggleLock,
   getReport,
   gradeSubmission,
-  updateRemark
+  updateRemark,
+  getStudentAssignments,
+  submitAssignment
 };
 
 export default assignmentService;

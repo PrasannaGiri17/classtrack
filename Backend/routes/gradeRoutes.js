@@ -22,5 +22,6 @@ router.post("/assign-class-teacher", gradeController.assignClassTeacher);
 router.post("/assign-monitor", gradeController.assignClassMonitor);
 router.post("/update-fee", gradeController.updateGradeFee);
 router.get("/teacher/:teacherId", gradeController.getSectionByTeacher);
+router.get("/section/:sectionId", gradeController.getSectionById);
 
 module.exports = router;

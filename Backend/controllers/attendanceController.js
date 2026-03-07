@@ -83,8 +83,55 @@ const getStudentMonthlyAttendance = async (req, res) => {
     }
 }
 
+const getStudentYearlyAttendance = async (req, res) => {
+    try {
+        const { studentId, year } = req.params;
+        const records = await ClassroomAttendance.find({ 
+            year, 
+            "attendanceData.studentId": studentId 
+        });
+
+        if (!records || records.length === 0) {
+            return res.status(200).json({ 
+                present: 0, 
+                absent: 0, 
+                rate: 0, 
+                totalDays: 0 
+            });
+        }
+
+        let totalPresent = 0;
+        let totalAbsent = 0;
+
+        records.forEach(monthRecord => {
+            const studentData = monthRecord.attendanceData.find(a => a.studentId.toString() === studentId);
+            if (studentData && studentData.dailyStatus) {
+                // convert Map to object if it's a Map
+                const dailyStatus = studentData.dailyStatus instanceof Map ? studentData.dailyStatus : new Map(Object.entries(studentData.dailyStatus));
+                dailyStatus.forEach(status => {
+                    if (status === 'P') totalPresent++;
+                    if (status === 'A') totalAbsent++;
+                });
+            }
+        });
+
+        const totalDays = totalPresent + totalAbsent;
+        const rate = totalDays > 0 ? Math.round((totalPresent / totalDays) * 100) : 0;
+
+        res.status(200).json({
+            present: totalPresent,
+            absent: totalAbsent,
+            totalDays,
+            rate
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 module.exports = {
   getAttendance,
   saveAttendance,
-  getStudentMonthlyAttendance
+  getStudentMonthlyAttendance,
+  getStudentYearlyAttendance
 };

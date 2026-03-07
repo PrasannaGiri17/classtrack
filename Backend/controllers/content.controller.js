@@ -177,3 +177,25 @@ exports.getResourcesBySubject = async (req, res) => {
     res.status(500).json({ message: "Error fetching resources by subject", error: error.message });
   }
 };
+
+// Get resources for a specific student (based on grade/section)
+exports.getStudentResources = async (req, res) => {
+  try {
+    const { grade, section } = req.params;
+    
+    const query = {
+      grade: grade,
+      $or: [
+        { section: 'ALL' },
+        { section: section }
+      ],
+      isArchived: false,
+      type: { $ne: 'folder' } // Usually students see resources directly or within folders, but for global fetch let's exclude folders unless they are root
+    };
+
+    const resources = await Content.find(query).sort({ sharedOn: -1 });
+    res.status(200).json(resources);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching student resources", error: error.message });
+  }
+};

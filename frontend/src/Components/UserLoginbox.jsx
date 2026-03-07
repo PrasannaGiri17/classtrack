@@ -53,11 +53,13 @@ const UserLoginbox = () => {
       }
 
       // Save JWT and user details
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("role", data.role);
-
+      const studentId = data.studentId;
+      if (studentId) localStorage.setItem("studentId", studentId);
       if (data.teacherId) localStorage.setItem("teacherId", data.teacherId);
-      if (data.studentId) localStorage.setItem("studentId", data.studentId);
+
+      const nameToStore = [data.firstName, data.lastName].filter(Boolean).join(" ") || data.name || data.email?.split('@')[0] || "Student";
+      localStorage.setItem("userName", nameToStore);
+      localStorage.setItem("userEmail", data.email || email);
 
       // Redirect based on first-login flag
       if (data.mustChangePassword) {
@@ -123,6 +125,8 @@ const UserLoginbox = () => {
         localStorage.setItem("token", data.token);
         localStorage.setItem("googleUser", JSON.stringify(googleUser));
         localStorage.setItem("role", data.role);
+        localStorage.setItem("userName", googleUser.name || "User");
+        localStorage.setItem("userEmail", googleUser.email);
 
         if (data.teacherId) localStorage.setItem("teacherId", data.teacherId);
         if (data.studentId) localStorage.setItem("studentId", data.studentId);

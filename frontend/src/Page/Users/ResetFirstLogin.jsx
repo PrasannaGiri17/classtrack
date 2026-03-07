@@ -19,6 +19,25 @@ const ResetFirstLogin = () => {
       setPopupMessage("Please fill both password fields.");
       return;
     }
+
+    // Password validation logic
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (password.length < minLength) {
+      setPopupType("error");
+      setPopupMessage(`Password must be at least ${minLength} characters.`);
+      return;
+    }
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+      setPopupType("error");
+      setPopupMessage("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
+      return;
+    }
+
     if (password !== confirm) {
       setPopupType("error");
       setPopupMessage("Passwords do not match.");
@@ -88,18 +107,30 @@ const ResetFirstLogin = () => {
           </button>
         </div>
 
+        <div className="mb-4 w-full text-left bg-gray-50 p-4 rounded-lg border border-gray-100">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Password Requirements</p>
+          <div className="grid grid-cols-2 gap-y-2">
+            <RequirementItem label="8+ Characters" met={password.length >= 8} />
+            <RequirementItem label="Uppercase (A-Z)" met={/[A-Z]/.test(password)} />
+            <RequirementItem label="Lowercase (a-z)" met={/[a-z]/.test(password)} />
+            <RequirementItem label="Number (0-9)" met={/[0-9]/.test(password)} />
+            <RequirementItem label="Special Character" met={/[!@#$%^&*(),.?":{}|<>]/.test(password)} />
+          </div>
+          <p className="mt-4 text-[9px] text-gray-400 italic">Recommended: 12-16 characters for maximum security.</p>
+        </div>
+
         <div className="mb-8 w-full relative">
           <input
             type={showConfirm ? "text" : "password"}
             placeholder="Confirm Password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-16"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-16 focus:ring-2 focus:ring-[#28A745]/20 focus:border-[#28A745] outline-none transition-all"
           />
           <button
             type="button"
             onClick={() => setShowConfirm((prev) => !prev)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400 hover:text-gray-600"
           >
             {showConfirm ? "hide" : "show"}
           </button>
@@ -124,5 +155,12 @@ const ResetFirstLogin = () => {
     </div>
   );
 };
+
+const RequirementItem = ({ label, met }) => (
+  <div className="flex items-center gap-2">
+    <div className={`w-1.5 h-1.5 rounded-full ${met ? 'bg-green-500' : 'bg-gray-300'}`} />
+    <span className={`text-[11px] font-medium ${met ? 'text-green-600' : 'text-gray-500'}`}>{label}</span>
+  </div>
+);
 
 export default ResetFirstLogin;

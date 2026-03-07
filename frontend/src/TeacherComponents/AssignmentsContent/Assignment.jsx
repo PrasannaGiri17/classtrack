@@ -80,7 +80,7 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                     return m ? m[1] : null;
                 }).filter(Boolean))];
 
-                const wholeGradeOptions = uniqueGrades.map(g => `Whole Grade ${g}`);
+                const wholeGradeOptions = uniqueGrades.map(g => `Grade ${g}`);
                 const classOptions = [...wholeGradeOptions, ...classes];
 
                 const subjects = [];
@@ -172,35 +172,46 @@ const Assignment = ({ activeTab, setActiveTab }) => {
 
         const teacherId = localStorage.getItem('teacherId');
 
-        let grade, section;
-        const wholeMatch = newAssignment.classRef.match(/Whole Grade\s+(\d+)/i);
-        if (wholeMatch) {
-            grade = wholeMatch[1];
-            section = 'ALL';
-        } else {
+        const filePromises = newAssignment.questionFiles.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+        });
+
+        try {
+            const questionFileUrls = await Promise.all(filePromises);
+
+            let grade, section;
             const classMatch = newAssignment.classRef.match(/(?:Grade\s+|G)(\d+)(?:\s*-\s*|\s*)([A-Za-z]+)/i);
+
             if (classMatch) {
                 grade = classMatch[1];
                 section = classMatch[2].toUpperCase();
             } else {
-                grade = newAssignment.classRef;
-                section = 'N/A';
+                const gradeOnlyMatch = newAssignment.classRef.match(/(?:Grade\s+|G)(\d+)/i);
+                if (gradeOnlyMatch) {
+                    grade = gradeOnlyMatch[1];
+                    section = 'ALL';
+                } else {
+                    grade = newAssignment.classRef;
+                    section = 'N/A';
+                }
             }
-        }
 
-        const entry = {
-            title: newAssignment.title,
-            description: newAssignment.description,
-            closeTime: newAssignment.closeTime.toISOString(),
-            grade: grade,
-            section: section,
-            subject: newAssignment.subject,
-            teacherId: teacherId,
-            fileName: newAssignment.questionFiles.map(f => f.name).join(', ')
-            // questionFilesUrls would come from cloud storage
-        };
+            const entry = {
+                title: newAssignment.title,
+                description: newAssignment.description,
+                closeTime: newAssignment.closeTime.toISOString(),
+                grade: grade,
+                section: section,
+                subject: newAssignment.subject,
+                teacherId: teacherId,
+                fileName: newAssignment.questionFiles.map(f => f.name).join(', '),
+                questionFileUrls: questionFileUrls
+            };
 
-        try {
             const saved = await assignmentService.createAssignment(entry);
             setAssignments([saved, ...assignments]);
             setIsAssignmentModalOpen(false);
@@ -262,6 +273,43 @@ const Assignment = ({ activeTab, setActiveTab }) => {
             ...prev,
             questionFiles: prev.questionFiles.filter((_, i) => i !== index)
         }));
+    };
+
+    // --- Sub-component: RemarkInput (to fix typing lag) ---
+    const RemarkInput = ({ initialValue, onSave }) => {
+        const [localValue, setLocalValue] = useState(initialValue || "");
+        const timerRef = useRef(null);
+
+        useEffect(() => {
+            setLocalValue(initialValue || "");
+        }, [initialValue]);
+
+        const handleChange = (e) => {
+            const val = e.target.value;
+            setLocalValue(val);
+
+            // Debounce the save call
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = setTimeout(() => {
+                onSave(val);
+            }, 800);
+        };
+
+        const handleBlur = () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+            onSave(localValue);
+        };
+
+        return (
+            <input
+                type="text"
+                placeholder="Teacher's Remark..."
+                value={localValue}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className="w-full min-w-[200px] px-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-inner"
+            />
+        );
     };
 
     const AssignmentCard = ({ a }) => {
@@ -428,6 +476,7 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                         <td className="px-4 py-5">
                                             <a
                                                 href={sub.fileUrl}
+                                                download={sub.fileName}
                                                 className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-500 hover:text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all group/file"
                                             >
                                                 <Paperclip size={12} className="group-hover/file:scale-110 transition-transform" />
@@ -435,12 +484,9 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                             </a>
                                         </td>
                                         <td className="px-4 py-5">
-                                            <input
-                                                type="text"
-                                                placeholder="Teacher's Remark..."
-                                                value={sub.remark}
-                                                onChange={(e) => updateSubmissionRemark(sub._id || sub.id, e.target.value)}
-                                                className="w-full min-w-[200px] px-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-inner"
+                                            <RemarkInput
+                                                initialValue={sub.remark}
+                                                onSave={(val) => updateSubmissionRemark(sub._id || sub.id, val)}
                                             />
                                         </td>
                                         <td className="pr-12 pl-4 py-5">

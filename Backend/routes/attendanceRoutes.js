@@ -11,4 +11,7 @@ router.post("/save", attendanceController.saveAttendance);
 // Get specific student attendance for a month
 router.get("/student/:studentId/:year/:month", attendanceController.getStudentMonthlyAttendance);
 
+// Get specific student attendance for a year summary
+router.get("/student/:studentId/:year", attendanceController.getStudentYearlyAttendance);
+
 module.exports = router;

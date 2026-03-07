@@ -1,19 +1,28 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Calendar, Check, AlertCircle } from "lucide-react";
+import { X, Calendar, Check, AlertCircle, ChevronDown } from "lucide-react";
 import { toast } from "../../MainSystemComponents/Toast";
+import CustomNepaliHolidayCalendar from "../../MainSystemComponents/CustomNepaliHolidayCalendar";
 
-const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
+const AddEventModal = ({ isOpen, onClose, onEventAdded, isStudentView, studentId }) => {
   const [isRange, setIsRange] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    category: "event", // event, holiday, exam
+    category: isStudentView ? "event" : "event", // event, holiday, exam
     startDate: "",
     endDate: "",
-    sendTo: "",
+    sendTo: isStudentView ? "Personal" : "",
     description: ""
   });
   const [loading, setLoading] = useState(false);
+  const [showStartCal, setShowStartCal] = useState(false);
+  const [showEndCal, setShowEndCal] = useState(false);
+
+  const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return "Select Date";
+    const d = new Date(dateStr);
+    return d.toISOString().split('T')[0];
+  };
 
   if (!isOpen) return null;
   if (typeof document === "undefined") return null;
@@ -43,10 +52,8 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
         endDate: isRange ? formData.endDate : formData.startDate,
         audience: formData.sendTo,
         description: formData.description,
-        school_id: 1, // Default
-        // Optional: map category to color explicitly if needed, 
-        // but backend adds default based on type.
-        // color: ...
+        school_id: 1,
+        createdBy: isStudentView ? studentId : null
       };
 
       const response = await fetch("http://localhost:7000/api/calendar/events", {
@@ -111,10 +118,10 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
             </div>
             <div>
               <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
-                Create New Event
+                {isStudentView ? "Create Personal Event" : "Create New Event"}
               </h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1.5">
-                Manage Academic Schedule
+                {isStudentView ? "Manage Your Private Schedule" : "Manage Academic Schedule"}
               </p>
             </div>
           </div>
@@ -152,24 +159,26 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
             </div>
 
             {/* Event Category */}
-            <div className="md:col-span-6 space-y-2.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                Event Category
-              </label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
-              >
-                <option value="event">Campus Event</option>
-                <option value="holiday">School Holiday</option>
-                <option value="exams">Examination Period</option>
-              </select>
-            </div>
+            {!isStudentView && (
+              <div className="md:col-span-6 space-y-2.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Event Category
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
+                >
+                  <option value="event">Campus Event</option>
+                  <option value="holiday">School Holiday</option>
+                  <option value="exams">Examination Period</option>
+                </select>
+              </div>
+            )}
 
             {/* Multi-day Toggle */}
-            <div className="md:col-span-6 space-y-2.5">
+            <div className={isStudentView ? "md:col-span-12" : "md:col-span-6" + " space-y-2.5"}>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                 Multiple Days?
               </label>
@@ -198,56 +207,81 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
             </div>
 
             {/* Dates */}
-            <div className="md:col-span-6 space-y-2.5">
+            <div className="md:col-span-6 space-y-2.5 relative">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                 {isRange ? "Start Date" : "Event Date"}
               </label>
-              <input
-                required
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                type="date"
-                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner"
-              />
+              <div
+                onClick={() => setShowStartCal(!showStartCal)}
+                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner cursor-pointer flex items-center justify-between"
+              >
+                <span>{formData.startDate ? formatDateForDisplay(formData.startDate) : "Select Date"}</span>
+                <ChevronDown size={16} className={`text-slate-400 transition-transform ${showStartCal ? 'rotate-180' : ''}`} />
+              </div>
+
+              {showStartCal && (
+                <div className="absolute top-full left-0 mt-2 z-[100] w-full min-w-[320px]">
+                  <CustomNepaliHolidayCalendar
+                    selectedDate={formData.startDate ? new Date(formData.startDate) : new Date()}
+                    onChange={(date) => {
+                      setFormData(prev => ({ ...prev, startDate: date.toISOString().split('T')[0] }));
+                      setShowStartCal(false);
+                    }}
+                    className="shadow-2xl border-emerald-500/20"
+                  />
+                </div>
+              )}
             </div>
 
-            <div className={`md:col-span-6 space-y-2.5 ${!isRange ? "hidden" : ""}`}>
+            <div className={`md:col-span-6 space-y-2.5 relative ${!isRange ? "hidden" : ""}`}>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                 End Date
               </label>
-              <input
-                disabled={!isRange}
-                required={isRange}
-                name="endDate"
-                value={formData.endDate}
-                onChange={handleChange}
-                type="date"
-                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner disabled:opacity-50"
-              />
+              <div
+                onClick={() => setShowEndCal(!showEndCal)}
+                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 shadow-inner cursor-pointer flex items-center justify-between"
+              >
+                <span>{formData.endDate ? formatDateForDisplay(formData.endDate) : "Select Date"}</span>
+                <ChevronDown size={16} className={`text-slate-400 transition-transform ${showEndCal ? 'rotate-180' : ''}`} />
+              </div>
+
+              {showEndCal && (
+                <div className="absolute top-full right-0 mt-2 z-[100] w-full min-w-[320px]">
+                  <CustomNepaliHolidayCalendar
+                    selectedDate={formData.endDate ? new Date(formData.endDate) : new Date()}
+                    onChange={(date) => {
+                      setFormData(prev => ({ ...prev, endDate: date.toISOString().split('T')[0] }));
+                      setShowEndCal(false);
+                    }}
+                    className="shadow-2xl border-emerald-500/20"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Send To */}
-            <div className="md:col-span-12 space-y-2.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                Send To
-              </label>
-              <select
-                name="sendTo"
-                value={formData.sendTo}
-                onChange={handleChange}
-                required
-                className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
-              >
-                <option value="" disabled>Select audience</option>
-                <option value="Students">Students</option>
-                <option value="Teachers">Teachers</option>
-                <option value="Whole School">Whole School</option>
-              </select>
-              <p className="text-[10px] font-medium text-slate-400 ml-1 mt-1.5">
-                Choose who will receive this event notification.
-              </p>
-            </div>
+            {!isStudentView && (
+              <div className="md:col-span-12 space-y-2.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Send To
+                </label>
+                <select
+                  name="sendTo"
+                  value={formData.sendTo}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
+                >
+                  <option value="" disabled>Select audience</option>
+                  <option value="Students">Students</option>
+                  <option value="Teachers">Teachers</option>
+                  <option value="Whole School">Whole School</option>
+                </select>
+                <p className="text-[10px] font-medium text-slate-400 ml-1 mt-1.5">
+                  Choose who will receive this event notification.
+                </p>
+              </div>
+            )}
 
             {/* Internal Description */}
             <div className="md:col-span-12 space-y-2.5">

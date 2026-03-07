@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   GraduationCap,
@@ -121,6 +121,31 @@ const SDashboard = () => {
   const [selectedHomeworkDate, setSelectedHomeworkDate] = useState('Today');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+  const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const role = localStorage.getItem("role");
+        const studentId = localStorage.getItem("studentId");
+        if (role === "student" && studentId) {
+          const res = await fetch(`http://localhost:7000/api/students/${studentId}`);
+          const data = await res.json();
+          if (data) {
+            const name = `${data.firstName} ${data.lastName || ''}`.trim();
+            setUserName(name);
+            localStorage.setItem("userName", name);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch user in Dashboard", err);
+      }
+    };
+
+    if (userName === "Student" || userName === "User") {
+      fetchUserData();
+    }
+  }, []);
 
   // Pagination Logic
   const totalPages = Math.ceil(homeworkData.length / itemsPerPage);
@@ -129,6 +154,16 @@ const SDashboard = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Welcome Header */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+          Welcome back, <span className="text-emerald-500">{userName.split(' ')[0] || "Student"}</span>!
+        </h1>
+        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+          Here's what's happening in your classes today.
+        </p>
+      </div>
+
       {/* Stats Grid - 3 Column Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <RadialGauge

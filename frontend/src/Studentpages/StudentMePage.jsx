@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import {
   User,
   Phone,
@@ -29,10 +30,17 @@ import {
   Trophy,
   Target,
   Percent,
-  CalendarDays
+  CalendarDays,
+  Loader2,
+  Lock
 } from 'lucide-react';
 import { toast } from '../MainSystemComponents/Toast';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
+import studentService from '../Api/studentService';
+import attendanceService from '../Api/attendanceService';
+import PhotoCropModal from '../MainSystemComponents/PhotoCropModal';
+import ForgotPasswordModal from '../TeacherComponents/Layout/ForgotPasswordModal';
+import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 
 // --- Helpers ---
 
@@ -109,8 +117,64 @@ const STUDENT_ME_INITIAL = {
 
 // --- Sub-components ---
 
-const AttendanceSummaryCard = ({ monthly, yearly }) => {
-  const [selectedMonth, setSelectedMonth] = useState(monthly.month);
+const AttendanceSummaryCard = ({ yearly, studentId }) => {
+  const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+  const [currentBSYear, currentBSMonth] = todayBS.split('-').map(Number);
+
+  const [selectedMonth, setSelectedMonth] = useState(NEPALI_MONTHS[currentBSMonth - 1] || "Falgun");
+  const [selectedYear, setSelectedYear] = useState(currentBSYear || 2081);
+  const [monthlyData, setMonthlyData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMonthly = async () => {
+    if (!studentId) return;
+    setLoading(true);
+    try {
+      const data = await attendanceService.getStudentMonthlyAttendance(studentId, selectedYear, selectedMonth);
+      if (data && data.dailyStatus) {
+        let present = 0;
+        let total = 0;
+        let absents = [];
+
+        // Handle Map or Object
+        const statusData = data.dailyStatus;
+        Object.keys(statusData).forEach(day => {
+          total++;
+          if (statusData[day] === 'P') present++;
+          if (statusData[day] === 'A') {
+            // Suffix for dates
+            let suffix = 'th';
+            const dayNum = parseInt(day);
+            if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
+            else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
+            else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
+
+            absents.push(`${day}${suffix} ${selectedMonth}`);
+          }
+        });
+
+        setMonthlyData({
+          presentDays: present,
+          totalDays: total || 30,
+          absentDates: absents
+        });
+      } else {
+        setMonthlyData({ presentDays: 0, totalDays: 30, absentDates: [] });
+      }
+    } catch (err) {
+      console.warn("No specific attendance found for this month.");
+      setMonthlyData({ presentDays: 0, totalDays: 30, absentDates: [] });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMonthly();
+  }, [selectedMonth, selectedYear, studentId]);
+
+  const displayMonthly = monthlyData || { presentDays: 0, totalDays: 30, absentDates: [] };
+  const attendanceRate = displayMonthly.totalDays > 0 ? Math.round((displayMonthly.presentDays / displayMonthly.totalDays) * 100) : 0;
 
   return (
     <div className="bg-white dark:bg-[#0b1220] rounded-[32px] border border-slate-100 dark:border-white/5 shadow-xl p-5 lg:p-6 transition-all relative overflow-hidden group/card shadow-emerald-500/5">
@@ -128,14 +192,14 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
             <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">Attendance Summary</h3>
             <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1.5 flex items-center gap-2">
               <span className="w-1 h-1 rounded-full bg-emerald-500/50" />
-              Academic Year 2081
+              Academic Year {selectedYear}
             </p>
           </div>
         </div>
       </div>
 
       {/* Body Row (2 Columns) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 items-start relative z-10">
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 items-start relative z-10 transition-opacity duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}>
 
         {/* A) Left Column (Monthly) */}
         <div className="space-y-4">
@@ -156,11 +220,11 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
             <div className="space-y-1 mt-3 text-left">
               <div className="flex items-end gap-1.5">
                 <span className="text-5xl font-black text-emerald-500 tracking-tighter leading-none tabular-nums">
-                  {monthly.presentDays}
+                  {displayMonthly.presentDays}
                 </span>
                 <span className="text-2xl font-black text-slate-300 dark:text-slate-600 tracking-tighter leading-none mb-0.5">/</span>
                 <span className="text-2xl font-black text-slate-400 dark:text-slate-500 tracking-tighter leading-none mb-0.5">
-                  {monthly.totalDays}
+                  {displayMonthly.totalDays}
                 </span>
               </div>
               <p className="text-[10px] font-bold text-slate-400 dark:text-slate-300 tracking-wide mt-1.5">
@@ -171,10 +235,10 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
             {/* Left side progress bar */}
             <div className="pt-1.5">
               <div className="w-full h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500" style={{ width: `${Math.round((monthly.presentDays / monthly.totalDays) * 100)}%` }} />
+                <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${attendanceRate}%` }} />
               </div>
               <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-2">
-                {Math.round((monthly.presentDays / monthly.totalDays) * 100)}% attendance this month
+                {attendanceRate}% attendance this month
               </p>
             </div>
           </div>
@@ -184,16 +248,18 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold text-slate-400 dark:text-slate-300 tracking-wider">Absence Registry</p>
               <div className="px-2 py-0.5 bg-red-500/10 rounded-md">
-                <span className="text-[9px] font-black text-red-500">{monthly.absentDates.length} Dates</span>
+                <span className="text-[9px] font-black text-red-500">{displayMonthly.absentDates.length} Dates</span>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {monthly.absentDates.map((date, idx) => (
+              {displayMonthly.absentDates.length > 0 ? displayMonthly.absentDates.map((date, idx) => (
                 <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-[#111827] rounded-[10px] border border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-300 text-[10px] font-bold tracking-wider shadow-sm">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
                   {date}
                 </div>
-              ))}
+              )) : (
+                <span className="text-[9px] font-bold text-slate-400 italic">No recorded absences</span>
+              )}
             </div>
           </div>
         </div>
@@ -213,7 +279,7 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
                 </div>
               </div>
               <div className="w-full h-2 bg-slate-100 dark:bg-white/5 rounded-full mt-3 overflow-hidden relative">
-                <div className="absolute top-0 left-0 h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]" style={{ width: `${yearly.rate}%` }} />
+                <div className="absolute top-0 left-0 h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all duration-1000" style={{ width: `${yearly.rate}%` }} />
               </div>
             </div>
           </div>
@@ -231,7 +297,7 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
             <div className="bg-slate-50 dark:bg-[#1f1519] p-5 rounded-[20px] border border-slate-100 dark:border-red-500/10 space-y-2">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                <span className="text-[10px] font-bold text-slate-900 dark:text-white tracking-widest">Absent</span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-white tracking-widest">Absent</span>
               </div>
               <p className="text-3xl font-black text-red-500 leading-none tracking-tight tabular-nums mt-1.5 mb-0.5">{yearly.absent}</p>
               <p className="text-[10px] font-bold text-red-500 tracking-wider">Missed Days</p>
@@ -259,7 +325,11 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
   const [currentAvatar, setCurrentAvatar] = useState(student.avatarUrl);
   const fileInputRef = useRef(null);
   const [isAvatarConfirmOpen, setIsAvatarConfirmOpen] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [pendingAvatar, setPendingAvatar] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   useEffect(() => {
     setCurrentAvatar(student.avatarUrl);
@@ -299,21 +369,61 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPendingAvatar(reader.result);
-        setIsAvatarConfirmOpen(true);
+        setSelectedFile(reader.result);
+        setIsCropModalOpen(true);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAvatarConfirm = () => {
+  const handleCropDone = (croppedImage) => {
+    setPendingAvatar(croppedImage);
+    setIsCropModalOpen(false);
+    setIsAvatarConfirmOpen(true);
+  };
+
+  const handleAvatarConfirm = async () => {
     if (pendingAvatar) {
-      setCurrentAvatar(pendingAvatar);
-      toast({ type: 'success', message: 'Profile picture updated successfully!' });
+      setIsUploading(true);
+      setIsAvatarConfirmOpen(false);
+      try {
+        const studentId = localStorage.getItem("studentId");
+        if (!studentId) {
+          toast({ type: 'error', message: 'Student ID not found' });
+          return;
+        }
+
+        // Use the studentService to update the student with a complete payload to ensure validation passes
+        const payload = {
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          studentClass: student.studentClass,
+          profilePhoto: pendingAvatar
+        };
+
+        await studentService.updateStudent(studentId, payload);
+
+        setCurrentAvatar(pendingAvatar);
+        onUpdate({ avatarUrl: pendingAvatar });
+
+        // Sync with localStorage
+        localStorage.setItem("userPhoto", pendingAvatar);
+
+        // Dispatch event for Navbar to update
+        window.dispatchEvent(new Event('profileUpdated'));
+
+        toast({ type: 'success', message: 'Profile picture updated successfully!' });
+      } catch (err) {
+        console.error("Failed to update profile photo:", err);
+        toast({ type: 'error', message: 'Failed to update profile picture' });
+      } finally {
+        setIsUploading(false);
+        setPendingAvatar(null);
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
     }
-    setIsAvatarConfirmOpen(false);
-    setPendingAvatar(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   return (
@@ -332,19 +442,25 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
           <div className="flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8">
             <div className={`relative group ${readOnly ? '' : 'cursor-pointer'}`} onClick={readOnly ? null : handleImageClick}>
               <div className="w-36 h-36 md:w-40 md:h-40 rounded-[36px] bg-[#0b1220] p-1.5 shadow-2xl border border-white/10 relative overflow-hidden">
-                <div className="w-full h-full rounded-[30px] overflow-hidden bg-slate-800 relative">
-                  <img
-                    src={currentAvatar}
-                    alt={student.name}
-                    className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:blur-[3px]"
-                  />
-                  {/* Pencil Overlay */}
-                  {!readOnly && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-2xl">
-                        <Pencil size={20} className="text-white" />
-                      </div>
-                    </div>
+                <div className="w-full h-full rounded-[30px] overflow-hidden bg-slate-800 relative flex items-center justify-center">
+                  {isUploading ? (
+                    <Loader2 size={32} className="text-emerald-500 animate-spin" />
+                  ) : (
+                    <>
+                      <img
+                        src={currentAvatar}
+                        alt={student.name}
+                        className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:blur-[3px]"
+                      />
+                      {/* Pencil Overlay */}
+                      {!readOnly && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                          <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-2xl">
+                            <Pencil size={20} className="text-white" />
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -413,15 +529,42 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">CLASS TEACHER</p>
             <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">{student.classTeacher}</p>
           </div>
+
+          {/* Action Buttons */}
+          {!readOnly && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsChangePasswordOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black rounded-xl transition-all shadow-sm border border-slate-700 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <Lock size={12} className="text-emerald-500" />
+                Change Password
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
+      <ForgotPasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        initialEmail={student.email}
+      />
+
       <ConfirmDialog
         isOpen={isAvatarConfirmOpen}
-        onClose={() => { setIsAvatarConfirmOpen(false); setPendingAvatar(null); }}
+        onClose={() => { setIsAvatarConfirmOpen(false); setPendingAvatar(null); setSelectedFile(null); }}
         onConfirm={handleAvatarConfirm}
         title="Update Profile Picture?"
         message="Are you sure you want to change your current profile picture with the selected one?"
+      />
+
+      <PhotoCropModal
+        isOpen={isCropModalOpen}
+        image={selectedFile}
+        onClose={() => { setIsCropModalOpen(false); setSelectedFile(null); }}
+        onDone={handleCropDone}
+        onChange={() => { setIsCropModalOpen(false); fileInputRef.current?.click(); }}
       />
     </div>
   );
@@ -610,53 +753,84 @@ const StudentMePage = () => {
   const passedStudent = location.state?.studentData;
   const isTeacherView = location.pathname.includes('/teacher/');
 
-  const [student, setStudent] = useState(() => {
-    if (passedStudent) {
-      const teacher = passedStudent.sectionId?.classTeacherId;
-      const teacherName = teacher ? (teacher.firstName + " " + (teacher.lastName || "")) : STUDENT_ME_INITIAL.classTeacher;
-
-      return {
-        ...STUDENT_ME_INITIAL,
-        ...passedStudent, // Keep all raw backend data
-        name: `${passedStudent.firstName} ${passedStudent.lastName}`,
-        studentId: passedStudent.studentId,
-        rollNo: passedStudent.rollNumber || passedStudent.rollNo || passedStudent.studentId?.split('-').pop(),
-        email: passedStudent.email || STUDENT_ME_INITIAL.email,
-        phone: passedStudent.phone || passedStudent.phoneNumber || STUDENT_ME_INITIAL.phone,
-        lastTermGPA: passedStudent.lastTerm || STUDENT_ME_INITIAL.lastTermGPA,
-        flag: passedStudent.flag || STUDENT_ME_INITIAL.flag,
-        grade: passedStudent.gradeId?.gradeName || passedStudent.studentClass || passedStudent.grade || STUDENT_ME_INITIAL.grade,
-        section: passedStudent.sectionId?.sectionName || passedStudent.section || STUDENT_ME_INITIAL.section,
-        avatarUrl: passedStudent.profilePhoto || STUDENT_ME_INITIAL.avatarUrl,
-        classTeacher: teacherName,
-        address: passedStudent.Address || STUDENT_ME_INITIAL.address,
-        fatherName: passedStudent.fatherName || STUDENT_ME_INITIAL.fatherName,
-        fatherPhone: passedStudent.fatherPhone || STUDENT_ME_INITIAL.fatherPhone,
-        motherName: passedStudent.motherName || STUDENT_ME_INITIAL.motherName,
-        motherPhone: passedStudent.motherPhone || STUDENT_ME_INITIAL.motherPhone
-      };
-    }
-    return STUDENT_ME_INITIAL;
-  });
-
+  const [student, setStudent] = useState(STUDENT_ME_INITIAL);
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState('First Term');
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 600);
-    return () => clearTimeout(timer);
-  }, []);
+  const fetchStudentData = async () => {
+    try {
+      const studentId = localStorage.getItem("studentId");
+      if (!studentId) {
+        setIsLoaded(true);
+        return;
+      }
+
+      const data = await studentService.getStudentById(studentId);
+
+      // Fetch Attendance Yearly Stats
+      let yearlyStats = STUDENT_ME_INITIAL.yearlyAttendance;
+      try {
+        const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+        const [currentBSYear] = todayBS.split('-').map(Number);
+        const yearlyData = await attendanceService.getStudentYearlyAttendance(data._id, currentBSYear || 2081);
+        if (yearlyData) {
+          yearlyStats = {
+            present: yearlyData.present,
+            absent: yearlyData.absent,
+            rate: yearlyData.rate
+          };
+        }
+      } catch (e) {
+        console.warn("Failed to fetch yearly attendance stats", e);
+      }
+
+      const teacherName = data.sectionId?.classTeacherId
+        ? `${data.sectionId.classTeacherId.firstName} ${data.sectionId.classTeacherId.lastName || ''}`.trim()
+        : STUDENT_ME_INITIAL.classTeacher;
+
+      const studentData = {
+        ...STUDENT_ME_INITIAL,
+        ...data,
+        name: `${data.firstName} ${data.lastName}`,
+        studentId: data.studentId,
+        rollNo: data.rollNumber || data.studentId?.split('-').pop(),
+        email: data.email,
+        phone: data.phoneNumber,
+        avatarUrl: data.profilePhoto || STUDENT_ME_INITIAL.avatarUrl,
+        grade: data.gradeId?.gradeName || data.studentClass,
+        section: data.sectionId?.sectionName || data.section,
+        classTeacher: teacherName,
+        address: data.Address || STUDENT_ME_INITIAL.address,
+        fatherName: data.fatherName || STUDENT_ME_INITIAL.fatherName,
+        fatherPhone: data.fatherPhone || STUDENT_ME_INITIAL.fatherPhone,
+        motherName: data.motherName || STUDENT_ME_INITIAL.motherName,
+        motherPhone: data.motherPhone || STUDENT_ME_INITIAL.motherPhone,
+        yearlyAttendance: yearlyStats
+      };
+
+      setStudent(studentData);
+
+      // Update localStorage for consistency across pages (Navbar, etc.)
+      localStorage.setItem("userName", studentData.name);
+
+      setIsLoaded(true);
+    } catch (err) {
+      console.error("Failed to fetch student profile:", err);
+      toast({ type: 'error', message: "Failed to load profile details" });
+      setIsLoaded(true);
+    }
+  };
 
   useEffect(() => {
     if (passedStudent) {
       const teacher = passedStudent.sectionId?.classTeacherId;
       const teacherName = teacher ? (teacher.firstName + " " + (teacher.lastName || "")) : STUDENT_ME_INITIAL.classTeacher;
 
-      setStudent(prev => ({
+      setStudent({
         ...STUDENT_ME_INITIAL,
         ...passedStudent,
         name: `${passedStudent.firstName} ${passedStudent.lastName}`,
-        rollNo: passedStudent.rollNumber || passedStudent.rollNo || passedStudent.studentId?.split('-').pop(),
+        studentId: passedStudent.studentId,
         avatarUrl: passedStudent.profilePhoto || STUDENT_ME_INITIAL.avatarUrl,
         grade: passedStudent.gradeId?.gradeName || passedStudent.studentClass || passedStudent.grade || STUDENT_ME_INITIAL.grade,
         section: passedStudent.sectionId?.sectionName || passedStudent.section || STUDENT_ME_INITIAL.section,
@@ -668,7 +842,10 @@ const StudentMePage = () => {
         fatherPhone: passedStudent.fatherPhone || STUDENT_ME_INITIAL.fatherPhone,
         motherName: passedStudent.motherName || STUDENT_ME_INITIAL.motherName,
         motherPhone: passedStudent.motherPhone || STUDENT_ME_INITIAL.motherPhone
-      }));
+      });
+      setIsLoaded(true);
+    } else {
+      fetchStudentData();
     }
   }, [passedStudent]);
 
@@ -708,7 +885,7 @@ const StudentMePage = () => {
           <FeeStatusCard feeStatus={student.feeStatus} readOnly={isTeacherView} />
         </div>
 
-        <AttendanceSummaryCard monthly={student.attendance} yearly={student.yearlyAttendance} />
+        <AttendanceSummaryCard yearly={student.yearlyAttendance} studentId={student._id} />
 
         <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm p-8 lg:p-12 transition-all">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
@@ -770,13 +947,29 @@ const GuardianInfoCard = ({ student, onUpdate, readOnly }) => {
   const hasChanges = (student.motherName === '' && tempMotherName !== '') ||
     (student.motherPhone === '' && tempMotherPhone !== '');
 
-  const handleFinalSave = () => {
-    onUpdate({
-      motherName: tempMotherName,
-      motherPhone: tempMotherPhone
-    });
-    toast({ type: 'success', message: 'Guardian information updated!' });
-    setIsConfirmDialogOpen(false);
+  const handleFinalSave = async () => {
+    try {
+      const studentId = localStorage.getItem("studentId");
+      if (!studentId) {
+        toast({ type: 'error', message: 'Student ID not found' });
+        return;
+      }
+
+      await studentService.updateStudent(studentId, {
+        motherName: tempMotherName,
+        motherPhone: tempMotherPhone
+      });
+
+      onUpdate({
+        motherName: tempMotherName,
+        motherPhone: tempMotherPhone
+      });
+      toast({ type: 'success', message: 'Guardian information updated!' });
+      setIsConfirmDialogOpen(false);
+    } catch (err) {
+      console.error("Failed to update guardian info:", err);
+      toast({ type: 'error', message: 'Failed to update guardian information' });
+    }
   };
 
   return (

@@ -5,10 +5,9 @@ const contentSchema = new mongoose.Schema({
     type: String, 
     trim: true
   },
-  type: { 
+    type: { 
     type: String, 
-    required: [true, 'Resource type is required'],
-    enum: ["pdf", "docx", "link", "folder"]
+    required: [true, 'Resource type is required']
   },
   sharedOn: { 
     type: Date, 

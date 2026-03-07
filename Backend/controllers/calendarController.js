@@ -61,25 +61,47 @@ exports.createEvent = async (req, res) => {
 // @access  Private
 exports.getEvents = async (req, res) => {
   try {
-    const { from, to, school_id } = req.query;
+    const { from, to, school_id, createdBy } = req.query;
 
     const query = {
       school_id: school_id || 1
     };
 
+    // Access Control: Students should see school events (no creator) OR their own events
+    if (createdBy) {
+      query.$or = [
+        { createdBy: { $exists: false } },
+        { createdBy: null },
+        { createdBy: createdBy }
+      ];
+    }
+
     // Date range filter for Events
     if (from && to) {
-      query.$or = [
-        // Event starts within range
-        { startDate: { $gte: new Date(from), $lte: new Date(to) } },
-        // Event ends within range
-        { endDate: { $gte: new Date(from), $lte: new Date(to) } },
-        // Event spans the entire range (starts before and ends after)
-        { 
-          startDate: { $lte: new Date(from) },
-          endDate: { $gte: new Date(to) }
-        }
-      ];
+      const dateQuery = {
+        $or: [
+          // Event starts within range
+          { startDate: { $gte: new Date(from), $lte: new Date(to) } },
+          // Event ends within range
+          { endDate: { $gte: new Date(from), $lte: new Date(to) } },
+          // Event spans the entire range (starts before and ends after)
+          { 
+            startDate: { $lte: new Date(from) },
+            endDate: { $gte: new Date(to) }
+          }
+        ]
+      };
+
+      // Combine with existing query if createdBy was present
+      if (query.$or) {
+        query.$and = [
+          { $or: query.$or },
+          dateQuery
+        ];
+        delete query.$or;
+      } else {
+        query.$or = dateQuery.$or;
+      }
     }
 
     // Fetch Events and Holidays concurrently

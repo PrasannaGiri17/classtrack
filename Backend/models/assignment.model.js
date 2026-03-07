@@ -70,8 +70,9 @@ const assignmentSchema = new mongoose.Schema({
   fileName: { 
     type: String 
   },
-  questionFileUrl: { 
-    type: String 
+  questionFileUrls: { 
+    type: [String],
+    default: []
   },
   teacherId: { 
     type: mongoose.Schema.Types.ObjectId, 

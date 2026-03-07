@@ -51,8 +51,12 @@ const quizSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['Upcoming', 'Active', 'Completed'],
+    enum: ['Upcoming', 'Active', 'Closed'],
     default: 'Upcoming'
+  },
+  timeLimitMinutes: {
+    type: Number,
+    required: [true, 'Time limit is required']
   },
   questions: [questionSchema],
   stats: {

@@ -20,10 +20,17 @@ const getDiariesForDate = async (teacherId, date) => {
     return response.data;
 };
 
+const getDiariesByClass = async (className, date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const response = await axios.get(`${API_BASE_URL}/diary/class?className=${className}&date=${dateStr}`);
+    return response.data;
+};
+
 const diaryService = {
     getTeacherRoutine,
     saveDiaryEntry,
-    getDiariesForDate
+    getDiariesForDate,
+    getDiariesByClass
 };
 
 export default diaryService;

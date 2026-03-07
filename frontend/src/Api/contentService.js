@@ -95,6 +95,16 @@ const contentService = {
             console.error('Error fetching resources by subject:', error);
             throw error;
         }
+    },
+    // Get resources for a student
+    getStudentResources: async (grade, section) => {
+        try {
+            const response = await axios.get(`${API_URL}/student/${grade}/${section}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching student resources:', error);
+            throw error;
+        }
     }
 };
 

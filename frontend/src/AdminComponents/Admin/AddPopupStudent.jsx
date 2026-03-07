@@ -9,8 +9,10 @@ import {
   User,
   Phone,
   GraduationCap,
+  ChevronDown,
 } from "lucide-react";
 import FailedPopup from "../SmallerComponents/FailedPopup";
+import gradeService from "../../Api/gradeService";
 
 export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', studentData = null }) => {
   const isEditMode = mode === 'edit';
@@ -61,6 +63,26 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
 
   const [popup, setPopup] = useState({ message: "", type: "error" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [grades, setGrades] = useState([]);
+
+  // Fetch grades from backend
+  useEffect(() => {
+    const fetchGrades = async () => {
+      if (isOpen) {
+        try {
+          const data = await gradeService.getGrades();
+          if (Array.isArray(data)) {
+            // Sort grades numerically
+            const sortedGrades = data.sort((a, b) => a.gradeNumber - b.gradeNumber);
+            setGrades(sortedGrades);
+          }
+        } catch (err) {
+          console.error("Failed to fetch grades:", err);
+        }
+      }
+    };
+    fetchGrades();
+  }, [isOpen]);
 
   // Validation: Age 5+
   const maxDate = new Date();
@@ -267,18 +289,21 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
                   <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Gender
                   </label>
-                  <select
-                    name="gender"
-                    required
-                    onChange={handleChange}
-                    value={formData.gender}
-                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white cursor-pointer shadow-inner"
-                  >
-                    <option value="">Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
+                  <div className="relative group">
+                    <select
+                      name="gender"
+                      required
+                      onChange={handleChange}
+                      value={formData.gender}
+                      className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white cursor-pointer shadow-inner dark:[color-scheme:dark] appearance-none pr-12"
+                    >
+                      <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Select</option>
+                      <option value="male" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Male</option>
+                      <option value="female" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Female</option>
+                      <option value="other" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Other</option>
+                    </select>
+                    <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                  </div>
                 </div>
               </div>
 
@@ -314,20 +339,23 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
                   <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1">
                     Grade
                   </label>
-                  <select
-                    name="class"
-                    required
-                    onChange={handleChange}
-                    value={formData.class}
-                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner"
-                  >
-                    <option value="">Select Grade</option>
-                    {[...Array(13)].map((_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        Grade {i + 1}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative group">
+                    <select
+                      name="class"
+                      required
+                      onChange={handleChange}
+                      value={formData.class}
+                      className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold transition-all dark:text-white shadow-inner cursor-pointer dark:[color-scheme:dark] appearance-none pr-12"
+                    >
+                      <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Select Grade</option>
+                      {grades.map((grade) => (
+                        <option key={grade._id || grade.gradeNumber} value={grade.gradeNumber} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                          Grade {grade.gradeNumber}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                  </div>
                 </div>
               </div>
 

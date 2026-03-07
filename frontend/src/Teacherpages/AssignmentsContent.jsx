@@ -31,7 +31,7 @@ const AssignmentsContent = () => {
         <div className="flex border-b border-slate-100 dark:border-slate-800">
           <button
             onClick={() => setActiveTab('assignments')}
-            className={`px-8 py-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'assignments' || activeTab === 'report' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
+            className={`px-8 py-4 text-xs font-black tracking-widest transition-all relative ${activeTab === 'assignments' || activeTab === 'report' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
               }`}
           >
             <span className="flex items-center gap-2">
@@ -43,11 +43,11 @@ const AssignmentsContent = () => {
           </button>
           <button
             onClick={() => setActiveTab('content')}
-            className={`px-8 py-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'content' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
+            className={`px-8 py-4 text-xs font-black tracking-widest transition-all relative ${activeTab === 'content' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
               }`}
           >
             <span className="flex items-center gap-2">
-              <Folder size={16} /> Teacher's Content
+              <Folder size={16} /> Your Content
             </span>
             {activeTab === 'content' && (
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full" />
@@ -55,7 +55,7 @@ const AssignmentsContent = () => {
           </button>
           {activeTab === 'report' && (
             <button
-              className="px-8 py-4 text-xs font-black uppercase tracking-widest transition-all relative text-emerald-600"
+              className="px-8 py-4 text-xs font-black tracking-widest transition-all relative text-emerald-600"
             >
               <span className="flex items-center gap-2">
                 <FileSpreadsheet size={16} /> Submission Report

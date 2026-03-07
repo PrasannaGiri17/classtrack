@@ -5,13 +5,16 @@ import {
     Link as LinkIcon,
     FileText,
     X,
-    Plus
+    Plus,
+    ChevronDown,
+    BookOpen
 } from 'lucide-react';
 import { toast } from '../../MainSystemComponents/Toast';
 import PortalPopup from '../../MainSystemComponents/PortalPopup';
 import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
 
 import { useEffect } from 'react';
+import teacherService from '../../Api/teacherService';
 import contentService from '../../Api/contentService';
 import { Loader2, Trash2, ChevronLeft, Download as DownloadIcon } from 'lucide-react';
 
@@ -23,7 +26,15 @@ const Content = () => {
     const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
     const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
-    const [newResource, setNewResource] = useState({ name: '', type: 'file', url: '', files: [] });
+    const [teacherData, setTeacherData] = useState({ classes: [], subjects: [], classOptions: [] });
+    const [newResource, setNewResource] = useState({
+        name: '',
+        type: 'file',
+        url: '',
+        files: [],
+        classRef: '',
+        subject: ''
+    });
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [resourceToDelete, setResourceToDelete] = useState(null);
 
@@ -37,6 +48,45 @@ const Content = () => {
     useEffect(() => {
         fetchResources();
     }, [currentFolder]);
+
+    useEffect(() => {
+        const fetchTeacherData = async () => {
+            const teacherId = localStorage.getItem('teacherId');
+            if (!teacherId) return;
+            try {
+                const teacher = await teacherService.getTeacherById(teacherId);
+                const classes = teacher.assignedClasses || [];
+
+                const uniqueGrades = [...new Set(classes.map(c => {
+                    const m = c.match(/(?:Grade\s+|G)(\d+)/i);
+                    return m ? m[1] : null;
+                }).filter(Boolean))];
+
+                const wholeGradeOptions = uniqueGrades.map(g => `Whole Grade ${g}`);
+                const classOptions = [...wholeGradeOptions, ...classes];
+
+                const subjects = [];
+                if (teacher.primarySubject) {
+                    const name = typeof teacher.primarySubject === 'object' ? (teacher.primarySubject.subjectName || teacher.primarySubject.title) : teacher.primarySubject;
+                    if (name) subjects.push(name);
+                }
+                if (teacher.secondarySubject) {
+                    const name = typeof teacher.secondarySubject === 'object' ? (teacher.secondarySubject.subjectName || teacher.secondarySubject.title) : teacher.secondarySubject;
+                    if (name && !subjects.includes(name)) subjects.push(name);
+                }
+
+                setTeacherData({ classes, subjects, classOptions });
+                setNewResource(prev => ({
+                    ...prev,
+                    classRef: classOptions[0] || '',
+                    subject: subjects[0] || ''
+                }));
+            } catch (error) {
+                console.error("Failed to fetch teacher data:", error);
+            }
+        };
+        fetchTeacherData();
+    }, []);
 
     const fetchResources = async () => {
         const teacherId = localStorage.getItem('teacherId');
@@ -82,6 +132,22 @@ const Content = () => {
             return;
         }
 
+        let grade, section;
+        const wholeMatch = newResource.classRef.match(/Whole Grade\s+(\d+)/i);
+        if (wholeMatch) {
+            grade = wholeMatch[1];
+            section = 'ALL';
+        } else {
+            const classMatch = newResource.classRef.match(/(?:Grade\s+|G)(\d+)(?:\s*-\s*|\s*)([A-Za-z]+)/i);
+            if (classMatch) {
+                grade = classMatch[1];
+                section = classMatch[2].toUpperCase();
+            } else {
+                grade = newResource.classRef;
+                section = 'N/A';
+            }
+        }
+
         try {
             if (newResource.type === 'link') {
                 const entry = {
@@ -91,7 +157,10 @@ const Content = () => {
                     url: newResource.url,
                     teacherId: teacherId,
                     folderId: currentFolder?._id || null,
-                    size: '-'
+                    size: '-',
+                    grade: grade,
+                    section: section,
+                    subject: newResource.subject
                 };
                 await contentService.createResource(entry);
             } else {
@@ -103,7 +172,7 @@ const Content = () => {
                 // Upload each file as a separate resource
                 const uploadPromises = newResource.files.map(async (file) => {
                     const ext = file.name.split('.').pop().toLowerCase();
-                    const finalType = ext === 'pdf' ? 'pdf' : (ext === 'docx' || ext === 'doc' ? 'docx' : 'pdf');
+                    const finalType = ['pdf', 'docx', 'doc', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif'].includes(ext) ? ext : 'file';
 
                     // Convert file to Base64 for internal storage/preview
                     const base64 = await new Promise((resolve) => {
@@ -118,7 +187,10 @@ const Content = () => {
                         folderId: currentFolder?._id || null,
                         size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
                         fileName: file.name,
-                        fileUrl: base64
+                        fileUrl: base64,
+                        grade: grade,
+                        section: section,
+                        subject: newResource.subject
                     };
                     return contentService.createResource(entry);
                 });
@@ -128,7 +200,14 @@ const Content = () => {
 
             fetchResources();
             setIsResourceModalOpen(false);
-            setNewResource({ name: '', type: 'file', url: '', files: [] });
+            setNewResource({
+                name: '',
+                type: 'file',
+                url: '',
+                files: [],
+                classRef: teacherData.classOptions[0] || '',
+                subject: teacherData.subjects[0] || ''
+            });
             toast({ type: 'success', message: 'Resource(s) shared successfully.' });
         } catch (error) {
             toast({ type: 'error', message: 'Failed to share resource(s).' });
@@ -348,6 +427,48 @@ const Content = () => {
                                 </div>
                             </div>
 
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assigned Grade / Section</label>
+                                    <div className="relative group">
+                                        <select
+                                            required
+                                            value={newResource.classRef}
+                                            onChange={(e) => setNewResource({ ...newResource, classRef: e.target.value })}
+                                            className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-black dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-inner cursor-pointer uppercase tracking-[0.1em]"
+                                        >
+                                            {teacherData.classOptions.map(cls => <option key={cls} value={cls}>{cls}</option>)}
+                                        </select>
+                                        <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                                    </div>
+                                </div>
+
+                                {teacherData.subjects.length > 1 ? (
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teaching Subject</label>
+                                        <div className="relative group">
+                                            <select
+                                                required
+                                                value={newResource.subject}
+                                                onChange={(e) => setNewResource({ ...newResource, subject: e.target.value })}
+                                                className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-black dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-inner cursor-pointer uppercase tracking-[0.1em]"
+                                            >
+                                                {teacherData.subjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                                            </select>
+                                            <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subject</label>
+                                        <div className="w-full px-6 py-4 bg-slate-100 dark:bg-slate-800/50 rounded-2xl text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em] border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                                            {teacherData.subjects[0] || 'Unassigned'}
+                                            <BookOpen size={14} className="opacity-30" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {newResource.type === 'link' ? (
                                 <div className="space-y-8 animate-in slide-in-from-top-2 duration-200">
                                     <div className="space-y-3">
@@ -383,11 +504,14 @@ const Content = () => {
                                                 <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-emerald-500 transition-colors">
                                                     Click to upload or drag & drop
                                                 </span>
+                                                <p className="text-[9px] font-bold text-slate-600 mt-1 uppercase tracking-widest">
+                                                    PDF, DOCX, Images, Excel, PPT
+                                                </p>
                                                 <input
                                                     type="file"
                                                     multiple
                                                     className="hidden"
-                                                    accept=".pdf,.docx,.doc"
+                                                    accept=".pdf,.docx,.doc,image/*,.xlsx,.xls,.pptx,.ppt"
                                                     onChange={(e) => {
                                                         const selectedFiles = Array.from(e.target.files);
                                                         if (selectedFiles.length > 5) {
@@ -434,7 +558,7 @@ const Content = () => {
                                                                 type="file"
                                                                 multiple
                                                                 className="hidden"
-                                                                accept=".pdf,.docx,.doc"
+                                                                accept=".pdf,.docx,.doc,image/*,.xlsx,.xls,.pptx,.ppt"
                                                                 onChange={(e) => {
                                                                     const selectedFiles = Array.from(e.target.files);
                                                                     const remaining = 5 - newResource.files.length;

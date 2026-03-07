@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import notificationService from '../Api/notificationService';
 import NotificationModal from '../AdminComponents/NotificationModal';
+import PortalPopup from '../MainSystemComponents/PortalPopup';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import { toast } from '../MainSystemComponents/Toast';
 import gradeService from '../Api/gradeService';
@@ -398,10 +399,8 @@ const NotificationPage = () => {
       </div>
 
       {/* Message Preview Mini Panel */}
-      {previewItem && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => setPreviewItem(null)} />
-
+      <PortalPopup isOpen={!!previewItem} onClose={() => setPreviewItem(null)}>
+        {previewItem && (
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in slide-in-from-bottom-8 duration-300 overflow-hidden flex flex-col max-h-[85vh]">
 
             <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 flex items-start justify-between gap-6">
@@ -470,25 +469,27 @@ const NotificationPage = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </PortalPopup>
 
       {/* Creation Modal Component */}
-      <NotificationModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSend={handleSend}
-        newTitle={newTitle} setNewTitle={setNewTitle}
-        newMessage={newMessage} setNewMessage={setNewMessage}
-        newPriority={newPriority} setNewPriority={setNewPriority}
-        targetCategory={targetCategory} setTargetCategory={setTargetCategory}
-        targetDept={targetDept} setTargetDept={setTargetDept}
-        targetGrade={targetGrade} setTargetGrade={setTargetGrade}
-        targetSection={targetSection} setTargetSection={setTargetSection}
-        newSender={newSender} setNewSender={setNewSender}
-        newSenderType={newSenderType} setNewSenderType={setNewSenderType}
-        dbGrades={grades}
-      />
+      <PortalPopup isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <NotificationModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSend={handleSend}
+          newTitle={newTitle} setNewTitle={setNewTitle}
+          newMessage={newMessage} setNewMessage={setNewMessage}
+          newPriority={newPriority} setNewPriority={setNewPriority}
+          targetCategory={targetCategory} setTargetCategory={setTargetCategory}
+          targetDept={targetDept} setTargetDept={setTargetDept}
+          targetGrade={targetGrade} setTargetGrade={setTargetGrade}
+          targetSection={targetSection} setTargetSection={setTargetSection}
+          newSender={newSender} setNewSender={setNewSender}
+          newSenderType={newSenderType} setNewSenderType={setNewSenderType}
+          dbGrades={grades}
+        />
+      </PortalPopup>
 
 
 

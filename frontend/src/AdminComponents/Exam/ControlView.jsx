@@ -28,6 +28,7 @@ import {
 const ControlView = ({
   phases,
   togglePhase,
+  togglePublish,
   analyticsGrade,
   setAnalyticsGrade,
   analyticsSection,
@@ -82,8 +83,10 @@ const ControlView = ({
                 <thead>
                   <tr className="bg-slate-100/50 dark:bg-slate-800/50">
                     <th className="pl-10 py-6 text-[13px] font-black text-slate-400 tracking-tight text-left whitespace-nowrap">Examination Phase</th>
-                    <th className="px-6 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center w-full">Status</th>
-                    <th className="px-10 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center whitespace-nowrap">Action</th>
+                    <th className="px-6 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center">Portal Status</th>
+                    <th className="px-6 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center">Portal Action</th>
+                    <th className="px-6 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center">Result Status</th>
+                    <th className="px-10 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center whitespace-nowrap">Result Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -91,18 +94,29 @@ const ControlView = ({
                     <tr key={p.id} className="hover:bg-white dark:hover:bg-slate-800 transition-all">
                       <td className="pl-10 py-5 font-black text-sm text-slate-700 dark:text-slate-300 text-left whitespace-nowrap">{p.name}</td>
                       <td className="px-6 py-5 text-center">
-                        <span className={`px-6 py-2 rounded-2xl text-[11px] font-black tracking-tight border transition-all ${p.status === 'Open' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border-transparent'
-                          }`}>
+                        <span className={`px-6 py-2 rounded-2xl text-[11px] font-black tracking-tight border transition-all ${p.status === 'Open' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border-transparent'}`}>
                           {p.status === 'Open' ? 'Open' : 'Closed'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => togglePhase(p.id)}
+                          className={`px-8 py-3 rounded-2xl text-[11px] font-black tracking-tight transition-all shadow-lg active:scale-95 ${p.status === 'Open' ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600' : 'bg-emerald-600 text-white shadow-emerald-600/20 hover:bg-emerald-700'}`}
+                        >
+                          {p.status === 'Open' ? 'Close Portal' : 'Open Portal'}
+                        </button>
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <span className={`px-6 py-2 rounded-2xl text-[11px] font-black tracking-tight border transition-all ${p.publishStatus === 'Published' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border-transparent'}`}>
+                          {p.publishStatus}
                         </span>
                       </td>
                       <td className="px-10 py-5 text-center whitespace-nowrap">
                         <button
-                          onClick={() => togglePhase(p.id)}
-                          className={`px-8 py-3 rounded-2xl text-[11px] font-black tracking-tight transition-all shadow-lg active:scale-95 ${p.status === 'Open' ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600' : 'bg-emerald-600 text-white shadow-emerald-600/20 hover:bg-emerald-700'
-                            }`}
+                          onClick={() => togglePublish(p.id)}
+                          className={`px-8 py-3 rounded-2xl text-[11px] font-black tracking-tight transition-all shadow-lg active:scale-95 ${p.publishStatus === 'Published' ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600' : 'bg-emerald-600 text-white shadow-emerald-600/20 hover:bg-emerald-700'}`}
                         >
-                          {p.status === 'Open' ? 'Close Portal' : 'Open Portal'}
+                          {p.publishStatus === 'Published' ? 'Hide Results' : 'Publish Results'}
                         </button>
                       </td>
                     </tr>

@@ -66,8 +66,20 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
             toast({ type: 'error', message: 'Passwords do not match.' });
             return;
         }
-        if (newPassword.length < 6) {
-            toast({ type: 'error', message: 'Password must be at least 6 characters.' });
+
+        // Detailed Password Validation (Matching ResetPage.jsx)
+        const minLength = 8;
+        const hasUpperCase = /[A-Z]/.test(newPassword);
+        const hasLowerCase = /[a-z]/.test(newPassword);
+        const hasNumber = /[0-9]/.test(newPassword);
+        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+
+        if (newPassword.length < minLength) {
+            toast({ type: 'error', message: `Password must be at least ${minLength} characters.` });
+            return;
+        }
+        if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+            toast({ type: 'error', message: "Password must contain uppercase, lowercase, number, and special character." });
             return;
         }
 
@@ -92,7 +104,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
         <PortalPopup isOpen={isOpen} onClose={onClose}>
             <div className="w-full max-w-xl bg-[#111827] rounded-[32px] border border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                 {/* Header */}
-                <div className="px-10 pt-8 pb-6 flex items-start justify-between relative">
+                <div className="px-10 pt-8 pb-3 flex items-start justify-between relative">
                     <div className="space-y-1">
                         <h2 className="text-xl font-black text-white tracking-tight uppercase">Reset Password</h2>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
@@ -110,7 +122,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                 <div className="h-px bg-slate-800/50 w-full" />
 
                 {/* Form */}
-                <form onSubmit={handleResetPassword} className="p-10 space-y-7">
+                <form onSubmit={handleResetPassword} className="p-10 pt-6 space-y-6">
                     {/* Email Row */}
                     <div className="space-y-2.5">
                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Email Address</label>
@@ -125,7 +137,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     disabled={otpSent}
                                     placeholder="email@example.com"
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all disabled:opacity-50"
+                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all disabled:opacity-50"
                                 />
                             </div>
                             <button
@@ -153,7 +165,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                     disabled={otpVerified}
                                     placeholder="6-digit OTP"
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all disabled:opacity-50"
+                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all disabled:opacity-50"
                                 />
                             </div>
                             <button
@@ -168,36 +180,51 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                     </div>
 
                     {/* Password Fields */}
-                    <div className={`space-y-5 transition-all duration-500 ${otpVerified ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none'}`}>
-                        <div className="space-y-2.5">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">New Password</label>
-                            <div className="relative group">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors">
-                                    <Lock size={16} />
+                    <div className={`space-y-4 transition-all duration-500 ${otpVerified ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none'}`}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">New Password</label>
+                                <div className="relative group">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors">
+                                        <Lock size={16} />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all"
+                                    />
                                 </div>
-                                <input
-                                    type="password"
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all"
-                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Confirm Password</label>
+                                <div className="relative group">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors">
+                                        <Lock size={16} />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all"
+                                    />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="space-y-2.5">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Confirm Password</label>
-                            <div className="relative group">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors">
-                                    <Lock size={16} />
-                                </div>
-                                <input
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all"
-                                />
+                        {/* Password Requirements Indicator (Matching ResetPage.jsx) */}
+                        <div className="bg-slate-900/80 p-5 rounded-[20px] border border-slate-800 shadow-inner">
+                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Security Requirements</p>
+                            <div className="grid grid-cols-2 gap-y-2.5">
+                                <RequirementItem label="8+ Characters" met={newPassword.length >= 8} />
+                                <RequirementItem label="Uppercase letter" met={/[A-Z]/.test(newPassword)} />
+                                <RequirementItem label="Lowercase letter" met={/[a-z]/.test(newPassword)} />
+                                <RequirementItem label="Numeric digit" met={/[0-9]/.test(newPassword)} />
+                                <RequirementItem label="Special symbol" met={/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)} />
+                                <RequirementItem label="Passwords Match" met={newPassword !== '' && newPassword === confirmPassword} />
                             </div>
                         </div>
                     </div>
@@ -205,7 +232,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                     <button
                         type="submit"
                         disabled={isResetting || !otpVerified}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/10 transition-all active:scale-[0.98] flex items-center justify-center gap-3 mt-4"
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/10 transition-all active:scale-[0.98] flex items-center justify-center gap-3 mt-2"
                     >
                         {isResetting ? (
                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -221,5 +248,14 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
         </PortalPopup>
     );
 };
+
+const RequirementItem = ({ label, met }) => (
+    <div className="flex items-center gap-2.5">
+        <div className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${met ? 'bg-emerald-500' : 'bg-slate-700 shadow-inner'}`} />
+        <span className={`text-[10px] font-bold transition-all duration-300 ${met ? 'text-emerald-500' : 'text-slate-500'}`}>
+            {label}
+        </span>
+    </div>
+);
 
 export default ForgotPasswordModal;

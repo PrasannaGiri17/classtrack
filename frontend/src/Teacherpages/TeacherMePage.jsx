@@ -26,6 +26,7 @@ import timetableService from "../Api/timetableService";
 import { toast } from "../MainSystemComponents/Toast";
 import Loading from "../MainSystemComponents/Loading";
 import ConfirmDialog from "../MainSystemComponents/ConfirmDialog";
+import PhotoCropModal from "../MainSystemComponents/PhotoCropModal";
 
 const calculateAge = (birthDate) => {
     if (!birthDate) return "";
@@ -48,7 +49,9 @@ const TeacherMePage = () => {
     const [schoolConfig, setSchoolConfig] = useState(null);
     const [teacher, setTeacher] = useState(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isCropModalOpen, setIsCropModalOpen] = useState(false);
     const [pendingPhoto, setPendingPhoto] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
@@ -179,17 +182,23 @@ const TeacherMePage = () => {
         const file = e.target.files[0];
         if (file) {
             // Optional basic size check, e.g. < 5MB
-            if (file.size > 5 * 1024 * 1024) {
-                toast({ type: 'error', message: "Image size should be less than 5MB." });
+            if (file.size > 10 * 1024 * 1024) {
+                toast({ type: 'error', message: "Image size should be less than 10MB." });
                 return;
             }
             const reader = new FileReader();
             reader.onloadend = () => {
-                setPendingPhoto(reader.result);
-                setIsConfirmOpen(true);
+                setSelectedFile(reader.result);
+                setIsCropModalOpen(true);
             };
             reader.readAsDataURL(file);
         }
+    };
+
+    const handleCropDone = (croppedImage) => {
+        setPendingPhoto(croppedImage);
+        setIsCropModalOpen(false);
+        setIsConfirmOpen(true);
     };
 
     const confirmPhotoChange = async () => {
@@ -243,6 +252,7 @@ const TeacherMePage = () => {
         } finally {
             setIsUploading(false);
             setPendingPhoto(null);
+            setSelectedFile(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
@@ -620,11 +630,27 @@ const TeacherMePage = () => {
                 onClose={() => {
                     setIsConfirmOpen(false);
                     setPendingPhoto(null);
+                    setSelectedFile(null);
                     if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
                 onConfirm={confirmPhotoChange}
                 title="Change Profile Photo?"
                 message="Are you sure you want to set this new image as your profile photo?"
+            />
+
+            <PhotoCropModal
+                isOpen={isCropModalOpen}
+                image={selectedFile}
+                onClose={() => {
+                    setIsCropModalOpen(false);
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                onDone={handleCropDone}
+                onChange={() => {
+                    setIsCropModalOpen(false);
+                    fileInputRef.current?.click();
+                }}
             />
 
             <ForgotPasswordModal

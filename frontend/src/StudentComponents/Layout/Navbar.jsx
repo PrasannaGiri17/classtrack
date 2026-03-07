@@ -18,9 +18,50 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
-
   const notificationRef = useRef(null);
   const searchRef = useRef(null);
+  const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
+  const [userPhoto, setUserPhoto] = useState(localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200");
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const role = localStorage.getItem("role");
+        const studentId = localStorage.getItem("studentId");
+        const teacherId = localStorage.getItem("teacherId");
+        const url = role === "student" ? `http://localhost:7000/api/students/${studentId}` : (role === "teacher" ? `http://localhost:7000/api/teachers/${teacherId}` : null);
+
+        if (url && studentId || teacherId) {
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data) {
+            const name = `${data.firstName} ${data.lastName || ''}`.trim();
+            setUserName(name);
+            localStorage.setItem("userName", name);
+            if (data.profilePhoto) {
+              setUserPhoto(data.profilePhoto);
+              localStorage.setItem("userPhoto", data.profilePhoto);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch user in Navbar", err);
+      }
+    };
+
+    const forceUpdate = () => {
+      setUserName(localStorage.getItem("userName") || "Student");
+      setUserPhoto(localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200");
+    };
+
+    window.addEventListener('profileUpdated', forceUpdate);
+
+    if (userName === "Student" || userName === "User" || !localStorage.getItem("userPhoto")) {
+      fetchUserData();
+    }
+
+    return () => window.removeEventListener('profileUpdated', forceUpdate);
+  }, []);
 
   const getPageDisplayName = () => {
     const pageNames = {
@@ -161,8 +202,8 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         <button
           onClick={() => setShowNotifications(!showNotifications)}
           className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all relative ${showNotifications
-              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none'
-              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400'
+            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none'
+            : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400'
             }`}
         >
           <Bell className="w-5 h-5" />
@@ -211,13 +252,15 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         >
           <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
             <img
-              src="https://picsum.photos/seed/admin/200/200"
+              src={userPhoto}
               alt="Profile"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="hidden sm:block">
-            <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">Cristiano Ronaldo</p>
+            <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">
+              {userName}
+            </p>
             <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase transition-colors">Student Profile</p>
           </div>
         </button>

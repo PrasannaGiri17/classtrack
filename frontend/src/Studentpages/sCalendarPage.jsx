@@ -37,7 +37,8 @@ const SCalendarPage = () => {
         params: {
           school_id: 1,
           from,
-          to
+          to,
+          createdBy: localStorage.getItem('studentId')
         }
       });
       setEvents(response.data);
@@ -262,6 +263,8 @@ const SCalendarPage = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onEventAdded={fetchEvents}
+        isStudentView={true}
+        studentId={localStorage.getItem('studentId')}
       />
 
       <ConfirmDialog

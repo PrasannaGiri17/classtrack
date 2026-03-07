@@ -16,10 +16,17 @@ import {
   User,
   Upload,
   Send,
-  AlertCircle
+  AlertCircle,
+  Download as DownloadIcon
 } from 'lucide-react';
 import { toast } from '../MainSystemComponents/Toast';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
+import assignmentService from '../Api/assignmentService';
+import contentService from '../Api/contentService';
+import studentService from '../Api/studentService';
+import calendarService from '../Api/calendarService';
+import { useEffect, useCallback } from 'react';
+import { Loader2 } from 'lucide-react';
 
 // --- Mock Data ---
 const CURRENT_STUDENT_NAME = "Cristiano Ronaldo";
@@ -135,78 +142,122 @@ const SAssignmentsContent = () => {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [submissionFile, setSubmissionFile] = useState(null);
 
-  const [assignments] = useState(INITIAL_ASSIGNMENTS);
-  const [resources] = useState(INITIAL_RESOURCES);
-  const [allSubmissions, setAllSubmissions] = useState(MOCK_SUBMISSIONS);
+  const [assignments, setAssignments] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [allSubmissions, setAllSubmissions] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [studentData, setStudentData] = useState(null);
 
   // Accordion/Layout State
   const [isOpenSectionExpanded, setIsOpenSectionExpanded] = useState(true);
   const [isClosedSectionExpanded, setIsClosedSectionExpanded] = useState(true);
 
-  // --- Logic Helpers ---
-  const isPastDeadline = (closeTime) => {
-    return new Date() > new Date(closeTime);
-  };
+  const fetchStudentBoard = useCallback(async () => {
+    const studentId = localStorage.getItem('studentId');
+    if (!studentId || studentId === 'undefined' || studentId === 'null') {
+      toast({ type: 'error', message: 'Session expired. Please login again.' });
+      setLoading(false);
+      return;
+    }
 
-  const openAssignments = useMemo(() =>
-    assignments.filter(a => !isPastDeadline(a.closeTime)),
-    [assignments]);
+    try {
+      setLoading(true);
+      const student = await studentService.getStudentById(studentId);
+      setStudentData(student);
 
-  const closedAssignments = useMemo(() =>
-    assignments.filter(a => isPastDeadline(a.closeTime)),
-    [assignments]);
+      if (student) {
+        const grade = student.studentClass;
+        const sectionName = student.sectionId?.sectionName || student.sectionId || 'ALL';
 
-  const viewFullReport = (id) => {
-    setSelectedAssignmentId(id);
-    setActiveTab('report');
-  };
+        const [assignmentData, resourceData] = await Promise.all([
+          assignmentService.getStudentAssignments(grade, sectionName, studentId),
+          contentService.getStudentResources(grade, sectionName)
+        ]);
+
+        setAssignments(assignmentData);
+        setResources(resourceData);
+
+        const submissionsMap = {};
+        assignmentData.forEach(a => {
+          if (a.submissions) {
+            submissionsMap[a._id || a.id] = a.submissions;
+          }
+        });
+        setAllSubmissions(submissionsMap);
+      }
+    } catch (error) {
+      console.error("Initialization error:", error);
+      toast({ type: 'error', message: 'Failed to synchronize data.' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStudentBoard();
+  }, [fetchStudentBoard]);
 
   const handleOpenSubmit = (id) => {
     setSelectedAssignmentId(id);
     setIsSubmitModalOpen(true);
   };
 
-  const handleSubmitWork = (e) => {
+  const handleSubmitWork = async (e) => {
     e.preventDefault();
     if (!submissionFile) {
       toast({ type: 'error', message: 'Please select a file to submit.' });
       return;
     }
-    // Simulate submission
-    toast({ type: 'success', message: 'Assignment submitted successfully!' });
-    setIsSubmitModalOpen(false);
-    setSubmissionFile(null);
+
+    const studentId = localStorage.getItem('studentId');
+    if (!studentId) {
+      toast({ type: 'error', message: 'Session expired. Please login again.' });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const base64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(submissionFile);
+      });
+
+      const submissionData = {
+        studentId: studentId,
+        studentName: `${studentData.firstName} ${studentData.lastName}`,
+        fileName: submissionFile.name,
+        fileUrl: base64
+      };
+
+      await assignmentService.submitAssignment(selectedAssignmentId, submissionData);
+      await fetchStudentBoard();
+
+      toast({ type: 'success', message: 'Assignment submitted successfully!' });
+      setIsSubmitModalOpen(false);
+      setSubmissionFile(null);
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast({ type: 'error', message: error.response?.data?.message || 'Failed to submit assignment.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateSubmissionGrading = (submissionId, status) => {
-    if (!selectedAssignmentId) return;
+  const openAssignments = useMemo(() =>
+    assignments.filter(a => a.status === 'open' || a.status === 'late'),
+    [assignments]);
 
-    setAllSubmissions(prev => ({
-      ...prev,
-      [selectedAssignmentId]: prev[selectedAssignmentId].map(sub =>
-        sub.id === submissionId ? { ...sub, gradingStatus: status } : sub
-      )
-    }));
+  const closedAssignments = useMemo(() =>
+    assignments.filter(a => a.status === 'closed'),
+    [assignments]);
 
-    const msg = status === 'pass' ? 'Marked as Completed' : status === 'fail' ? 'Marked as Incomplete' : 'Grading reset';
-    toast({ type: 'success', message: msg });
-  };
-
-  const updateSubmissionRemark = (submissionId, remark) => {
-    if (!selectedAssignmentId) return;
-
-    setAllSubmissions(prev => ({
-      ...prev,
-      [selectedAssignmentId]: prev[selectedAssignmentId].map(sub =>
-        sub.id === submissionId ? { ...sub, remark } : sub
-      )
-    }));
-  };
-
-  // --- Card Component ---
-  const AssignmentCard = ({ a, isClosed }) => {
-    const isLocked = a.isManuallyLocked;
-    const hasSubmitted = (allSubmissions[a.id] || []).some(s => s.studentName === CURRENT_STUDENT_NAME);
+  // --- Sub-component: AssignmentCard ---
+  const AssignmentCard = ({ a }) => {
+    const isOpen = a.status === 'open' || a.status === 'late';
+    const cardId = a._id || a.id;
+    const mySubmission = (allSubmissions[cardId] || []).find(s => s.studentId?.toString() === studentData?._id?.toString());
+    const hasSubmitted = !!mySubmission;
 
     return (
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-md transition-all group">
@@ -224,67 +275,90 @@ const SAssignmentsContent = () => {
           <div className="flex flex-wrap items-center gap-6 text-[11px] text-slate-400 font-medium mb-6">
             <div className="flex items-center gap-2">
               <FileText size={14} className="text-slate-300" />
-              {a.createdAt}
+              {new Date(a.createdAt).toLocaleDateString()}
             </div>
             <div className="flex items-center gap-2">
               <Clock size={14} className="text-slate-300" />
               {new Date(a.closeTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} NPT
             </div>
-
             <div className="flex items-center gap-2 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-800/50">
               <BookOpen size={12} />
-              <span className="font-black uppercase tracking-widest">{a.subject || 'Math'}</span>
+              <span className="font-black uppercase tracking-widest">{a.subject}</span>
             </div>
+
             {a.fileName && (
-              <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 dark:bg-slate-800/50 text-slate-500 rounded-lg border border-slate-100 dark:border-slate-800">
-                <Paperclip size={12} />
-                <span className="font-bold tracking-tight truncate max-w-[120px]">{a.fileName}</span>
+              <div className="flex flex-wrap gap-2">
+                {(() => {
+                  const names = a.fileName.split(', ').filter(Boolean);
+                  return names.map((name, idx) => {
+                    const url = a.questionFileUrls?.[idx];
+                    return (
+                      <a
+                        key={idx}
+                        href={url || '#'}
+                        download={name}
+                        onClick={(e) => { if (!url) { e.preventDefault(); toast({ type: 'info', message: 'Attachment data is not available for download.' }); } }}
+                        className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 dark:bg-slate-800/50 text-slate-500 hover:text-emerald-600 transition-all rounded-lg border border-slate-100 dark:border-slate-800 group/file"
+                      >
+                        <Paperclip size={12} className="group-hover/file:scale-110 transition-transform" />
+                        <span className="font-bold tracking-tight truncate max-w-[150px]">{name}</span>
+                        {url && <DownloadIcon size={10} className="opacity-0 group-hover/file:opacity-100 transition-opacity" />}
+                      </a>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800">
-            {!isClosed ? (
+            {hasSubmitted ? (
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/10 dark:text-emerald-400 dark:border-emerald-800/50`}>
+                <Check size={14} strokeWidth={3} />
+                {(mySubmission?.submittedAt && new Date(mySubmission.submittedAt) > new Date(a.closeTime)) ? 'Submitted Late' : 'Submitted'}
+              </div>
+            ) : isOpen ? (
               <button
-                onClick={() => handleOpenSubmit(a.id)}
-                disabled={isLocked}
-                className={`flex items-center gap-3 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLocked
-                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-50'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95'
-                  }`}
+                onClick={() => handleOpenSubmit(cardId)}
+                className="flex items-center gap-3 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 active:scale-95"
               >
-                {isLocked ? <FileBox size={14} /> : <Upload size={14} />}
-                {isLocked ? 'Portal Locked' : 'Submit Work'}
+                <Upload size={14} />
+                Submit Work {a.status === 'late' && '(Late)'}
               </button>
             ) : (
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors ${hasSubmitted
-                ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/10 dark:text-emerald-400 dark:border-emerald-800/50'
-                : 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-800/50'
-                }`}>
-                {hasSubmitted ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
-                {hasSubmitted ? 'Submitted' : 'Not Submitted'}
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors bg-red-50 text-red-600 border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-800/50">
+                <X size={14} strokeWidth={3} />
+                Not Submitted
               </div>
             )}
 
-            <button
-              onClick={() => viewFullReport(a.id)}
-              className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors"
-            >
-              <FileSpreadsheet size={14} />
-              <span className="text-[11px] font-medium">View Report</span>
-            </button>
+            {hasSubmitted && mySubmission?.remark && (
+              <div className="flex flex-col gap-1 max-w-[200px]">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Teacher's Remark</span>
+                <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 italic truncate">
+                  "{mySubmission.remark}"
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
     );
   };
 
-  const activeAssignment = assignments.find(a => a.id === (selectedAssignmentId || ''));
-  const submissions = selectedAssignmentId ? (allSubmissions[selectedAssignmentId] || []) : [];
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Synchronizing Academic Data...</p>
+      </div>
+    );
+  }
+
+  const activeAssignment = assignments.find(a => (a._id || a.id) === selectedAssignmentId);
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">
-      {/* Header & Tabs */}
       <div className="flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
@@ -298,64 +372,36 @@ const SAssignmentsContent = () => {
           </div>
         </div>
 
-        {/* Tab Selector */}
         <div className="flex border-b border-slate-100 dark:border-slate-800">
           <button
             onClick={() => setActiveTab('assignments')}
-            className={`px-8 py-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'assignments' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
-              }`}
+            className={`px-8 py-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'assignments' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <span className="flex items-center gap-2">
-              <FileText size={16} /> Assignments
-            </span>
-            {activeTab === 'assignments' && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full" />
-            )}
+            <span className="flex items-center gap-2"><FileText size={16} /> Assignments</span>
+            {activeTab === 'assignments' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full" />}
           </button>
           <button
             onClick={() => setActiveTab('content')}
-            className={`px-8 py-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'content' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
-              }`}
+            className={`px-8 py-4 text-xs font-black uppercase tracking-widest transition-all relative ${activeTab === 'content' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <span className="flex items-center gap-2">
-              <Folder size={16} /> Teacher's Content
-            </span>
-            {activeTab === 'content' && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full" />
-            )}
+            <span className="flex items-center gap-2"><Folder size={16} /> Teacher's Content</span>
+            {activeTab === 'content' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full" />}
           </button>
-          {activeTab === 'report' && (
-            <button
-              className="px-8 py-4 text-xs font-black uppercase tracking-widest transition-all relative text-emerald-600"
-            >
-              <span className="flex items-center gap-2">
-                <FileSpreadsheet size={16} /> Submission Report
-              </span>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-t-full" />
-            </button>
-          )}
         </div>
       </div>
 
       {activeTab === 'assignments' ? (
         <div className="space-y-8">
-          {/* Assignments Sections */}
           <div className="space-y-6">
             <div className="space-y-4">
-              <button
-                onClick={() => setIsOpenSectionExpanded(!isOpenSectionExpanded)}
-                className="flex items-center gap-3 w-fit group"
-              >
-                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">
-                  Open Assignments ({openAssignments.length})
-                </h3>
+              <button onClick={() => setIsOpenSectionExpanded(!isOpenSectionExpanded)} className="flex items-center gap-3 w-fit group">
+                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Open Assignments ({openAssignments.length})</h3>
                 <ChevronDown className={`text-slate-400 group-hover:text-emerald-600 transition-all ${isOpenSectionExpanded ? '' : '-rotate-90'}`} size={18} />
               </button>
-
               {isOpenSectionExpanded && (
                 <div className="grid grid-cols-1 gap-4 animate-in slide-in-from-top-2 duration-300">
                   {openAssignments.length > 0 ? (
-                    openAssignments.map(a => <AssignmentCard key={a.id} a={a} isClosed={false} />)
+                    openAssignments.map(a => <AssignmentCard key={a._id || a.id} a={a} />)
                   ) : (
                     <div className="py-20 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-800 text-slate-400">
                       <FileText size={40} className="opacity-10 mb-4" />
@@ -367,20 +413,14 @@ const SAssignmentsContent = () => {
             </div>
 
             <div className="space-y-4">
-              <button
-                onClick={() => setIsClosedSectionExpanded(!isClosedSectionExpanded)}
-                className="flex items-center gap-3 w-fit group"
-              >
-                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">
-                  Closed Assignment ({closedAssignments.length})
-                </h3>
+              <button onClick={() => setIsClosedSectionExpanded(!isClosedSectionExpanded)} className="flex items-center gap-3 w-fit group">
+                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Closed Assignment ({closedAssignments.length})</h3>
                 <ChevronDown className={`text-slate-400 group-hover:text-emerald-600 transition-all ${isClosedSectionExpanded ? '' : '-rotate-90'}`} size={18} />
               </button>
-
               {isClosedSectionExpanded && (
                 <div className="grid grid-cols-1 gap-4 animate-in slide-in-from-top-2 duration-300">
                   {closedAssignments.length > 0 ? (
-                    closedAssignments.map(a => <AssignmentCard key={a.id} a={a} isClosed={true} />)
+                    closedAssignments.map(a => <AssignmentCard key={a._id || a.id} a={a} />)
                   ) : (
                     <div className="py-20 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-800 text-slate-400">
                       <FileText size={40} className="opacity-10 mb-4" />
@@ -392,7 +432,7 @@ const SAssignmentsContent = () => {
             </div>
           </div>
         </div>
-      ) : activeTab === 'content' ? (
+      ) : (
         <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors h-auto">
           <div className="w-full overflow-x-auto scrollbar-hide">
             <table className="w-full min-w-[1000px] text-left">
@@ -402,170 +442,39 @@ const SAssignmentsContent = () => {
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Teacher</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Subject</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Shared On</th>
-                  <th className="pr-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Size</th>
+                  <th className="pr-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Download</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                 {resources.map((r) => (
-                  <tr key={r.id} className="group hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-all cursor-pointer">
+                  <tr key={r._id || r.id} className="group hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-all cursor-pointer">
                     <td className="pl-12 pr-6 py-6">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${r.type === 'folder' ? 'bg-amber-50 text-amber-500' :
-                          r.type === 'link' ? 'bg-emerald-50 text-emerald-500' :
-                            'bg-emerald-50 text-emerald-500'
-                          }`}>
-                          {r.type === 'folder' ? <Folder size={18} /> :
-                            r.type === 'link' ? <LinkIcon size={18} /> :
-                              <FileText size={18} />}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${r.type === 'folder' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                          {r.type === 'folder' ? <Folder size={18} /> : r.type === 'link' ? <LinkIcon size={18} /> : <FileText size={18} />}
                         </div>
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 transition-colors">
-                          {r.name}
-                        </span>
+                        <a href={r.fileUrl || r.url} download={r.name} className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 transition-colors">{r.name}</a>
                       </div>
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-6 py-6 font-bold text-slate-500">
                       <div className="flex items-center gap-2">
                         <User size={14} className="text-slate-400" />
-                        <span className="text-xs font-bold text-slate-500">{r.teacherName}</span>
+                        <span className="text-xs font-bold text-slate-500">{r.teacherName || 'Instructor'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-6">
-                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/10">
-                        {r.subject}
-                      </span>
+                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/10">{r.subject}</span>
                     </td>
-                    <td className="px-6 py-6 text-xs font-bold text-slate-500">{r.sharedOn}</td>
-                    <td className="pr-12 py-6 text-xs font-bold text-slate-500">{r.size}</td>
+                    <td className="px-6 py-6 text-xs font-bold text-slate-500">{new Date(r.sharedOn).toLocaleDateString()}</td>
+                    <td className="pr-12 py-6">
+                      <div className="flex items-center justify-end">
+                        <a href={r.fileUrl || r.url} download={r.name} className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-500 rounded-lg transition-all"><DownloadIcon size={16} /></a>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      ) : (
-        /* Submission Report View */
-        <div className="space-y-6 animate-in fade-in duration-500">
-          <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="p-10 border-b border-slate-50 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
-                <button
-                  onClick={() => setActiveTab('assignments')}
-                  className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer group mb-6"
-                >
-                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30 transition-all">
-                    <ChevronLeft className="w-4 h-4" />
-                  </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Back to Assignments</span>
-                </button>
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-none">
-                  {activeAssignment?.title}
-                </h2>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2">
-                  Submission Tracking & Grading Report
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest border border-indigo-100 dark:border-indigo-800/50">
-                  {activeAssignment?.subject}
-                </div>
-              </div>
-            </div>
-
-            <div className="w-full overflow-x-auto scrollbar-hide">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                    <th className="pl-12 pr-4 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest w-[80px]">No.</th>
-                    <th className="px-4 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Name</th>
-                    <th className="px-4 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time of Submission</th>
-                    <th className="px-4 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">File Submitted</th>
-                    <th className="px-4 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Remark</th>
-                    <th className="pr-12 pl-4 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Result</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                  {submissions.map((sub, index) => (
-                    <tr key={sub.id} className="group hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-all">
-                      <td className="pl-12 pr-4 py-5">
-                        <span className="text-xs font-bold text-slate-400">{(index + 1).toString().padStart(2, '0')}</span>
-                      </td>
-                      <td className="px-4 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 font-black text-xs">
-                            {sub.studentName[0]}
-                          </div>
-                          <span className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{sub.studentName}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-5">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                          <Clock size={14} className="text-slate-300" />
-                          {sub.submittedAt}
-                        </div>
-                      </td>
-                      <td className="px-4 py-5">
-                        <a
-                          href={sub.fileUrl}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-500 hover:text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all group/file"
-                        >
-                          <Paperclip size={12} className="group-hover/file:scale-110 transition-transform" />
-                          {sub.fileName}
-                        </a>
-                      </td>
-                      <td className="px-4 py-5">
-                        <input
-                          type="text"
-                          placeholder="Teacher's Remark..."
-                          value={sub.remark}
-                          onChange={(e) => updateSubmissionRemark(sub.id, e.target.value)}
-                          className="w-full min-w-[200px] px-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-inner"
-                        />
-                      </td>
-                      <td className="pr-12 pl-4 py-5">
-                        <div className="flex items-center justify-center gap-3">
-                          {/* PASS BUTTON (TICK) */}
-                          <button
-                            onClick={() => updateSubmissionGrading(sub.id, sub.gradingStatus === 'pass' ? 'none' : 'pass')}
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${sub.gradingStatus === 'pass'
-                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500'
-                              }`}
-                            title="Mark as Completed"
-                          >
-                            <Check size={18} strokeWidth={3} />
-                          </button>
-
-                          {/* FAIL BUTTON (CROSS) - Hidden if Pass is chosen as requested, but visible otherwise */}
-                          {sub.gradingStatus !== 'pass' && (
-                            <button
-                              onClick={() => updateSubmissionGrading(sub.id, sub.gradingStatus === 'fail' ? 'none' : 'fail')}
-                              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all animate-in fade-in zoom-in-90 ${sub.gradingStatus === 'fail'
-                                ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500'
-                                }`}
-                              title="Mark as Incomplete"
-                            >
-                              <X size={18} strokeWidth={3} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {submissions.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-20 text-center">
-                        <div className="flex flex-col items-center gap-4 text-slate-300 opacity-30">
-                          <GraduationCap size={48} />
-                          <p className="text-[10px] font-black uppercase tracking-[0.4em]">No submissions recorded yet</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       )}
@@ -575,9 +484,7 @@ const SAssignmentsContent = () => {
         <div className="bg-white dark:bg-slate-900 w-[95vw] max-w-2xl rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col pointer-events-auto">
           <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-600/20">
-                <Upload size={24} />
-              </div>
+              <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-600/20"><Upload size={24} /></div>
               <div>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">Submit Work</h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{activeAssignment?.title}</p>
@@ -593,44 +500,22 @@ const SAssignmentsContent = () => {
                 <div className="flex flex-col items-center space-y-4">
                   <Upload className={`w-12 h-12 ${submissionFile ? 'text-emerald-500' : 'text-slate-300 group-hover:text-emerald-500/50'}`} />
                   <div className="text-center">
-                    <p className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">
-                      {submissionFile ? submissionFile.name : 'Click to select or drag & drop'}
-                    </p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                      PDF, DOCX or ZIP (Max 10MB)
-                    </p>
+                    <p className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight">{submissionFile ? submissionFile.name : 'Click to select or drag & drop'}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">PDF, DOCX or ZIP (Max 10MB)</p>
                   </div>
                 </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => setSubmissionFile(e.target.files?.[0] || null)}
-                />
+                <input type="file" className="hidden" onChange={(e) => setSubmissionFile(e.target.files?.[0] || null)} />
               </label>
             </div>
 
             <div className="p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[28px] border border-emerald-100 dark:border-emerald-900/30 flex items-start gap-4">
               <AlertCircle size={20} className="text-emerald-500 shrink-0 mt-0.5" />
-              <p className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">
-                Important: Ensure your file is correctly named before submitting. You can only submit once per assignment unless re-opened by your teacher.
-              </p>
+              <p className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">Important: Ensure your file is correctly named before submitting. You can only submit once per assignment unless re-opened by your teacher.</p>
             </div>
 
             <div className="flex gap-6 pt-4">
-              <button
-                type="button"
-                onClick={() => setIsSubmitModalOpen(false)}
-                className="flex-1 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-2xl shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-3"
-              >
-                <Send size={18} />
-                Submit Now
-              </button>
+              <button type="button" onClick={() => setIsSubmitModalOpen(false)} className="flex-1 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all">Cancel</button>
+              <button type="submit" className="flex-1 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all shadow-2xl shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-3"><Send size={18} />Submit Now</button>
             </div>
           </form>
         </div>

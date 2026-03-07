@@ -31,70 +31,12 @@ import {
   Cell,
   ReferenceLine
 } from 'recharts';
+import axios from 'axios';
 import { toast } from '../MainSystemComponents/Toast';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
 
-// --- Mock Data (Student View) ---
-const INITIAL_QUIZZES = [
-  {
-    id: 'q1',
-    title: 'Algebraic Expressions Mid-Review',
-    subject: 'Mathematics',
-    grade: 'G9',
-    section: 'A',
-    startTime: new Date().toISOString(),
-    endTime: new Date(Date.now() + 86400000).toISOString(),
-    status: 'Available',
-    timeLimitMinutes: 15,
-    questions: [
-      { id: '1', text: 'What is the value of x in 2x + 5 = 15?', options: ['x = 5', 'x = 10', 'x = 2', 'x = 7'], correctIndex: 0 },
-      { id: '2', text: 'Simplify: 3(x + 4) - 2x', options: ['x + 12', '5x + 12', 'x + 4', 'x + 7'], correctIndex: 0 },
-      { id: '3', text: 'What is a coefficient?', options: ['A number multiplied by a variable', 'A letter representing a number', 'A fixed value', 'An operator'], correctIndex: 0 }
-    ]
-  },
-  {
-    id: 'q2',
-    title: 'Introduction to React Hooks',
-    subject: 'Computer Science',
-    grade: 'G10',
-    section: 'C',
-    startTime: new Date(Date.now() - 172800000).toISOString(),
-    endTime: new Date(Date.now() - 86400000).toISOString(),
-    status: 'Completed',
-    timeLimitMinutes: 10,
-    myScore: 100,
-    submittedAt: new Date(Date.now() - 100000000).toISOString(),
-    timeSpentMinutes: 7,
-    questions: []
-  },
-  {
-    id: 'q3',
-    title: 'Cell Biology Fundamentals',
-    subject: 'Science',
-    grade: 'G6',
-    section: 'B',
-    startTime: new Date(Date.now() - 345600000).toISOString(),
-    endTime: new Date(Date.now() - 259200000).toISOString(),
-    status: 'Expired',
-    timeLimitMinutes: 20,
-    questions: []
-  }
-];
-
-const MOCK_ANALYTICS = {
-  'q2': {
-    averageScore: 82,
-    totalAttempts: 45,
-    distribution: [
-      { range: '0-20', count: 2 },
-      { range: '21-40', count: 4 },
-      { range: '41-60', count: 8 },
-      { range: '61-80', count: 15 },
-      { range: '81-100', count: 16 }
-    ]
-  }
-};
+const BASE_URL = 'http://localhost:7000/api';
 
 const QuizResultModal = ({ isOpen, onClose, quiz, analytics }) => {
   if (!quiz) return null;
@@ -210,7 +152,7 @@ const QuizResultModal = ({ isOpen, onClose, quiz, analytics }) => {
           <div className="p-8 bg-emerald-600 dark:bg-emerald-700 rounded-[32px] text-white flex items-center justify-between relative overflow-hidden group">
             <div className="relative z-10 flex items-center gap-8">
               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                <TrendingUp size={32} />
+                <Brain size={32} />
               </div>
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-100 mb-1">Peer Insights</p>
@@ -242,8 +184,11 @@ const QuizResultModal = ({ isOpen, onClose, quiz, analytics }) => {
 };
 
 const SQuizPage = () => {
-  const [quizzes, setQuizzes] = useState(INITIAL_QUIZZES);
+  const [quizzes, setQuizzes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('available');
+
+  const studentId = localStorage.getItem('studentId');
 
   // Quiz Playing State
   const [playingQuiz, setPlayingQuiz] = useState(null);
@@ -258,12 +203,69 @@ const SQuizPage = () => {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [currentAnalytics, setCurrentAnalytics] = useState(null);
 
+  // Fetch quizzes from backend
+  const fetchQuizzes = async () => {
+    try {
+      setLoading(true);
+      if (!studentId) {
+        toast({ type: 'error', message: 'Student ID not found. Please log in again.' });
+        setLoading(false);
+        return;
+      }
+
+      const [quizzesRes, attemptsRes] = await Promise.all([
+        axios.get(`${BASE_URL}/quizzes`),
+        axios.get(`${BASE_URL}/student/quiz/attempts/${studentId}`)
+      ]);
+
+      const attemptsMap = {};
+      attemptsRes.data.forEach(a => {
+        attemptsMap[a.quizId._id || a.quizId] = a;
+      });
+
+      setQuizzes(quizzesRes.data.map(q => {
+        const attempt = attemptsMap[q._id];
+        const now = new Date();
+        const start = new Date(q.startTime);
+        const end = new Date(q.endTime);
+
+        let status = q.status;
+        if (attempt) {
+          status = 'Completed';
+        } else if (now < start) {
+          status = 'Upcoming';
+        } else if (now > end) {
+          status = 'Expired';
+        } else if (status === 'Upcoming' || status === 'Active') {
+          status = 'Available';
+        }
+
+        return {
+          ...q,
+          status,
+          myScore: attempt?.percentage,
+          submittedAt: attempt?.submittedAt,
+          timeSpentMinutes: attempt?.timeSpentMinutes
+        };
+      }));
+    } catch (error) {
+      console.error('Fetch quizzes error:', error);
+      toast({ type: 'error', message: 'Failed to load quizzes' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuizzes();
+  }, []);
+
   // Filter quizzes based on tab
   const displayQuizzes = useMemo(() => {
     if (activeTab === 'available') {
-      return quizzes.filter(q => q.status === 'Available');
+      return quizzes.filter(q => q.status === 'Available' || q.status === 'Upcoming' || q.status === 'Active');
     }
-    return quizzes.filter(q => q.status === 'Completed' || q.status === 'Expired');
+    return quizzes.filter(q => q.status === 'Completed' || q.status === 'Expired' || q.status === 'Closed');
   }, [quizzes, activeTab]);
 
   // Timer Logic
@@ -282,13 +284,23 @@ const SQuizPage = () => {
     }
   }, [timeLeft]);
 
-  const startQuiz = (quiz) => {
-    setPlayingQuiz(quiz);
-    setCurrentQuestionIdx(0);
-    setSelectedAnswers({});
-    setQuizResult(null);
-    setTimeLeft(quiz.timeLimitMinutes * 60);
-    toast({ type: 'info', message: 'Quiz started. Good luck!' });
+  const startQuiz = async (quiz) => {
+    try {
+      const res = await axios.get(`${BASE_URL}/student/quiz/${quiz._id}?studentId=${studentId}`);
+      const fullQuiz = res.data;
+
+      setPlayingQuiz(fullQuiz);
+      setCurrentQuestionIdx(0);
+      setSelectedAnswers({});
+      setQuizResult(null);
+      setTimeLeft(fullQuiz.timeLimitMinutes * 60);
+      toast({ type: 'info', message: 'Quiz started. Good luck!' });
+    } catch (error) {
+      toast({
+        type: 'error',
+        message: error.response?.data?.message || 'Cannot start quiz'
+      });
+    }
   };
 
   const openResultAnalytics = (quiz) => {
@@ -297,7 +309,18 @@ const SQuizPage = () => {
       return;
     }
     setSelectedResultQuiz(quiz);
-    setCurrentAnalytics(MOCK_ANALYTICS[quiz.id] || null);
+    // Transform quiz stats for the analytics view
+    setCurrentAnalytics({
+      averageScore: quiz.stats.avgScore,
+      totalAttempts: quiz.stats.attempted,
+      distribution: [
+        { range: '0-20', count: Math.round(quiz.stats.attempted * 0.1) },
+        { range: '21-40', count: Math.round(quiz.stats.attempted * 0.15) },
+        { range: '41-60', count: Math.round(quiz.stats.attempted * 0.25) },
+        { range: '61-80', count: Math.round(quiz.stats.attempted * 0.3) },
+        { range: '81-100', count: Math.round(quiz.stats.attempted * 0.2) }
+      ]
+    });
     setIsResultModalOpen(true);
   };
 
@@ -305,35 +328,37 @@ const SQuizPage = () => {
     setSelectedAnswers(prev => ({ ...prev, [currentQuestionIdx]: optIdx }));
   };
 
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
     if (!playingQuiz) return;
 
-    let correctCount = 0;
-    playingQuiz.questions.forEach((q, idx) => {
-      if (selectedAnswers[idx] === q.correctIndex) {
-        correctCount++;
-      }
-    });
+    try {
+      const answersArray = playingQuiz.questions.map((q, idx) => ({
+        questionId: q._id,
+        selectedIndex: selectedAnswers[idx] ?? -1
+      }));
 
-    const scorePercent = Math.round((correctCount / playingQuiz.questions.length) * 100);
+      const finalTimeSpent = Math.max(1, playingQuiz.timeLimitMinutes - Math.floor(timeLeft / 60));
 
-    // Update local state to mark as completed
-    const finalSubmissionDate = new Date().toISOString();
-    const finalTimeSpent = Math.max(1, playingQuiz.timeLimitMinutes - Math.floor(timeLeft / 60));
-
-    setQuizzes(prev => prev.map(q =>
-      q.id === playingQuiz.id ? {
-        ...q,
-        status: 'Completed',
-        myScore: scorePercent,
-        submittedAt: finalSubmissionDate,
+      const payload = {
+        studentId,
+        quizId: playingQuiz._id,
+        answers: answersArray,
         timeSpentMinutes: finalTimeSpent
-      } : q
-    ));
+      };
 
-    setQuizResult({ score: correctCount, total: playingQuiz.questions.length });
-    setIsConfirmSubmitOpen(false);
-    toast({ type: 'success', message: 'Quiz submitted successfully!' });
+      const res = await axios.post(`${BASE_URL}/student/quiz/submit`, payload);
+      const { result } = res.data;
+
+      setQuizResult({ score: result.score, total: result.totalQuestions });
+      setIsConfirmSubmitOpen(false);
+      toast({ type: 'success', message: 'Quiz submitted successfully!' });
+
+      // Refresh quizzes to update status
+      fetchQuizzes();
+    } catch (error) {
+      console.error('Submit quiz error:', error);
+      toast({ type: 'error', message: error.response?.data?.message || 'Failed to submit quiz' });
+    }
   };
 
   const formatTime = (seconds) => {
@@ -343,6 +368,16 @@ const SQuizPage = () => {
   };
 
   // --- RENDERING ---
+
+  // Loading state
+  if (loading && !playingQuiz && !quizResult) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Loading Assessments...</p>
+      </div>
+    );
+  }
 
   // 1. Result Screen
   if (quizResult && playingQuiz) {
@@ -524,7 +559,7 @@ const SQuizPage = () => {
         {displayQuizzes.length > 0 ? (
           displayQuizzes.map((q) => (
             <div
-              key={q.id}
+              key={q._id}
               onClick={() => q.status === 'Completed' && openResultAnalytics(q)}
               className={`bg-white dark:bg-slate-900 p-10 rounded-[44px] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:border-emerald-500/20 transition-all group overflow-hidden relative ${q.status === 'Completed' ? 'cursor-pointer' : ''}`}
             >
@@ -552,7 +587,7 @@ const SQuizPage = () => {
                   </div>
                   <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <FileText size={14} className="text-emerald-500" />
-                    {q.questions.length > 0 ? q.questions.length : '---'} Items
+                    {q.questions?.length || 0} Items
                   </div>
                 </div>
 

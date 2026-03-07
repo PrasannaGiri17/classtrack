@@ -1,6 +1,7 @@
 const Student = require("../models/studentModel");
 const { Grade } = require("../models/School");
 const User = require("../models/UserModal");
+const Teacher = require("../models/teacherModel");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 
@@ -206,7 +207,42 @@ const getStudentById = async (req, res) => {
   try {
     const student = await Student.findById(req.params.id);
     if (!student) return res.status(404).json({ message: "Student not found" });
-    res.status(200).json(student);
+
+    // Populate Grade and Section info to find the class teacher
+    let populatedData = student.toObject();
+
+    if (student.studentClass || student.classId) {
+      // Find the grade that this student belongs to
+      const gradeQuery = student.classId 
+        ? { _id: student.classId } 
+        : { schoolId: 1, gradeNumber: student.studentClass };
+        
+      const grade = await Grade.findOne(gradeQuery).populate("sections.classTeacherId");
+      
+      if (grade) {
+        // Populate grade info (for frontend compatibility)
+        populatedData.gradeId = {
+          _id: grade._id,
+          gradeName: grade.gradeName,
+          gradeNumber: grade.gradeNumber
+        };
+
+        // Find the specific section to get its teacher
+        if (student.sectionId) {
+          const section = grade.sections.id(student.sectionId);
+          if (section) {
+            populatedData.sectionId = {
+              _id: section._id,
+              sectionName: section.sectionName,
+              classRoomName: section.classRoomName,
+              classTeacherId: section.classTeacherId // This is now populated
+            };
+          }
+        }
+      }
+    }
+
+    res.status(200).json(populatedData);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -245,7 +281,12 @@ const updateStudent = async (req, res) => {
       delete req.body.class;
     }
 
-    const updatedStudent = await Student.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+    if (updateData.profilePhoto !== undefined) {
+      updateData.profilePhoto = req.body.profilePhoto;
+    }
+
+    const updatedStudent = await Student.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });

@@ -151,8 +151,16 @@ const AttendancePage = () => {
     s.studentId.includes(searchQuery)
   );
 
+  const isFutureDate = (day) => {
+    const monthIndex = NEPALI_MONTHS.indexOf(selectedMonth) + 1;
+    if (selectedYear > currentBSYear) return true;
+    if (selectedYear === currentBSYear && monthIndex > currentBSMonth) return true;
+    if (selectedYear === currentBSYear && monthIndex === currentBSMonth && day > todayDayNum) return true;
+    return false;
+  };
+
   const toggleAttendance = (studentId, day) => {
-    if (holidays.includes(day)) return; // No attendance on holidays
+    if (holidays.includes(day) || isFutureDate(day)) return; // No attendance on holidays or future dates
 
     setAttendanceRecords(prev => {
       const currentStatus = prev[studentId][day];
@@ -169,7 +177,7 @@ const AttendancePage = () => {
   };
 
   const bulkMarkPresent = (day) => {
-    if (holidays.includes(day)) return; // Skip holidays for bulk marking
+    if (holidays.includes(day) || isFutureDate(day)) return; // Skip holidays and future dates for bulk marking
 
     setAttendanceRecords(prev => {
       const nextAttendance = { ...prev };
@@ -293,6 +301,19 @@ const AttendancePage = () => {
             </div>
           </div>
 
+          <div className="relative w-full max-sm mb-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/40 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 transition-colors">
+                <div className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700" />
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Future Date (Disabled)</span>
+              </div>
+              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/10 px-3 py-1.5 rounded-xl border border-red-100/50 dark:border-red-900/20 transition-colors">
+                <div className="w-2 h-2 rounded-full bg-red-400" />
+                <span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Holiday (Disabled)</span>
+              </div>
+            </div>
+          </div>
+
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
@@ -315,6 +336,7 @@ const AttendancePage = () => {
                 {daysArray.map(day => {
                   const isHoliday = holidays.includes(day);
                   const isToday = (selectedMonth === NEPALI_MONTHS[currentBSMonth - 1] && selectedYear === currentBSYear && day === todayDayNum);
+                  const isFuture = isFutureDate(day);
 
                   // Calculate weekday name
                   let dayName = "";
@@ -330,18 +352,20 @@ const AttendancePage = () => {
                   return (
                     <th
                       key={day}
-                      onDoubleClick={() => bulkMarkPresent(day)}
-                      title={isHoliday ? "Holiday" : isToday ? "Today" : "Double click to mark all as Present"}
+                      onDoubleClick={() => !isFuture && bulkMarkPresent(day)}
+                      title={isHoliday ? "Holiday" : isFuture ? "Future Date" : isToday ? "Today" : "Double click to mark all as Present"}
                       className={`px-3 py-6 text-center border-r border-slate-100/50 dark:border-slate-800/50 min-w-[100px] transition-all cursor-help select-none ${isHoliday
                         ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                         : isToday
-                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500'
-                          : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 shadow-[inset_0_2px_10px_rgba(16,185,129,0.05)]'
+                          : isFuture
+                            ? 'bg-slate-50/30 dark:bg-slate-800/10 text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-40'
+                            : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                         }`}
                     >
                       <div className="flex flex-col items-center gap-0.5">
                         <span className={`text-base font-black ${isToday ? 'text-emerald-500' : ''}`}>{day}</span>
-                        <span className={`text-[9px] font-bold lowercase opacity-70 ${isHoliday ? 'text-red-400' : isToday ? 'text-emerald-400' : 'text-slate-400'}`}>
+                        <span className={`text-[9px] font-bold lowercase opacity-70 ${isHoliday ? 'text-red-400' : isToday ? 'text-emerald-400' : isFuture ? 'text-slate-500' : 'text-slate-400'}`}>
                           {dayName}
                         </span>
                       </div>
@@ -374,16 +398,19 @@ const AttendancePage = () => {
                   {daysArray.map(day => {
                     const status = attendanceRecords[s._id]?.[day];
                     const isHoliday = holidays.includes(day);
+                    const isFuture = isFutureDate(day);
                     return (
                       <td
                         key={day}
                         onClick={() => toggleAttendance(s._id, day)}
-                        className={`px-0 py-0 text-center border-r border-slate-100/50 dark:border-slate-800/50 transition-colors ${isHoliday ? 'cursor-not-allowed bg-red-50/20 dark:bg-red-900/5' : 'cursor-pointer group/cell'
+                        className={`px-0 py-0 text-center border-r border-slate-100/50 dark:border-slate-800/50 transition-colors ${isHoliday || isFuture ? 'cursor-not-allowed bg-slate-50/10 dark:bg-slate-800/5' : 'cursor-pointer group/cell'
                           }`}
                       >
-                        <div className={`flex items-center justify-center w-full h-[80px] transition-all ${!isHoliday && 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
+                        <div className={`flex items-center justify-center w-full h-[80px] transition-all ${(!isHoliday && !isFuture) && 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
                           {isHoliday ? (
                             <div className="w-2 h-2 bg-red-300 dark:bg-red-700 rounded-full opacity-60" />
+                          ) : isFuture ? (
+                            <div className="w-1 h-3 bg-slate-200 dark:bg-slate-800 rounded-full opacity-30" />
                           ) : status === 'P' ? (
                             <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover/cell:scale-110 transition-transform">
                               <Check size={24} strokeWidth={4} />

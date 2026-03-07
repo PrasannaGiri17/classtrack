@@ -1,131 +1,276 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Clock,
   CalendarDays,
-  Calendar
+  Calendar,
+  BookOpen,
+  Loader2,
+  Coffee,
+  User2,
+  GraduationCap,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import studentService from "../Api/studentService";
+import timetableService from "../Api/timetableService";
+import routineService from "../Api/routineService";
+import { toast } from '../MainSystemComponents/Toast';
+import { IoFootballOutline } from "react-icons/io5";
 
-// --- Mock Data ---
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-const INITIAL_ROUTINE_DATA = {
-  "Sunday": [
-    { periodId: "s1", time: "09:00-09:45", subject: "Mathematics", lesson: "Calculus", grade: "Grade 12", section: "Section A", hasClass: true },
-    { periodId: "s2", time: "09:45-10:30", subject: "Mathematics", lesson: "Algebra", grade: "Grade 9", section: "Section B", hasClass: true },
-    { periodId: "s3", time: "10:30-10:45", subject: "Break", lesson: null, grade: "-", section: "-", hasClass: false },
-    { periodId: "s4", time: "10:45-11:30", subject: "Advanced Physics", lesson: "Normal Class", grade: "Grade 12", section: "Section C", hasClass: true },
-  ],
-  "Monday": [
-    { periodId: "m1", time: "09:00-09:45", subject: "Mathematics", lesson: "Normal Class", grade: "Grade 5", section: "Section A", hasClass: true },
-    { periodId: "m2", time: "09:45-10:30", subject: "Break", lesson: null, grade: "-", section: "-", hasClass: false },
-    { periodId: "m3", time: "10:30-11:15", subject: "English Literature", lesson: "Geometry", grade: "Grade 8", section: "Section B", hasClass: true },
-    { periodId: "m4", time: "11:15-12:00", subject: "Free Block", lesson: null, grade: "-", section: "-", hasClass: false },
-  ],
-  "Tuesday": [
-    { periodId: "t1", time: "09:00-09:45", subject: "Prep", lesson: null, grade: "-", section: "-", hasClass: false },
-    { periodId: "t2", time: "09:45-10:30", subject: "Mathematics", lesson: "Calculus", grade: "Grade 12", section: "Section A", hasClass: true },
-    { periodId: "t3", time: "10:30-11:15", subject: "Mathematics", lesson: "Algebra", grade: "Grade 9", section: "Section B", hasClass: true },
-  ],
-  "Wednesday": [
-    { periodId: "w1", time: "09:00-09:45", subject: "Mathematics", lesson: "Mathematics", grade: "Grade 5", section: "Section B", hasClass: true },
-    { periodId: "w2", time: "09:45-10:30", subject: "Statistics", lesson: "Statistics", grade: "Grade 11", section: "Section A", hasClass: true },
-  ],
-  "Thursday": [
-    { periodId: "th1", time: "09:00-11:30", subject: "General", lesson: "Staff General Meeting", grade: "All Faculty", section: "Main Hall", hasClass: true },
-  ],
-  "Friday": [
-    { periodId: "f1", time: "09:00-09:45", subject: "Free", lesson: null, grade: "-", section: "-", hasClass: false },
-    { periodId: "f2", time: "09:45-10:30", subject: "Academic", lesson: "Weekly Assessment", grade: "Grade 10", section: "Section A", hasClass: true },
-  ],
+const capitalize = (str) => {
+  if (!str) return "";
+  return str.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
-const RoutineCard = ({ period }) => {
+/* ─────────────────────────────────────────────
+   1. CLASS CARD
+───────────────────────────────────────────── */
+const ClassCard = ({ slot, assignment }) => {
+  const subjectName = capitalize(assignment?.subjectName || '');
+  const teacherName = assignment?.teacherName || null;
+
   return (
-    <div className={`group relative w-full flex flex-col md:flex-row items-center justify-between gap-6 p-6 md:p-10 bg-slate-900/40 dark:bg-slate-900/60 border border-slate-800 rounded-[32px] md:rounded-full transition-all duration-500 hover:border-emerald-500/40 hover:bg-slate-900/80 shadow-2xl overflow-hidden ${!period.hasClass ? 'opacity-40' : ''}`}>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="relative group overflow-hidden rounded-[24px] border border-slate-700/50 bg-gradient-to-br from-[#0f1c2e] to-[#0a1628] hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
+    >
+      {/* Subtle background glow */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full pointer-events-none" />
 
-      {/* 1. Time Section */}
-      <div className="flex items-center gap-6 shrink-0 w-full md:w-1/3">
-        <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center border border-slate-700 shadow-inner shrink-0 transition-colors group-hover:bg-slate-700">
-          <Clock size={18} className="text-emerald-500" />
+      <div className="relative flex flex-col sm:flex-row items-center gap-5 px-6 py-5">
+
+        {/* Time block */}
+        <div className="flex items-center gap-3 min-w-[160px]">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <Clock size={15} className="text-emerald-400" />
+          </div>
+          <span className="text-sm font-bold text-slate-300 tabular-nums">{slot.timeRange}</span>
         </div>
-        <span className="text-xl font-black text-white tracking-tighter tabular-nums whitespace-nowrap">
-          {period.time}
-        </span>
-      </div>
 
-      {/* 2. Lesson / Topic (MAIN CENTER) - Static Read-Only View */}
-      <div className="flex-1 w-full text-center relative px-4">
-        <div className="flex items-center justify-center gap-3">
-          <h4 className={`text-3xl font-black uppercase tracking-tighter leading-none transition-all ${period.hasClass ? 'text-white' : 'text-slate-700'}`}>
-            {period.hasClass ? (period.lesson || "Normal Class") : "No Class"}
+        {/* Divider */}
+        <div className="hidden sm:block w-px h-10 bg-slate-700/60 shrink-0" />
+
+        {/* Subject */}
+        <div className="flex-1 flex items-center justify-center sm:justify-start gap-2">
+          <BookOpen size={13} className="text-emerald-400 shrink-0" />
+          <h4 className="text-lg font-black text-white tracking-tight leading-none">
+            {subjectName || 'Class Period'}
           </h4>
         </div>
-      </div>
 
-      {/* 3. Subject Name (Right Side) */}
-      <div className="shrink-0 w-full md:w-1/3 flex justify-center md:justify-end">
-        {period.hasClass && (
-          <div className="flex items-center gap-3 px-6 py-2.5 bg-emerald-500/5 dark:bg-emerald-950/20 rounded-full border border-emerald-500/10">
-            <span className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.2em]">
-              {period.subject}
-            </span>
-          </div>
-        )}
+        {/* Teacher Name (right side) — fixed width keeps all names aligned */}
+        <div className="shrink-0 w-[200px] flex items-center gap-2">
+          {teacherName ? (
+            <>
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                <User2 size={13} className="text-emerald-400" />
+              </div>
+              <span className="text-sm font-semibold text-slate-300 tracking-tight truncate">{teacherName}</span>
+            </>
+          ) : null}
+        </div>
       </div>
-
-      {/* Background Decor */}
-      {period.hasClass && (
-        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[60px] pointer-events-none rounded-full" />
-      )}
-    </div>
+    </motion.div>
   );
 };
 
-const SRoutinePage = () => {
-  const [selectedDay, setSelectedDay] = useState("");
-  const [routineData] = useState(INITIAL_ROUTINE_DATA);
-
-  useEffect(() => {
-    const now = new Date();
-    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
-    if (dayName === "Saturday") {
-      setSelectedDay("Sunday");
-    } else {
-      setSelectedDay(dayName);
-    }
-  }, []);
-
-  const activeRoutine = routineData[selectedDay] || [];
-
+/* ─────────────────────────────────────────────
+   2. BREAK CARD
+───────────────────────────────────────────── */
+const BreakCard = ({ slot }) => {
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="relative group overflow-hidden rounded-[24px] border border-slate-700/50 bg-gradient-to-br from-[#0f1c2e] to-[#0a1628] hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
+    >
+      {/* Subtle background glow */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full pointer-events-none" />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 rounded-[28px] bg-slate-900 border border-slate-800 flex items-center justify-center shadow-2xl">
-            <CalendarDays className="text-emerald-500 w-8 h-8" />
+      <div className="relative flex items-center px-6 py-5 min-h-[72px]">
+
+        {/* Time block — left */}
+        <div className="flex items-center gap-3 min-w-[160px] shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <Clock size={15} className="text-emerald-400" />
+          </div>
+          <span className="text-sm font-bold text-slate-300 tabular-nums">{slot.timeRange}</span>
+        </div>
+
+        {/* Label — absolute center of the full card */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <Coffee size={16} className="text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-none uppercase">Academic Routine</h1>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-3 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Real-time Schedule Matrix
-            </p>
+            <h4 className="text-base font-black text-white tracking-wide whitespace-nowrap">
+              {capitalize(slot.label) || 'Break'}
+            </h4>
+          </div>
+        </div>
+
+      </div>
+    </motion.div>
+  );
+};
+
+/* ─────────────────────────────────────────────
+   3. SPORTS CARD
+───────────────────────────────────────────── */
+const SportsCard = ({ slot }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="relative group overflow-hidden rounded-[24px] border border-slate-700/50 bg-gradient-to-br from-[#0f1c2e] to-[#0a1628] hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
+    >
+      {/* Subtle background glow */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full pointer-events-none" />
+
+      <div className="relative flex items-center px-6 py-5 min-h-[72px]">
+
+        {/* Time block — left */}
+        <div className="flex items-center gap-3 min-w-[160px] shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <Clock size={15} className="text-emerald-400" />
+          </div>
+          <span className="text-sm font-bold text-slate-300 tabular-nums">{slot.timeRange}</span>
+        </div>
+
+        {/* Label — absolute center of the full card */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <IoFootballOutline size={20} className="text-emerald-400" />
+          </div>
+          <div>
+            <h4 className="text-base font-black text-white tracking-wide whitespace-nowrap">
+              {capitalize(slot.label) || 'Sports'}
+            </h4>
+          </div>
+        </div>
+
+      </div>
+    </motion.div>
+  );
+};
+
+/* ─────────────────────────────────────────────
+   CARD ROUTER — picks the right card type
+───────────────────────────────────────────── */
+const RoutineCard = ({ slot, assignment }) => {
+  if (slot.type === 'sport') return <SportsCard slot={slot} />;
+  if (slot.type === 'break') return <BreakCard slot={slot} />;
+  return <ClassCard slot={slot} assignment={assignment} />;
+};
+
+/* ─────────────────────────────────────────────
+   MAIN PAGE
+───────────────────────────────────────────── */
+const SRoutinePage = () => {
+  const [selectedDay, setSelectedDay] = useState("");
+  const [timetable, setTimetable] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [studentInfo, setStudentInfo] = useState(null);
+  const [operatingHours, setOperatingHours] = useState("09:00");
+
+  const studentId = localStorage.getItem("studentId");
+
+  useEffect(() => {
+    const today = new Date();
+    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+    setSelectedDay(dayName === "Saturday" ? "Sunday" : dayName);
+  }, []);
+
+  useEffect(() => {
+    const getBaseInfo = async () => {
+      if (!studentId) return;
+      try {
+        const [profile, matrix] = await Promise.all([
+          studentService.getStudentById(studentId),
+          routineService.getRoutineMatrix()
+        ]);
+        setStudentInfo(profile);
+        setOperatingHours(matrix.operatingHours?.start || "09:00");
+      } catch (err) {
+        console.error("Error base info:", err);
+      }
+    };
+    getBaseInfo();
+  }, [studentId]);
+
+  const fetchTimetable = useCallback(async () => {
+    if (!studentInfo || !selectedDay) return;
+    setIsLoading(true);
+    try {
+      const gNum = studentInfo.gradeId?.gradeNumber || studentInfo.studentClass;
+      const sName = studentInfo.sectionId?.sectionName || studentInfo.sectionId;
+
+      const data = await timetableService.getTimetable(gNum, sName, selectedDay.toUpperCase());
+
+      let [h, m] = operatingHours.split(':').map(Number);
+      let currentMins = h * 60 + m;
+
+      const slotsWithTime = data.slots.map(slot => {
+        const start = currentMins;
+        const end = currentMins + (slot.durationMinutes || 45);
+        currentMins = end;
+
+        const formatTime = (totalMins) => {
+          const hrs = Math.floor(totalMins / 60);
+          const mins = totalMins % 60;
+          return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        };
+
+        return { ...slot, timeRange: `${formatTime(start)} - ${formatTime(end)}` };
+      });
+
+      setTimetable({ ...data, slots: slotsWithTime });
+    } catch (err) {
+      console.error("Failed fetch:", err);
+      toast({ type: 'error', message: 'Synchronization failed.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [studentInfo, selectedDay, operatingHours]);
+
+  useEffect(() => {
+    fetchTimetable();
+  }, [fetchTimetable]);
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex items-center gap-5">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+            <CalendarDays className="text-emerald-500 w-7 h-7" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">My Routine</h1>
+            <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">Personal Academic Sequence</p>
           </div>
         </div>
       </div>
 
       {/* Day Selector */}
-      <div className="bg-slate-900/40 p-1.5 rounded-full border border-slate-800 shadow-xl overflow-x-auto scrollbar-hide">
-        <div className="grid grid-cols-6 gap-1 w-full min-w-[700px]">
+      <div className="w-full bg-white dark:bg-slate-900 p-1.5 rounded-full border border-slate-100 dark:border-slate-800 shadow-sm overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-1.5 w-full min-w-max">
           {DAYS.map(day => (
             <button
               key={day}
               onClick={() => setSelectedDay(day)}
-              className={`py-4 rounded-full text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-500 text-center ${selectedDay === day
-                ? 'bg-emerald-500 text-white shadow-[0_0_30px_rgba(16,185,129,0.3)] scale-105 z-10'
-                : 'text-slate-500 hover:text-white hover:bg-slate-800'
+              className={`flex-1 px-8 py-3.5 rounded-full text-[10px] font-black tracking-[0.2em] transition-all duration-300 ${selectedDay === day
+                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-95'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
             >
               {day}
@@ -134,36 +279,93 @@ const SRoutinePage = () => {
         </div>
       </div>
 
-      {/* Routine Cards Container */}
-      <div className="space-y-6">
-        {activeRoutine.length > 0 ? (
-          activeRoutine.map((period) => (
-            <RoutineCard
-              key={period.periodId}
-              period={period}
-            />
-          ))
-        ) : (
-          <div className="py-40 flex flex-col items-center justify-center text-center space-y-8 bg-slate-900/20 rounded-[64px] border-4 border-dashed border-slate-800/50">
-            <div className="w-24 h-24 rounded-[32px] bg-slate-900 flex items-center justify-center border border-slate-800 shadow-inner">
-              <Calendar size={40} className="text-slate-700" />
-            </div>
-            <div>
-              <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Schedule Clear</h4>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-3">No active academic blocks for this calendar day.</p>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Main Content */}
+      <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-6 lg:p-8">
 
-      {/* Legend Footer */}
-      <div className="flex flex-wrap items-center justify-center gap-12 pt-10 opacity-50">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Class Session</span>
+        {/* Content Header */}
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 pb-6 border-b border-slate-50 dark:border-slate-800">
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            {selectedDay}'s Routine
+          </h3>
+
+          {studentInfo && (
+            <div className="flex items-center gap-6 mt-4 sm:mt-0">
+              {studentInfo.gradeId?.gradeName && (
+                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 tracking-widest">
+                  <GraduationCap size={12} className="text-emerald-500" />
+                  <span>{studentInfo.gradeId.gradeName}</span>
+                </div>
+              )}
+              {studentInfo.sectionId?.sectionName && (
+                <div className={`flex items-center gap-2 text-[10px] font-black text-slate-400 tracking-widest ${studentInfo.gradeId?.gradeName ? 'pl-6 border-l border-slate-100 dark:border-slate-800' : ''}`}>
+                  <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                  <span>Section {studentInfo.sectionId.sectionName}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Slots */}
+        {isLoading ? (
+          <div className="py-20 flex flex-col items-center gap-4">
+            <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+            <p className="text-xs font-bold text-slate-400 tracking-tight">Synchronizing Matrix...</p>
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
+            {timetable && timetable.slots.length > 0 ? (
+              <motion.div
+                key="list"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-3"
+              >
+                {timetable.slots.map((slot) => (
+                  <RoutineCard
+                    key={slot.id}
+                    slot={slot}
+                    assignment={timetable.assignments[slot.id]}
+                  />
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="py-32 flex flex-col items-center justify-center text-center space-y-6"
+              >
+                <div className="w-24 h-24 rounded-[32px] bg-slate-50 dark:bg-slate-800 flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700">
+                  <Calendar size={40} className="text-slate-200 dark:text-slate-700" />
+                </div>
+                <div className="max-w-xs">
+                  <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">No Sessions Found</h4>
+                  <p className="text-xs font-bold text-slate-400 tracking-widest mt-2 leading-relaxed">No periods registered for this calendar day.</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+
+        {/* Footer Legend */}
+        <div className="mt-10 pt-6 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-center gap-8 opacity-60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <span className="text-[10px] font-black text-slate-400 tracking-widest">Active Class</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-slate-500" />
+            <span className="text-[10px] font-black text-slate-400 tracking-widest">Break / Recess</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
+            <span className="text-[10px] font-black text-slate-400 tracking-widest">Sports Period</span>
+          </div>
         </div>
       </div>
-
     </div>
   );
 };

@@ -433,5 +433,30 @@ module.exports = {
   assignClassTeacher,
   assignClassMonitor,
   updateGradeFee,
-  getSectionByTeacher
+  getSectionByTeacher,
+  getSectionById: async (req, res) => {
+    try {
+        const { sectionId } = req.params;
+        const grade = await Grade.findOne({ "sections._id": sectionId }).populate("sections.classTeacherId");
+        if (!grade) {
+          return res.status(404).json({ message: "No class found for this section ID." });
+        }
+        const section = grade.sections.id(sectionId);
+        if (!section) {
+          return res.status(404).json({ message: "Section details not found." });
+        }
+        res.status(200).json({ 
+          gradeId: grade._id,
+          gradeNumber: grade.gradeNumber,
+          gradeName: grade.gradeName,
+          sectionId: section._id,
+          sectionName: section.sectionName,
+          classRoomName: section.classRoomName,
+          classMonitorId: section.classMonitorId,
+          classTeacherName: section.classTeacherId ? `${section.classTeacherId.firstName} ${section.classTeacherId.lastName || ''}`.trim() : "None"
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+  }
 };

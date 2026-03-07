@@ -14,11 +14,41 @@ import {
   FileBox,
   HelpCircle,
   CreditCard,
-  MessageSquare
+  MessageSquare,
+  Building2
 } from 'lucide-react';
+import axios from 'axios';
 
 const Sidebar = ({ activePage }) => {
   const navigate = useNavigate();
+  const [schoolInfo, setSchoolInfo] = React.useState({
+    name: localStorage.getItem("schoolName") || "School",
+    motto: localStorage.getItem("schoolMotto") || "Management System",
+    logo: localStorage.getItem("schoolLogo") || null
+  });
+
+  React.useEffect(() => {
+    const fetchSchool = async () => {
+      try {
+        const response = await axios.get("http://localhost:7000/api/school");
+        const data = response.data;
+        if (data) {
+          const info = {
+            name: data.name,
+            motto: data.motto || "Academy",
+            logo: data.logo
+          };
+          setSchoolInfo(info);
+          localStorage.setItem("schoolName", data.name);
+          localStorage.setItem("schoolMotto", data.motto || "");
+          if (data.logo) localStorage.setItem("schoolLogo", data.logo);
+        }
+      } catch (err) {
+        console.error("Failed to fetch school info in Sidebar", err);
+      }
+    };
+    fetchSchool();
+  }, []);
 
   const menuItems = [
     { key: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/student/dashboard' },
@@ -39,12 +69,22 @@ const Sidebar = ({ activePage }) => {
       {/* Branding */}
       <div className="h-[72px] flex items-center px-6 border-b border-slate-50 dark:border-slate-800 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100 dark:shadow-none">
-            <School className="text-white w-6 h-6" />
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden">
+            {schoolInfo.logo ? (
+              <img src={schoolInfo.logo} alt="School Logo" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-emerald-500 flex items-center justify-center">
+                <School className="text-white w-7 h-7" />
+              </div>
+            )}
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">Real Madrid</h1>
-            <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Academy</span>
+          <div className="max-w-[140px]">
+            <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight truncate leading-tight">
+              {schoolInfo.name || "School Name"}
+            </h1>
+            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em] block mt-0.5">
+              ClassTrack
+            </span>
           </div>
         </div>
       </div>

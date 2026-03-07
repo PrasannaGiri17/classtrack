@@ -30,6 +30,24 @@ const ResetPage = () => {
       setPopupMessage("Passwords do not match.");
       return;
     }
+
+    // Password validation logic
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (password.length < minLength) {
+      setPopupType("error");
+      setPopupMessage(`Password must be at least ${minLength} characters.`);
+      return;
+    }
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+      setPopupType("error");
+      setPopupMessage("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
+      return;
+    }
     if (!token || !email) {
       setPopupType("error");
       setPopupMessage("Invalid or missing reset link.");
@@ -108,6 +126,18 @@ const ResetPage = () => {
           </button>
         </div>
 
+        <div className="mb-8 w-full text-left bg-gray-50 p-4 rounded-lg border border-gray-100">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 text-center sm:text-left">Password Requirements</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2">
+            <RequirementItem label="8+ Characters" met={password.length >= 8} />
+            <RequirementItem label="Uppercase (A-Z)" met={/[A-Z]/.test(password)} />
+            <RequirementItem label="Lowercase (a-z)" met={/[a-z]/.test(password)} />
+            <RequirementItem label="Number (0-9)" met={/[0-9]/.test(password)} />
+            <RequirementItem label="Special Character" met={/[!@#$%^&*(),.?":{}|<>]/.test(password)} />
+          </div>
+          <p className="mt-4 text-[9px] text-gray-400 italic text-center sm:text-left">Recommended: 12-16 characters for maximum security.</p>
+        </div>
+
         {/* Confirm password */}
         <div className="mb-8 w-full relative">
           <input
@@ -115,7 +145,7 @@ const ResetPage = () => {
             placeholder="Confirm Password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-16 text-gray-800 placeholder:text-gray-400 focus:border-[#4CAF50] focus:outline-none focus:ring-2 focus:ring-[#4CAF50]/20"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 pr-16 text-gray-800 placeholder:text-gray-400 focus:border-[#4CAF50] focus:outline-none focus:ring-2 focus:ring-[#4CAF50]/20 transition-all font-semibold"
           />
           <button
             type="button"
@@ -145,5 +175,12 @@ const ResetPage = () => {
     </div>
   );
 };
+
+const RequirementItem = ({ label, met }) => (
+  <div className="flex items-center gap-2">
+    <div className={`w-1.5 h-1.5 rounded-full ${met ? 'bg-green-500' : 'bg-gray-300'}`} />
+    <span className={`text-[11px] font-medium ${met ? 'text-green-600' : 'text-gray-500'}`}>{label}</span>
+  </div>
+);
 
 export default ResetPage;
