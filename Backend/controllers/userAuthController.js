@@ -7,7 +7,7 @@ const User = require("../models/UserModal");
 // helper to create JWT
 function createJwt(payload) {
   if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is missing");
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "30d" });
 }
 
 // helper: read Bearer token

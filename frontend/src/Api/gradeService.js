@@ -64,7 +64,7 @@ const gradeService = {
   updateSectionName,
   assignClassTeacher,
   assignClassMonitor,
-  getGradeFee: updateGradeFee,
+  updateGradeFee,
   getSectionByTeacherId,
   getSectionById
 };
