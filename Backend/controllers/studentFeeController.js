@@ -21,14 +21,19 @@ exports.generateYearlyFees = async (req, res) => {
     const student = await Student.findOne({ studentId }).populate("classId");
     if (!student) return res.status(404).json({ message: "Student not found" });
 
-    // 2. Fetch School (for admission fee)
-    const school = await School.findById(student.schoolId || 1);
-    if (!school) return res.status(404).json({ message: "School not found" });
+    // 2. Fetch School (global config)
+    const school = await School.findOne();
+    if (!school) return res.status(404).json({ message: "School configuration not found" });
 
     // 3. Fetch Grade (for base monthly fee)
-    // In studentModel, classId refs Grade
-    const grade = await Grade.findById(student.classId);
-    if (!grade) return res.status(404).json({ message: "Grade/Class not found for student" });
+    let grade;
+    if (student.classId) {
+        grade = await Grade.findById(student.classId);
+    } else if (student.studentClass) {
+        grade = await Grade.findOne({ gradeNumber: student.studentClass });
+    }
+
+    if (!grade) return res.status(404).json({ message: "Matching Grade/Class not found for student" });
 
     const baseFee = grade.monthlyFee || 0;
     const admissionFee = school.admissionFee || 0;
@@ -96,6 +101,8 @@ exports.getStudentFees = async (req, res) => {
 exports.getAllStudentsFeeStatus = async (req, res) => {
   try {
     const { status, academicYear, gradeId, search } = req.query;
+    console.log("Admin Fee Status Query:", { status, academicYear, gradeId, search });
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -121,6 +128,8 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
         .limit(limit),
       Student.countDocuments(studentQuery)
     ]);
+
+    console.log(`Found ${students.length} students out of ${totalStudents} total matching query.`);
 
     // 3. For each student, get their fee summary for the academic year
     const ay = academicYear || "2081/82";
@@ -163,9 +172,11 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
 
     // Post-filter by status if needed (derived field, can't filter in DB query)
     let filteredFees = feeData;
-    if (status) {
+    if (status && status.toUpperCase() !== "ALL") {
         filteredFees = feeData.filter(f => f.status === status.toUpperCase());
     }
+
+    console.log(`getAllStudentsFeeStatus: Returning ${filteredFees.length} results after status filter: ${status}. Total matching students from DB: ${totalStudents}`);
 
     return res.json({
       fees: filteredFees,
@@ -301,16 +312,60 @@ exports.getStudentFeeSummary = async (req, res) => {
 // Logged in student view
 exports.getMyFees = async (req, res) => {
     try {
-        // req.user is attached by authMiddleware
-        if (!req.user.studentId) {
+        const studentId = req.user.studentId;
+        if (!studentId) {
             return res.status(400).json({ message: "User is not a student" });
         }
 
-        const fees = await StudentFee.find({ student: req.user.studentId })
-            .sort({ academicYear: -1, monthIndex: 1 });
+        const ay = "2081/82"; // Default academic year
+        
+        let fees = await StudentFee.find({ student: studentId, academicYear: ay })
+            .sort({ monthIndex: 1 });
+
+        // AUTOMATIC GENERATION: If no fees found, generate them on the fly
+        if (fees.length === 0) {
+            console.log(`Auto-generating fees for student: ${studentId}`);
+            
+            // Re-use logic to find student and config
+            const student = await Student.findById(studentId).populate("classId");
+            const school = await School.findOne();
+            
+            if (student && school) {
+                let grade;
+                if (student.classId) {
+                    grade = await Grade.findById(student.classId);
+                } else if (student.studentClass) {
+                    grade = await Grade.findOne({ gradeNumber: student.studentClass });
+                }
+
+                if (grade) {
+                    const baseFee = grade.monthlyFee || 0;
+                    const admissionFee = school.admissionFee || 0;
+
+                    const generated = [];
+                    for (let i = 0; i < 12; i++) {
+                        const newFee = new StudentFee({
+                            student: student._id,
+                            school: school._id,
+                            grade: grade._id,
+                            academicYear: ay,
+                            monthIndex: i,
+                            monthName: NEPALI_MONTHS[i],
+                            baseFee: baseFee,
+                            admissionFee: (i === 0) ? admissionFee : 0,
+                            status: "UNPAID"
+                        });
+                        await newFee.save();
+                        generated.push(newFee);
+                    }
+                    fees = generated;
+                }
+            }
+        }
             
         return res.json(fees);
     } catch (err) {
+        console.error("GET MY FEES ERROR:", err);
         return res.status(500).json({ message: "Server error" });
     }
 };
@@ -325,5 +380,100 @@ exports.getFeeById = async (req, res) => {
         return res.json(fee);
     } catch (err) {
         return res.status(500).json({ message: "Server error" });
+    }
+};
+
+// Bulk generate fees for all students
+exports.bulkGenerateFees = async (req, res) => {
+    try {
+        const { academicYear } = req.body;
+        const ay = academicYear || "2081/82";
+
+        // 1. Fetch all active students
+        const students = await Student.find({ status: "active" }).populate("classId");
+        
+        // 2. Fetch School and Grades for configuration
+        const [school, grades] = await Promise.all([
+            School.findOne(),
+            Grade.find({})
+        ]);
+
+        if (!school) return res.status(404).json({ message: "School configuration not found" });
+
+        const results = {
+            totalStudents: students.length,
+            created: 0,
+            updated: 0,
+            failed: 0
+        };
+
+        // 3. Process each student
+        for (const student of students) {
+            // Find grade by classId or fallback to studentClass (gradeNumber)
+            let studentGrade = null;
+            if (student.classId) {
+                studentGrade = grades.find(g => g._id.toString() === student.classId._id.toString());
+            } 
+            
+            if (!studentGrade && student.studentClass) {
+                studentGrade = grades.find(g => g.gradeNumber === student.studentClass);
+            }
+
+            if (!studentGrade) {
+                console.log(`Skipping student ${student.firstName} - No matching grade found`);
+                results.failed++;
+                continue;
+            }
+
+            const baseFee = studentGrade.monthlyFee || 0;
+            const admissionFee = school.admissionFee || 0;
+
+            for (let i = 0; i < 12; i++) {
+                const query = {
+                    student: student._id,
+                    monthIndex: i,
+                    academicYear: ay
+                };
+
+                const updateData = {
+                    school: school._id,
+                    grade: studentGrade._id,
+                    monthName: NEPALI_MONTHS[i],
+                    baseFee: baseFee,
+                    admissionFee: (i === 0) ? admissionFee : 0
+                };
+
+                // We use findOneAndUpdate with upsert to either create or update existing month record
+                // This allows updating rates if they were changed
+                const existingRec = await StudentFee.findOne(query);
+                
+                if (existingRec) {
+                    // Only update if UNPAID - don't touch already paid records' base fee
+                    if (existingRec.status === 'UNPAID' || existingRec.status === 'OVERDUE') {
+                        existingRec.baseFee = baseFee;
+                        existingRec.admissionFee = (i === 0) ? admissionFee : 0;
+                        await existingRec.save();
+                        results.updated++;
+                    }
+                } else {
+                    const newFee = new StudentFee({
+                        ...query,
+                        ...updateData,
+                        status: "UNPAID"
+                    });
+                    await newFee.save();
+                    results.created++;
+                }
+            }
+        }
+
+        return res.json({
+            message: `Bulk sync completed for ${ay}.`,
+            results
+        });
+
+    } catch (err) {
+        console.error("BULK GEN ERROR:", err);
+        return res.status(500).json({ message: "Server error", error: err.message });
     }
 };

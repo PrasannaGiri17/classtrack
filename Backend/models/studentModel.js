@@ -40,11 +40,32 @@ const StudentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Helper function to generate a 6-digit studentId
+async function generateStudentId(model) {
+  let isUnique = false;
+  let newId;
+  const currentYear = new Date().getFullYear();
+  const yearLastTwoDigits = currentYear.toString().slice(-2);
+
+  while (!isUnique) {
+    const randomFourDigits = Math.floor(1000 + Math.random() * 9000);
+    newId = `${randomFourDigits}${yearLastTwoDigits}`;
+
+    // Check if it already exists
+    const existingStudent = await model.findOne({ studentId: newId });
+    if (!existingStudent) {
+      isUnique = true;
+    }
+  }
+
+  return newId;
+}
+
 // Generate studentId BEFORE validation runs
-StudentSchema.pre("validate", function (next) {
+StudentSchema.pre("validate", async function (next) {
   if (!this.studentId) {
-    const random = Math.floor(1000 + Math.random() * 9000);
-    this.studentId = `STU-${Date.now()}-${random}`;
+    // this.constructor points to the compiled Model
+    this.studentId = await generateStudentId(this.constructor);
   }
   next();
 });

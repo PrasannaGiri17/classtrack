@@ -53,6 +53,8 @@ const UserLoginbox = () => {
       }
 
       // Save JWT and user details
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("role", data.role);
       const studentId = data.studentId;
       if (studentId) localStorage.setItem("studentId", studentId);
       if (data.teacherId) localStorage.setItem("teacherId", data.teacherId);

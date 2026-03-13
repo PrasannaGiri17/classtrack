@@ -84,14 +84,14 @@ const StudentFee = () => {
         try {
             await feeService.markAsPaid(record._id, {
                 paidAmount: record.totalAmount, // Full payment for simplicity in this flow
-                paymentMethod: "Cash",
+                paymentMethod: "CASH",
                 paymentDate: new Date()
             });
 
             toast({ type: 'success', message: `${record.monthName} fee marked as PAID.` });
             loadData();
         } catch (error) {
-            toast({ type: 'error', message: 'Payment update failed.' });
+            toast({ type: 'error', message: error.response?.data?.message || error.response?.data?.error || 'Payment update failed.' });
         } finally {
             setIsConfirmOpen(false);
         }
@@ -138,12 +138,21 @@ const StudentFee = () => {
         }
     };
 
-    const getStatusBadge = (status) => {
+    const getStatusBadge = (record) => {
+        let status = record.status;
+        const currentMonthIndex = NEPALI_MONTHS.indexOf('Falgun');
+        const recordMonthIndex = NEPALI_MONTHS.indexOf(record.monthName);
+
+        if (status === 'UNPAID' && recordMonthIndex >= currentMonthIndex) {
+            status = 'DUE';
+        }
+
         const badges = {
-            PAID: { color: "text-emerald-600 bg-emerald-50 border-emerald-100", icon: CheckCircle2 },
-            PARTIAL: { color: "text-blue-600 bg-blue-50 border-blue-100", icon: AlertCircle },
-            UNPAID: { color: "text-slate-500 bg-slate-100 border-slate-200", icon: XCircle },
-            OVERDUE: { color: "text-red-600 bg-red-50 border-red-100", icon: AlertTriangle }
+            PAID: { color: "text-white bg-emerald-500 border-emerald-500 shadow-md shadow-emerald-500/40", icon: CheckCircle2 },
+            PARTIAL: { color: "text-white bg-blue-500 border-blue-500 shadow-md shadow-blue-500/40", icon: AlertCircle },
+            UNPAID: { color: "text-white bg-red-500 border-red-500 shadow-md shadow-red-500/40", icon: XCircle },
+            DUE: { color: "bg-white text-emerald-600 border-emerald-500 dark:bg-white dark:text-emerald-600 dark:border-emerald-600 shadow-md shadow-emerald-500/20", icon: AlertCircle },
+            OVERDUE: { color: "text-white bg-red-500 border-red-500 shadow-md shadow-red-500/40", icon: AlertTriangle }
         };
         const badge = badges[status] || badges.UNPAID;
         const Icon = badge.icon;
@@ -151,7 +160,7 @@ const StudentFee = () => {
         return (
             <div className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border ${badge.color}`}>
                 <Icon size={12} />
-                <span className="text-[10px] font-black uppercase tracking-widest">{status}</span>
+                <span className="text-[10px] font-black tracking-widest">{status}</span>
             </div>
         );
     };
@@ -167,7 +176,7 @@ const StudentFee = () => {
     if (!studentInfo) return (
         <div className="text-center py-20 flex flex-col items-center gap-4">
             <XCircle size={48} className="text-slate-300" />
-            <p className="font-black text-slate-400 uppercase tracking-widest">Student Not Found</p>
+            <p className="font-black text-slate-400 tracking-widest">Student Not Found</p>
         </div>
     );
 
@@ -193,9 +202,9 @@ const StudentFee = () => {
                                 {studentInfo.firstName} {studentInfo.lastName}
                             </h2>
                             <div className="flex items-center gap-3 mt-2">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{studentInfo.studentId}</p>
+                                <p className="text-xs font-bold text-slate-400 tracking-widest">{studentInfo.studentId}</p>
                                 <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Class {studentInfo.studentClass}</p>
+                                <p className="text-xs font-bold text-slate-400 tracking-widest">Class {studentInfo.studentClass}</p>
                             </div>
                         </div>
                     </div>
@@ -203,12 +212,12 @@ const StudentFee = () => {
                     {/* Parents */}
                     <div className="flex flex-wrap gap-8 md:gap-12 lg:gap-16">
                         <div className="space-y-2">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Father</p>
+                            <p className="text-[10px] font-black text-slate-400 tracking-widest">Father</p>
                             <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight leading-none">{studentInfo.fatherName || "N/A"}</p>
                             <p className="text-[11px] font-bold text-emerald-600 tabular-nums">{studentInfo.fatherPhone || "No Number"}</p>
                         </div>
                         <div className="space-y-2">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mother</p>
+                            <p className="text-[10px] font-black text-slate-400 tracking-widest">Mother</p>
                             <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight leading-none">{studentInfo.motherName || "N/A"}</p>
                             <p className="text-[11px] font-bold text-pink-600 tabular-nums">{studentInfo.motherPhone || "No Number"}</p>
                         </div>
@@ -223,7 +232,7 @@ const StudentFee = () => {
                         <Receipt size={24} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Yearly Target</p>
+                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Yearly Target</p>
                         <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">Rs. {summary?.yearlyTotal || 0}</h3>
                     </div>
                 </div>
@@ -233,7 +242,7 @@ const StudentFee = () => {
                         <Wallet size={24} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Collected</p>
+                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Collected</p>
                         <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums text-emerald-500">Rs. {summary?.totalPaid || 0}</h3>
                     </div>
                 </div>
@@ -243,7 +252,7 @@ const StudentFee = () => {
                         <AlertTriangle size={24} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Outstanding</p>
+                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Outstanding</p>
                         <h3 className="text-2xl font-black text-red-500 tracking-tighter tabular-nums">Rs. {summary?.totalDue || 0}</h3>
                     </div>
                 </div>
@@ -251,39 +260,28 @@ const StudentFee = () => {
 
             {/* Fee Table */}
             <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
-                <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between bg-slate-50/20">
-                    <div className="flex items-center gap-4">
-                        <Calendar size={18} className="text-emerald-500" />
-                        <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase tracking-widest">Monthly Ledger</h3>
-                    </div>
-                    <div className="px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black tracking-widest uppercase shadow-lg shadow-slate-900/10">
-                        AY {currentAcademicYear}
-                    </div>
-                </div>
-
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px] text-left">
                         <thead>
                             <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                                <th className="pl-12 pr-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">MONTH</th>
-                                <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">BREAKDOWN</th>
-                                <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">TOTAL FEE</th>
-                                <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">STATUS</th>
-                                <th className="pr-12 pl-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">ACTIONS</th>
+                                <th className="pl-12 pr-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Month</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Breakdown</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Total Fee</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest text-center">Status</th>
+                                <th className="pr-12 pl-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {feeRecords.map((record) => (
+                            {(feeRecords || []).map((record) => (
                                 <tr key={record._id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors duration-300">
                                     <td className="pl-12 pr-6 py-6">
                                         <span className="text-sm font-black text-slate-900 dark:text-white lowercase tracking-tight capitalize block">{record.monthName}</span>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Nepali Month</span>
                                     </td>
                                     <td className="px-6 py-6">
                                         <div className="flex flex-col gap-2">
                                             <div className="flex items-center gap-2 group/tip relative">
                                                 <span className="text-[11px] font-bold text-slate-500 line-clamp-1 max-w-[150px]">
-                                                    Base: Rs.{record.baseFee}
+                                                    Base: Rs.{record.baseFee || record.totalAmount}
                                                     {record.admissionFee > 0 && ` + Adm: Rs.${record.admissionFee}`}
                                                     {record.extraFees?.length > 0 && ` + ${record.extraFees.length} Extras`}
                                                 </span>
@@ -293,11 +291,11 @@ const StudentFee = () => {
 
                                                 {/* Tooltip Content */}
                                                 <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl p-5 z-20 invisible group-hover/tip:visible opacity-0 group-hover/tip:opacity-100 transition-all">
-                                                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest border-b pb-2 mb-3">Itemized Bill</p>
+                                                    <p className="text-[10px] font-black  text-slate-400 tracking-widest border-b pb-2 mb-3">Fee Details</p>
                                                     <div className="space-y-2">
-                                                        <div className="flex justify-between text-xs font-bold"><span className="text-slate-500">Grade Fee</span><span>Rs.{record.baseFee}</span></div>
+                                                        <div className="flex justify-between text-xs font-bold"><span className="text-slate-500 dark:text-slate-400">Grade Fee</span><span className="text-slate-900 dark:text-white">Rs.{record.baseFee || record.totalAmount}</span></div>
                                                         {record.admissionFee > 0 && <div className="flex justify-between text-xs font-bold text-emerald-600"><span>Admission</span><span>+Rs.{record.admissionFee}</span></div>}
-                                                        {record.extraFees.map((ex, i) => (
+                                                        {record.extraFees?.map((ex, i) => (
                                                             <div key={i} className="flex justify-between text-xs font-bold text-blue-500"><span>{ex.title}</span><span>+Rs.{ex.amount}</span></div>
                                                         ))}
                                                     </div>
@@ -309,17 +307,19 @@ const StudentFee = () => {
                                         <div className="flex flex-col">
                                             <span className="text-base font-black text-slate-900 dark:text-white tabular-nums tracking-tight">Rs. {record.totalAmount}</span>
                                             {record.paidAmount > 0 ? (
-                                                <span className="text-[10px] font-black text-emerald-500 uppercase flex items-center gap-1 mt-1">
+                                                <span className="text-[10px] font-black text-emerald-500 capitalize flex items-center gap-1 mt-1">
                                                     <CheckCircle2 size={10} /> Paid {record.paidAmount}
                                                 </span>
                                             ) : (
-                                                <span className="text-[10px] font-black text-red-400 uppercase tracking-widest mt-1">Not Paid Yet</span>
+                                                <span className={`text-[10px] font-black capitalize tracking-widest mt-1 ${NEPALI_MONTHS.indexOf(record.monthName) >= NEPALI_MONTHS.indexOf('Falgun') ? 'text-emerald-500' : 'text-red-400'}`}>
+                                                    {NEPALI_MONTHS.indexOf(record.monthName) >= NEPALI_MONTHS.indexOf('Falgun') ? 'DUE' : 'Not Paid Yet'}
+                                                </span>
                                             )}
                                         </div>
                                     </td>
                                     <td className="px-6 py-6">
                                         <div className="flex justify-center">
-                                            {getStatusBadge(record.status)}
+                                            {getStatusBadge(record)}
                                         </div>
                                     </td>
                                     <td className="pr-12 pl-6 py-6">
@@ -328,7 +328,7 @@ const StudentFee = () => {
                                                 <>
                                                     <button
                                                         onClick={() => handlePayAction(record)}
-                                                        className="flex-1 max-w-[120px] py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                                        className="flex-1 max-w-[120px] py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black capitalize tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all flex items-center justify-center gap-2"
                                                     >
                                                         <CreditCard size={14} /> Mark Paid
                                                     </button>
@@ -340,8 +340,8 @@ const StudentFee = () => {
                                                     </button>
                                                 </>
                                             ) : (
-                                                <button className="flex-1 max-w-[140px] py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 dark:border-slate-700 opacity-60 flex items-center justify-center gap-2">
-                                                    <CheckCircle2 size={14} /> Settlement Done
+                                                <button className="flex-1 max-w-[140px] py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-xl text-[10px] font-black capitalize tracking-widest border border-slate-100 dark:border-slate-700 opacity-60 flex items-center justify-center gap-2">
+                                                    <CheckCircle2 size={14} /> Payment Done
                                                 </button>
                                             )}
                                         </div>
@@ -358,19 +358,19 @@ const StudentFee = () => {
                 <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 pointer-events-auto">
                     <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none uppercase tracking-widest mb-2 flex items-center gap-3">
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none capitalize tracking-widest mb-2 flex items-center gap-3">
                                 <Plus className="text-emerald-500" /> Extras
                             </h2>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{selectedRecord?.monthName} • {studentInfo?.firstName}</p>
+                            <p className="text-xs font-bold text-slate-400 capitalize tracking-widest">{selectedRecord?.monthName} • {studentInfo?.firstName}</p>
                         </div>
                         <button onClick={() => setIsExtraFeeModalOpen(false)} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center hover:text-red-500 transition-colors"><X /></button>
                     </div>
 
                     <div className="p-10 space-y-6 max-h-[50vh] overflow-y-auto scrollbar-hide">
-                        {extraFees.map((fee, index) => (
+                        {(extraFees || []).map((fee, index) => (
                             <div key={index} className="flex items-end gap-3 group animate-in slide-in-from-top-2 duration-300">
                                 <div className="flex-1 space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                    <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1 flex items-center gap-2">
                                         <Tag size={10} /> Name
                                     </label>
                                     <input
@@ -382,7 +382,7 @@ const StudentFee = () => {
                                     />
                                 </div>
                                 <div className="w-28 space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Price</label>
+                                    <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">Price</label>
                                     <input
                                         type="number"
                                         placeholder="0"
@@ -405,14 +405,14 @@ const StudentFee = () => {
                             className="w-full py-5 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-center gap-3 text-slate-400 hover:text-emerald-500 hover:border-emerald-500/40 transition-all group"
                         >
                             <Plus size={20} className="group-hover:rotate-90 transition-transform" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Add Another Row</span>
+                            <span className="text-[10px] font-black capitalize tracking-widest">Add Another Row</span>
                         </button>
                     </div>
 
                     <div className="p-10 border-t border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                         <button
                             onClick={handleSaveExtraFees}
-                            className="w-full py-5 bg-emerald-600 text-white rounded-[24px] font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4"
+                            className="w-full py-5 bg-emerald-600 text-white rounded-[24px] font-black text-sm capitalize tracking-[0.2em] shadow-2xl shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4"
                         >
                             <Plus size={20} /> Append To Invoice
                         </button>

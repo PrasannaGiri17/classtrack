@@ -25,6 +25,7 @@ const assignmentRoutes = require("./routes/assignment.routes");
 const contentRoutes = require("./routes/content.routes");
 const studentQuizRoutes = require("./routes/studentQuizRoutes");
 const studentFeeRoutes = require("./routes/studentFeeRoutes");
+const feeRoutes = require("./routes/feeRoutes");
 
 
 const app = express();
@@ -68,6 +69,7 @@ app.use("/api/assignments", assignmentRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/student/quiz", studentQuizRoutes);
 app.use("/api/fees", studentFeeRoutes);
+app.use("/api/fee-records", feeRoutes);
 
 app.listen(port, () => {
   console.log(`Backend server is running on http://localhost:${port}`);

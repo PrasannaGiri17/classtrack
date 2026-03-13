@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:7000/api/fees";
+const API_URL = "http://localhost:7000/api/fee-records";
 
 // Helper to get auth header
 const getAuthHeaders = () => {
@@ -13,12 +13,23 @@ const getAuthHeaders = () => {
 };
 
 const generateYearlyFees = async (studentId, academicYear) => {
-    const response = await axios.post(`${API_URL}/generate`, { studentId, academicYear }, getAuthHeaders());
+    const response = await axios.post(`${API_URL}/generate/${studentId}`, { academicYear }, getAuthHeaders());
     return response.data;
 };
 
-const getAdminFeeStatus = async (params) => {
-    const response = await axios.get(`${API_URL}/admin/status`, { ...getAuthHeaders(), params });
+const bulkGenerateFees = async (academicYear) => {
+    const response = await axios.post(`${API_URL}/bulk-generate`, { academicYear }, getAuthHeaders());
+    return response.data;
+};
+
+const getAdminFeeStatus = async () => {
+    const response = await axios.get(`${API_URL}/admin-status`, getAuthHeaders());
+    return response.data;
+};
+
+// Note: Pagination handled on front-end for now in the new module
+const getAdminFeeStatusWithSearch = async (params) => {
+    const response = await axios.get(`${API_URL}/admin-status`, { ...getAuthHeaders(), params });
     return response.data;
 };
 
@@ -38,18 +49,18 @@ const getFeeById = async (id) => {
     return response.data;
 };
 
-const markAsPaid = async (id, paymentData) => {
-    const response = await axios.patch(`${API_URL}/pay/${id}`, paymentData, getAuthHeaders());
+const markAsPaid = async (recordId, paymentData) => {
+    const response = await axios.post(`${API_URL}/pay/${recordId}`, paymentData, getAuthHeaders());
     return response.data;
 };
 
-const addExtraFee = async (id, title, amount) => {
-    const response = await axios.post(`${API_URL}/extra/${id}`, { title, amount }, getAuthHeaders());
+const addExtraFee = async (recordId, title, amount) => {
+    const response = await axios.post(`${API_URL}/extra/${recordId}`, { title, amount }, getAuthHeaders());
     return response.data;
 };
 
-const deleteExtraFee = async (id, itemId) => {
-    const response = await axios.delete(`${API_URL}/extra/${id}/${itemId}`, getAuthHeaders());
+const deleteExtraFee = async (recordId, itemId) => {
+    const response = await axios.delete(`${API_URL}/extra/${recordId}/${itemId}`, getAuthHeaders());
     return response.data;
 };
 
@@ -61,7 +72,9 @@ const getFeeSummary = async (studentId, academicYear) => {
 
 const feeService = {
     generateYearlyFees,
+    bulkGenerateFees,
     getAdminFeeStatus,
+    getAdminFeeStatusWithSearch,
     getStudentFees,
     getMyFees,
     getFeeById,

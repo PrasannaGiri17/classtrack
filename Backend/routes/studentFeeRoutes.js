@@ -16,6 +16,11 @@ router.post(
   restrictTo("admin"),
   studentFeeController.generateYearlyFees
 );
+router.post(
+  "/admin/bulk-generate",
+  restrictTo("admin"),
+  studentFeeController.bulkGenerateFees
+);
 
 // All fees status (listing for admin)
 router.get(
@@ -34,7 +39,7 @@ router.get(
 // Mark as paid
 router.patch(
   "/pay/:id",
-  restrictTo("admin"),
+  restrictTo("admin", "student"),
   studentFeeController.markAsPaid
 );
 

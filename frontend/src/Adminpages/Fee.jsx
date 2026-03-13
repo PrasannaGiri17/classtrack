@@ -24,6 +24,7 @@ import gradeService from '../Api/gradeService';
 import feeService from '../Api/feeService';
 import studentService from '../Api/studentService';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
+import Loading from '../MainSystemComponents/Loading';
 
 const NEPALI_MONTHS = [
   'Baishakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin',
@@ -38,6 +39,7 @@ const Fee = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
+  const [isTableLoading, setIsTableLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const [feesData, setFeesData] = useState([]);
@@ -58,7 +60,7 @@ const Fee = () => {
 
   useEffect(() => {
     fetchFeeStatus();
-  }, [currentPage, filterStatus, searchQuery]);
+  }, [filterStatus, searchQuery]);
 
   const fetchInitialData = async () => {
     try {
@@ -86,22 +88,48 @@ const Fee = () => {
 
   const fetchFeeStatus = async () => {
     try {
-      const params = {
-        page: currentPage,
-        limit: itemsPerPage,
-        academicYear: currentAcademicYear,
-        search: searchQuery
-      };
+      setIsTableLoading(true);
+      const data = await feeService.getAdminFeeStatus();
+      console.log("FEE_DEBUG: API Response:", data);
 
-      if (filterStatus !== 'All') params.status = filterStatus.toUpperCase();
+      // Handle both old and new response structures
+      let baseData = [];
+      if (Array.isArray(data)) {
+        baseData = data;
+      } else if (data && data.fees && Array.isArray(data.fees)) {
+        baseData = data.fees;
+      } else if (data && typeof data === 'object') {
+        // Just in case it's wrapped in something else
+        baseData = Object.values(data).find(v => Array.isArray(v)) || [];
+      }
 
-      const response = await feeService.getAdminFeeStatus(params);
-      setFeesData(response.fees);
-      setTotalPages(response.pages);
-      setTotalRecords(response.total);
+      let filteredData = baseData;
+      if (searchQuery) {
+        filteredData = filteredData.filter(item =>
+          (item.studentName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (item.studentId || '').toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+
+      if (filterStatus === 'HighAmount') {
+        filteredData = [...filteredData].sort((a, b) => (b.totalDueAmount || 0) - (a.totalDueAmount || 0));
+      } else if (filterStatus !== 'All') {
+        filteredData = filteredData.filter(item => (item.feeStatus || item.status) === filterStatus.toUpperCase());
+      }
+
+      setFeesData(filteredData);
+      console.log("FEE_DEBUG: Filtered Data:", filteredData);
+      setTotalRecords(filteredData.length);
+      setTotalPages(Math.ceil(filteredData.length / itemsPerPage));
 
     } catch (error) {
-      console.error(error);
+      console.error("Fetch Error Details:", error);
+      toast({
+        type: 'error',
+        message: `API Error: ${error.response?.data?.message || error.message}`
+      });
+    } finally {
+      setIsTableLoading(false);
     }
   };
 
@@ -135,7 +163,11 @@ const Fee = () => {
   const handleGenerateFees = async () => {
     try {
       setIsSyncing(true);
-      toast({ type: 'info', message: 'Bulk generation is not yet available for all students. Redirecting to student ledger is recommended.' });
+      const response = await feeService.bulkGenerateFees(currentAcademicYear);
+      toast({
+        type: 'success',
+        message: `Ledger Synced: ${response.results.created} created, ${response.results.updated} updated.`
+      });
       await fetchFeeStatus();
     } catch (error) {
       toast({ type: 'error', message: 'Sync failed.' });
@@ -192,26 +224,37 @@ const Fee = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (record) => {
+    let status = record.feeStatus;
+
+    if (status === 'UNPAID' && record.unpaidMonths === 0 && record.totalDueAmount > 0) {
+      status = 'PAID_TILL_NOW';
+    }
+
     const styles = {
-      PAID: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border-emerald-100",
-      PARTIAL: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-blue-100",
-      UNPAID: "bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200",
-      OVERDUE: "bg-red-50 dark:bg-red-900/20 text-red-600 border-red-100",
-      NO_RECORD: "bg-slate-200 dark:bg-slate-700 text-slate-400 border-slate-300"
+      PAID: "text-white bg-emerald-500 border-emerald-500 shadow-md shadow-emerald-500/40",
+      PARTIAL: "text-white bg-blue-500 border-blue-500 shadow-md shadow-blue-500/40",
+      UNPAID: "text-white bg-red-500 border-red-500 shadow-md shadow-red-500/40",
+      OVERDUE: "text-white bg-red-500 border-red-500 shadow-md shadow-red-500/40",
+      NO_RECORD: "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600",
+      PAID_TILL_NOW: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-md shadow-emerald-500/10 text-emerald-500"
     };
 
-    const Icon = status === 'PAID' ? CheckCircle2 : status === 'OVERDUE' ? AlertCircle : XCircle;
+    const Icon = (status === 'PAID' || status === 'PAID_TILL_NOW') ? CheckCircle2 : status === 'OVERDUE' ? AlertCircle : XCircle;
+
+    const displayStatus = status === 'NO_RECORD' ? 'No Ledger' : status === 'PAID_TILL_NOW' ? 'Paid Till Now' : status;
 
     return (
       <div className={`flex items-center gap-2 w-fit px-4 py-1.5 rounded-xl border ${styles[status] || styles.UNPAID}`}>
         <Icon size={12} />
-        <span className="text-[10px] font-black uppercase tracking-widest leading-none">{status === 'NO_RECORD' ? 'No Ledger' : status}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest leading-none">{displayStatus}</span>
       </div>
     );
   };
 
-  const displayFees = feesData;
+  // Handle frontend pagination
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const displayFees = feesData.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
@@ -227,21 +270,12 @@ const Fee = () => {
             </div>
           </div>
 
-          <button
-            onClick={handleGenerateFees}
-            disabled={isSyncing}
-            className="flex items-center gap-2 px-6 py-3 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl font-black text-[10px] tracking-widest hover:scale-105 transition-all disabled:opacity-50"
-          >
-            {isSyncing ? <RefreshCcw size={14} className="animate-spin" /> : <Zap size={14} />}
-            GENERATE STUDENT RECORDS
-          </button>
+
         </div>
 
         <div className="p-10 space-y-10">
           {isLoading ? (
-            <div className="flex justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
-            </div>
+            <Loading text="Loading Fee Config..." />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10">
               <div className="space-y-3">
@@ -320,131 +354,124 @@ const Fee = () => {
             >
               <option value="All">All Statuses</option>
               <option value="Paid">Paid</option>
-              <option value="Partial">Partial</option>
               <option value="Unpaid">Unpaid</option>
-              <option value="Overdue">Overdue</option>
+              <option value="HighAmount">High Amount</option>
             </select>
             <ChevronDown size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
-          <div className="overflow-x-auto scrollbar-hide">
-            <table className="w-full min-w-[1000px] text-left">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                  <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">STUDENT</th>
-                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">FEE MONTHS</th>
-                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">DUE AMOUNT</th>
-                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] text-center">STATUS</th>
-                  <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] text-center">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                {displayFees.map((record) => (
-                  <tr
-                    key={record._id?.toString() || record.student?._id}
-                    onClick={() => navigate(`/admin/fee/student/${record.student?._id}`)}
-                    className="group hover:bg-emerald-50/20 dark:hover:bg-emerald-900/10 transition-colors cursor-pointer"
-                  >
-                    <td className="pl-12 pr-6 py-6">
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={record.student?.profilePhoto || `https://api.dicebear.com/7.x/initials/svg?seed=${record.student?.firstName}`}
-                          alt=""
-                          className="w-10 h-10 rounded-xl object-cover shadow-sm bg-slate-100 dark:bg-slate-700"
-                        />
-                        <div>
-                          <span className="text-sm font-black text-slate-900 dark:text-white block">{record.student?.firstName} {record.student?.lastName}</span>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{record.student?.studentId}</span>
-                            {record.grade && (
-                              <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">Grade {record.grade?.gradeNumber}</span>
-                            )}
+          {isTableLoading ? (
+            <Loading text="Fetching Records..." />
+          ) : (
+            <>
+              <div className="overflow-x-auto scrollbar-hide">
+                <table className="w-full min-w-[1000px] text-left">
+                  <thead>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                      <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em]">Student</th>
+                      <th className="px-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em]">Fee Months</th>
+                      <th className="px-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em]">Due Amount</th>
+                      <th className="px-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em] text-center">Status</th>
+                      <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em] text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                    {displayFees.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-24 text-center">
+                          <div className="flex flex-col items-center gap-4 opacity-30">
+                            <CreditCard size={48} />
+                            <p className="text-[10px] font-black capitalize tracking-[0.3em]">No students found</p>
                           </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-6">
-                      {record.totalMonths > 0 ? (
-                        <>
-                          <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                            {record.unpaidCount > 0 ? `${record.unpaidCount} month${record.unpaidCount > 1 ? 's' : ''} unpaid` : 'All paid'}
-                          </span>
-                          <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase mt-1">{record.totalMonths}/12 months generated</p>
-                        </>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400 italic">No ledger yet</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-6">
-                      {record.status === 'NO_RECORD' ? (
-                        <span className="text-xs text-slate-400 italic">—</span>
-                      ) : (
-                        <>
-                          <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">Rs. {record.dueAmount?.toLocaleString()}</span>
-                          {record.paidAmount > 0 && (
-                            <p className="text-[10px] font-bold text-emerald-500 mt-1">Paid: Rs. {record.paidAmount?.toLocaleString()}</p>
-                          )}
-                        </>
-                      )}
-                    </td>
-                    <td className="px-6 py-6">
-                      <div className="flex justify-center">
-                        {getStatusBadge(record.status)}
-                      </div>
-                    </td>
-                    <td className="pr-12 pl-6 py-6">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenExtraFeeModal(record);
-                          }}
-                          className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all shadow-sm group/btn"
-                          title="Add Extra Fee"
+                        </td>
+                      </tr>
+                    ) : (
+                      displayFees.map((record, idx) => (
+                        <tr
+                          key={record.studentId || idx}
+                          onClick={() => navigate(`/admin/fee/student/${record._id}`)}
+                          className="group hover:bg-emerald-50/20 dark:hover:bg-emerald-900/10 transition-colors cursor-pointer"
                         >
-                          <Plus size={18} className="group-hover/btn:rotate-90 transition-transform" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {displayFees.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-24 text-center">
-                      <div className="flex flex-col items-center gap-4 opacity-30">
-                        <CreditCard size={48} />
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em]">No students found</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                          <td className="pl-12 pr-6 py-6">
+                            <div className="flex items-center gap-4">
+                              <img
+                                src={record.profilePhoto || `https://api.dicebear.com/7.x/initials/svg?seed=${record.studentName}`}
+                                alt=""
+                                className="w-10 h-10 rounded-xl object-cover shadow-sm bg-slate-100 dark:bg-slate-700"
+                              />
+                              <div>
+                                <span className="text-sm font-black text-slate-900 dark:text-white block">{record.studentName}</span>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] font-bold text-slate-400 capitalize tracking-widest">{record.studentId}</span>
+                                  <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">{record.className}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-6">
+                            <span className="text-xs font-black text-slate-700 dark:text-slate-300">
+                              {record.unpaidMonths > 0 ? `${record.unpaidMonths} months unpaid` : 'All paid'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-6">
+                            <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">Rs. {record.totalDueAmount?.toLocaleString()}</span>
+                            {record.totalPaidAmount > 0 && (
+                              <p className="text-[10px] font-bold text-emerald-500 mt-1">Paid: Rs. {record.totalPaidAmount?.toLocaleString()}</p>
+                            )}
+                          </td>
+                          <td className="px-6 py-6">
+                            <div className="flex justify-center">
+                              {getStatusBadge(record)}
+                            </div>
+                          </td>
+                          <td className="pr-12 pl-6 py-6">
+                            <div className="flex items-center justify-center gap-2">
+                              {record.feeStatus !== 'PAID' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenExtraFeeModal(record);
+                                  }}
+                                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all shadow-sm group/btn"
+                                  title="Add Extra Fee"
+                                >
+                                  <Plus size={18} className="group-hover/btn:rotate-90 transition-transform" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-          <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
-              Showing {displayFees.length} of {totalRecords} Records
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                className="w-10 h-10 flex items-center justify-center rounded-[10px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                className="w-10 h-10 flex items-center justify-center rounded-[10px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
+              <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-[0.2em]">
+                  Showing {displayFees.length} of {totalRecords} Records
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="w-10 h-10 flex items-center justify-center rounded-[10px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="w-10 h-10 flex items-center justify-center rounded-[10px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-emerald-500 transition-all shadow-sm active:scale-90 disabled:opacity-50"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -458,8 +485,8 @@ const Fee = () => {
               </div>
               <div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Add Extra Fees</h2>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
-                  {selectedFeeRecord?.monthName} - {selectedFeeRecord?.student?.firstName}
+                <p className="text-xs font-bold text-slate-400 capitalize tracking-widest mt-2">
+                  {selectedFeeRecord?.className} - {selectedFeeRecord?.studentName}
                 </p>
               </div>
             </div>
@@ -475,7 +502,7 @@ const Fee = () => {
             {extraFees.map((fee, index) => (
               <div key={index} className="flex items-end gap-3 group animate-in slide-in-from-top-2 duration-300">
                 <div className="flex-1 space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fee Description</label>
+                  <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">Fee Description</label>
                   <input
                     type="text"
                     placeholder="Exam Fee, Library Fine, etc."
@@ -485,7 +512,7 @@ const Fee = () => {
                   />
                 </div>
                 <div className="w-28 space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Amount</label>
+                  <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">Amount</label>
                   <input
                     type="number"
                     placeholder="0"
@@ -508,20 +535,20 @@ const Fee = () => {
               className="w-full py-4 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-center gap-3 text-slate-400 hover:text-emerald-500 hover:border-emerald-500/30 transition-all"
             >
               <Plus size={16} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Add Another Row</span>
+              <span className="text-[10px] font-black capitalize tracking-widest">Add Another Row</span>
             </button>
           </div>
 
           <div className="p-10 border-t border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 flex gap-4">
             <button
               onClick={() => setIsExtraFeeModalOpen(false)}
-              className="px-8 py-5 text-[10px] font-black tracking-widest text-slate-400 hover:text-slate-600 uppercase"
+              className="px-8 py-5 text-[10px] font-black tracking-widest text-slate-400 hover:text-slate-600 capitalize"
             >
               Cancel
             </button>
             <button
               onClick={handleSaveExtraFees}
-              className="flex-1 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 transition-all"
+              className="flex-1 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-xs capitalize tracking-[0.2em] shadow-xl shadow-emerald-600/20 hover:scale-[1.02] active:scale-95 transition-all"
             >
               Add Fees To Record
             </button>
