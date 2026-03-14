@@ -11,12 +11,18 @@ import {
     GraduationCap,
     MessageSquare,
     Trash2,
-    AlertTriangle
+    AlertTriangle,
+    Reply,
+    X,
+    Image as ImageIcon,
+    Paperclip
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from '../MainSystemComponents/toast/toast';
-import ConfirmDialog from '../components/UI/ConfirmDialog';
+import { useLocation } from 'react-router-dom';
+import { toast } from '../MainSystemComponents/Toast';
+import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
+import PortalPopup from '../MainSystemComponents/PortalPopup';
 
 // Static Data
 const STATIC_USERS = [
@@ -51,8 +57,17 @@ const INITIAL_MESSAGES = [
 ];
 
 const MessagesPage = () => {
-    // Current user is hardcoded as Admin
-    const [currentUser] = useState(STATIC_USERS[0]);
+    const location = useLocation();
+
+    // Get current user dynamically based on role from URL
+    const [currentUser] = useState(() => {
+        const path = location.pathname;
+        let defaultRole = "admin";
+        if (path.includes("/teacher")) defaultRole = "teacher";
+        if (path.includes("/student")) defaultRole = "student";
+        return STATIC_USERS.find(u => u.role === defaultRole) || STATIC_USERS[0];
+    });
+
     const [contacts, setContacts] = useState([]);
     const [conversations, setConversations] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
@@ -63,7 +78,13 @@ const MessagesPage = () => {
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [showReportConfirm, setShowReportConfirm] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [messageToDelete, setMessageToDelete] = useState(null);
     const [blockedUserIds, setBlockedUserIds] = useState([]);
+    const [replyTo, setReplyTo] = useState(null);
+    const [selectedImages, setSelectedImages] = useState([]);
+    const [previewImage, setPreviewImage] = useState(null);
+    const fileInputRef = useRef(null);
 
     const messagesEndRef = useRef(null);
     const moreMenuRef = useRef(null);
@@ -127,9 +148,25 @@ const MessagesPage = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, selectedUser]);
 
+    const handleImageSelect = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        const newImages = files.map(file => ({
+            id: URL.createObjectURL(file),
+            file
+        }));
+
+        setSelectedImages(prev => [...prev, ...newImages]);
+    };
+
+    const removeImage = (id) => {
+        setSelectedImages(prev => prev.filter(img => img.id !== id));
+    };
+
     const handleSendMessage = (e) => {
         e.preventDefault();
-        if (!selectedUser || !newMessage.trim()) return;
+        if (!selectedUser || (!newMessage.trim() && selectedImages.length === 0)) return;
 
         const conversationId = [currentUser.uid, selectedUser.uid].sort().join('_');
         const msg = {
@@ -137,13 +174,17 @@ const MessagesPage = () => {
             senderId: currentUser.uid,
             receiverId: selectedUser.uid,
             text: newMessage,
+            images: selectedImages.map(img => img.id),
             timestamp: new Date(),
             read: false,
-            conversationId
+            conversationId,
+            replyToId: replyTo?.id
         };
 
         setMessages(prev => [...prev, msg]);
         setNewMessage('');
+        setReplyTo(null);
+        setSelectedImages([]);
     };
 
     const handleClearAll = () => {
@@ -169,12 +210,31 @@ const MessagesPage = () => {
 
     const confirmReport = () => {
         if (!selectedUser) return;
-        // In a real app, this would send a report to the backend
         setBlockedUserIds(prev => [...prev, selectedUser.uid]);
         setShowReportConfirm(false);
         toast({
             type: 'info',
             message: `Report submitted for ${selectedUser.name}. User has been blocked.`
+        });
+    };
+
+    const handleDeleteMessage = (msg) => {
+        setMessageToDelete(msg);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDeleteMessage = () => {
+        if (!messageToDelete) return;
+        
+        const isMe = messageToDelete.senderId === currentUser.uid;
+        
+        setMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
+        setShowDeleteConfirm(false);
+        setMessageToDelete(null);
+
+        toast({
+            type: 'success',
+            message: isMe ? 'Message deleted for everyone' : 'Message deleted for you'
         });
     };
 
@@ -188,12 +248,22 @@ const MessagesPage = () => {
         });
     };
 
+    const visibleTabs = (() => {
+        if (currentUser.role === 'admin') return ['all', 'teachers', 'students'];
+        if (currentUser.role === 'teacher') return ['all', 'admin', 'teachers', 'students'];
+        if (currentUser.role === 'student') return ['all', 'admin', 'teachers', 'classmates'];
+        return ['all'];
+    })();
+
     const filteredConversations = conversations.filter(c => {
         const matchesSearch = c.otherUser.name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesTab = activeTab === 'all' ||
-            (activeTab === 'admin' && c.otherUser.role === 'admin') ||
-            (activeTab === 'teachers' && c.otherUser.role === 'teacher') ||
-            (activeTab === 'classmates' && c.otherUser.role === 'student');
+        
+        let matchesTab = false;
+        if (activeTab === 'all') matchesTab = true;
+        else if (activeTab === 'admin') matchesTab = (c.otherUser.role === 'admin');
+        else if (activeTab === 'teachers') matchesTab = (c.otherUser.role === 'teacher');
+        else if (activeTab === 'students' || activeTab === 'classmates') matchesTab = (c.otherUser.role === 'student');
+
         return matchesSearch && matchesTab;
     });
 
@@ -243,13 +313,13 @@ const MessagesPage = () => {
 
                 {/* Tabs */}
                 <div className="flex items-center gap-2 px-6 py-3 overflow-x-auto scrollbar-hide border-b border-slate-50 dark:border-slate-800">
-                    {(['all', 'admin', 'teachers', 'classmates']).map((tab) => (
+                    {visibleTabs.map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === tab
-                                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100 dark:shadow-none'
-                                    : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400'
+                                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100 dark:shadow-none'
+                                : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400'
                                 }`}
                         >
                             {tab}
@@ -265,8 +335,8 @@ const MessagesPage = () => {
                                 key={convo.otherUser.uid}
                                 onClick={() => setSelectedUser(convo.otherUser)}
                                 className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-left mb-1 group ${selectedUser?.uid === convo.otherUser.uid
-                                        ? 'bg-emerald-50 dark:bg-emerald-900/10'
-                                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    ? 'bg-emerald-50 dark:bg-emerald-900/10'
+                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                                     }`}
                             >
                                 <div className="relative">
@@ -350,8 +420,8 @@ const MessagesPage = () => {
                                 <button
                                     onClick={() => setShowMoreMenu(!showMoreMenu)}
                                     className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${showMoreMenu
-                                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none'
-                                            : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-600'
+                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none'
+                                        : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-600'
                                         }`}
                                 >
                                     <MoreVertical size={18} />
@@ -418,13 +488,51 @@ const MessagesPage = () => {
                                                     </span>
                                                 </div>
                                             )}
-                                            <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[70%] space-y-1 ${isMe ? 'items-end' : 'items-start'}`}>
+                                            <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full`}>
+                                                
+                                                <div className={`relative max-w-[70%] flex ${isMe ? 'items-end flex-col' : 'items-start flex-col'}`}>
+                                                    
+                                                    {/* Action Buttons (Hover) */}
+                                                    <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all ${isMe ? '-left-20' : '-right-20'}`}>
+                                                        <button 
+                                                            onClick={() => setReplyTo(msg)}
+                                                            className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 shadow-sm transition-all"
+                                                            title="Reply to message"
+                                                        >
+                                                            <Reply size={14} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleDeleteMessage(msg)}
+                                                            className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 shadow-sm transition-all"
+                                                            title="Delete message"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+
                                                     <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm transition-all ${isMe
-                                                            ? 'bg-emerald-500 text-white rounded-tr-none'
-                                                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none border border-slate-50 dark:border-slate-700'
+                                                        ? 'bg-emerald-500 text-white rounded-tr-none'
+                                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none border border-slate-50 dark:border-slate-700'
                                                         }`}>
-                                                        {msg.text}
+                                                        {msg.text && (
+                                                            <div className={msg.images?.length > 0 ? 'mb-2' : ''}>
+                                                                {msg.text}
+                                                            </div>
+                                                        )}
+
+                                                        {msg.images?.length > 0 && (
+                                                            <div className={`grid gap-2 ${msg.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2 shadow-inner'}`}>
+                                                                {msg.images.map((img, i) => (
+                                                                    <img 
+                                                                        key={i} 
+                                                                        src={img} 
+                                                                        alt="sent" 
+                                                                        onClick={() => setPreviewImage(img)}
+                                                                        className="rounded-xl object-cover w-full h-auto max-h-64 border border-white/10 cursor-pointer hover:opacity-90 transition-opacity" 
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className={`flex items-center gap-2 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                                                         <span className="text-[10px] font-medium text-slate-400">
@@ -444,7 +552,35 @@ const MessagesPage = () => {
                         </div>
 
                         {/* Input Area */}
-                        <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 transition-colors">
+                        <div className="bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 transition-colors flex flex-col">
+                            {/* Reply Context Bar */}
+                            <AnimatePresence>
+                                {replyTo && (
+                                    <motion.div 
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="px-6 py-3 bg-emerald-50/50 dark:bg-emerald-900/10 border-b border-emerald-100 dark:border-emerald-900/30 flex justify-between items-center"
+                                    >
+                                        <div className="flex-1 min-w-0 pr-4">
+                                            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-0.5 flex items-center gap-1">
+                                                <Reply size={10} /> Replying to {replyTo.senderId === currentUser.uid ? 'Yourself' : STATIC_USERS.find(u => u.uid === replyTo.senderId)?.name}
+                                            </p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                                                {replyTo.text}
+                                            </p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setReplyTo(null)}
+                                            className="p-1.5 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-800/50 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <div className="p-6">
                             {isSelectedUserBlocked ? (
                                 <div className="flex flex-col items-center justify-center py-2 text-center">
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">You have blocked this user</p>
@@ -456,25 +592,67 @@ const MessagesPage = () => {
                                     </button>
                                 </div>
                             ) : (
-                                <form onSubmit={handleSendMessage} className="flex items-center gap-4">
-                                    <div className="flex-1 relative group">
-                                        <input
-                                            type="text"
-                                            placeholder="Type a message..."
-                                            value={newMessage}
-                                            onChange={(e) => setNewMessage(e.target.value)}
-                                            className="w-full h-12 bg-slate-50 dark:bg-slate-800 border border-transparent rounded-2xl px-6 text-sm font-medium text-slate-600 dark:text-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-300/30 transition-all outline-none"
+                                <>
+                                    {/* Image Preview Bar */}
+                                    <AnimatePresence>
+                                        {selectedImages.length > 0 && (
+                                            <motion.div 
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="px-0 py-4 bg-transparent flex gap-3 overflow-x-auto scrollbar-hide border-b border-slate-100 dark:border-slate-800 mb-4"
+                                            >
+                                                {selectedImages.map((img) => (
+                                                    <div key={img.id} className="relative flex-shrink-0">
+                                                        <img src={img.id} alt="preview" className="w-20 h-20 object-cover rounded-xl border-2 border-white dark:border-slate-700 shadow-sm" />
+                                                        <button 
+                                                            onClick={() => removeImage(img.id)}
+                                                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all scale-90"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                                        <input 
+                                            type="file" 
+                                            multiple 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            ref={fileInputRef}
+                                            onChange={handleImageSelect}
                                         />
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        disabled={!newMessage.trim()}
-                                        className="w-12 h-12 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100 dark:shadow-none transition-all active:scale-95"
-                                    >
-                                        <Send size={20} />
-                                    </button>
-                                </form>
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current.click()}
+                                            className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-500 transition-all"
+                                        >
+                                            <ImageIcon size={22} />
+                                        </button>
+                                        <div className="flex-1 relative group">
+                                            <input
+                                                type="text"
+                                                placeholder="Type a message..."
+                                                value={newMessage}
+                                                onChange={(e) => setNewMessage(e.target.value)}
+                                                className="w-full h-12 bg-slate-50 dark:bg-slate-800 border border-transparent rounded-2xl px-6 text-sm font-medium text-slate-600 dark:text-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-300/30 transition-all outline-none"
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={!newMessage.trim() && selectedImages.length === 0}
+                                            className="w-12 h-12 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100 dark:shadow-none transition-all active:scale-95"
+                                        >
+                                            <Send size={20} />
+                                        </button>
+                                    </form>
+                                </>
                             )}
+                            </div>
                         </div>
                     </>
                 ) : (
@@ -485,8 +663,10 @@ const MessagesPage = () => {
                         <div>
                             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Select a conversation</h3>
                             <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto">
-                                Choose a contact from the left to start messaging.
-                                Admins can message everyone, while teachers and students have role-based permissions.
+                                Select a contact from the left to start messaging.
+                                All messages are private and can only be seen by you and the recipient.
+                                If a message is reported, it becomes visible to ClassTrack administrators or School Admin
+                                for review and moderation purposes.
                             </p>
                         </div>
                         <div className="flex flex-wrap justify-center gap-4 mt-8">
@@ -506,6 +686,42 @@ const MessagesPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Photo Preview Modal */}
+            <PortalPopup 
+                isOpen={!!previewImage} 
+                onClose={() => setPreviewImage(null)}
+            >
+                <div className="relative max-w-4xl max-h-[90vh] flex items-center justify-center p-2">
+                    <img 
+                        src={previewImage} 
+                        alt="Preview" 
+                        className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border-4 border-white dark:border-slate-800"
+                    />
+                    <button 
+                        onClick={() => setPreviewImage(null)}
+                        className="absolute -top-4 -right-4 w-10 h-10 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full flex items-center justify-center shadow-xl hover:text-red-500 transition-colors pointer-events-auto"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+            </PortalPopup>
+
+            {/* Deletion Confirm Dialog */}
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                onClose={() => {
+                    setShowDeleteConfirm(false);
+                    setMessageToDelete(null);
+                }}
+                onConfirm={confirmDeleteMessage}
+                title="Delete Message"
+                message={messageToDelete?.senderId === currentUser.uid 
+                    ? "Are you sure you want to delete this message? It will be removed for everyone." 
+                    : "Are you sure you want to delete this message for yourself?"}
+                confirmText="Delete"
+                type="danger"
+            />
         </div>
     );
 };

@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Sun, Moon, Check, ArrowRight } from 'lucide-react';
+import { Search, Bell, Sun, Moon, Check, ArrowRight, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
+  const navigate = useNavigate();
 
   const getPageDisplayName = () => {
     const pageNames = {
@@ -16,7 +18,8 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       calendar: 'Calendar',
       exam: 'Examination',
       notification: 'Notifications',
-      fee: 'Fee Management'
+      fee: 'Fee Management',
+      messages: 'Messages'
     };
     return pageNames[activePage] || 'Dashboard';
   };
@@ -75,6 +78,16 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+
+        {/* Messages */}
+        <button
+          onClick={() => navigate('/admin/messages')}
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all relative"
+          title="Messages"
+        >
+          <MessageSquare className="w-5 h-5" />
+          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-emerald-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
         </button>
 
         {/* Notifications */}

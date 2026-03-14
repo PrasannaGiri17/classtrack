@@ -44,6 +44,7 @@ const AdminLayout = () => {
     else if (path.includes("/exam")) setActivePage("exam");
     else if (path.includes("/notification")) setActivePage("notification");
     else if (path.includes("/fee")) setActivePage("fee");
+    else if (path.includes("/messages")) setActivePage("messages");
   }, [location.pathname]);
 
   const toggleDarkMode = () => setIsDarkMode((prev) => !prev);

@@ -18,6 +18,7 @@ import StudentFee from './Adminpages/StudentFee';
 import PlaceholderPage from './Adminpages/PlaceholderPage';
 import StudentPage from './Page/studentpage';
 import TeacherPage from './Page/teacherpage';
+import MessagesPage from './Page/MessagesPage';
 
 
 import TeacherLayout from './TeacherComponents/Layout/TecaherLayout';
@@ -101,6 +102,7 @@ function App() {
           <Route path="fee/student/:id" element={<StudentFee />} />
           <Route path="student/:id" element={<StudentPage />} />
           <Route path="teacher/:id" element={<TeacherPage />} />
+          <Route path="messages" element={<MessagesPage />} />
         </Route>
 
         <Route path="/teacher" element={<TeacherLayout />}>
@@ -117,6 +119,7 @@ function App() {
           <Route path="notification" element={<TeacherNotificationPage />} />
           <Route path="profile" element={<TeacherMePage />} />
           <Route path="student-profile" element={<StudentMePage />} />
+          <Route path="messages" element={<MessagesPage />} />
         </Route>
 
         <Route path="/student" element={<StudentLayout />}>
@@ -133,6 +136,7 @@ function App() {
           <Route path="fee" element={<SFeeManagement />} />
           <Route path="discussions" element={<SDiscussionsPage />} />
           <Route path="profile" element={<StudentMePage />} />
+          <Route path="messages" element={<MessagesPage />} />
           
         </Route>
 

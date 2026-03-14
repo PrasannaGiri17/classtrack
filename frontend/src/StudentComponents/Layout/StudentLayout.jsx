@@ -38,6 +38,7 @@ const StudentLayout = () => {
     else if (path.includes('/assignments')) setActivePage('assignments');
     else if (path.includes('/quiz')) setActivePage('quiz');
     else if (path.includes('/profile')) setActivePage('profile');
+    else if (path.includes('/messages')) setActivePage('messages');
   }, [location.pathname]);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);

@@ -44,6 +44,7 @@ const TecaherLayout = () => {
     else if (path.includes("/diary")) setActivePage("diary");
     else if (path.includes("/assignments")) setActivePage("assignments");
     else if (path.includes("/notification")) setActivePage("notification");
+    else if (path.includes("/messages")) setActivePage("messages");
   }, [location.pathname]);
 
   const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
