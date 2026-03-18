@@ -16,6 +16,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       calendar: "Calendar",
       exam: "Examination",
       notification: "Notifications",
+      profile: "Admin Profile",
     };
     return pageNames[activePage] || "Dashboard";
   };
@@ -164,10 +165,13 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
         <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-2 transition-colors" />
 
-        <button className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group">
+        <button 
+          onClick={() => navigate('/admin/profile')}
+          className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group"
+        >
           <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
             <img
-              src="https://picsum.photos/seed/admin/200/200"
+              src={localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200"}
               alt="Profile"
               className="w-full h-full object-cover"
             />

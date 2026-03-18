@@ -3,13 +3,16 @@ const schoolController = require("../controllers/schoolController");
 
 const router = express.Router();
 
-// Get School Info
-router.get("/", schoolController.getSchool);
+// Get All Schools
+router.get("/", schoolController.getAllSchools);
 
-// Add School Info (Initial)
+// Get Specific School
+router.get("/:id", schoolController.getSchoolById);
+
+// Add School
 router.post("/add", schoolController.addSchool);
 
-// Update School Info
-router.put("/update", schoolController.updateSchool);
+// Update School
+router.put("/update/:id", schoolController.updateSchool);
 
 module.exports = router;

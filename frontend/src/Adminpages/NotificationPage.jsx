@@ -154,7 +154,7 @@ const NotificationPage = () => {
       sender: newSender,
       senderId: CURRENT_ADMIN_ID,
       senderType: newSenderType,
-      schoolId: 1
+      schoolId: parseInt(localStorage.getItem("schoolId")) || 1
     };
 
 

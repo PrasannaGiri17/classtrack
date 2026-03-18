@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
 
 const timetableSchema = new mongoose.Schema({
-  schoolId: { type: Number, default: 1 },
+  schoolId: { type: Number, required: true },
+  
   gradeNumber: { type: String, required: true },
   sectionName: { type: String, required: true },
   weekday: { type: String, required: true, enum: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'] },

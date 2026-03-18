@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const studentFeeSchema = new mongoose.Schema(
   {
+    schoolId: { type: Number, required: true },
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Student",

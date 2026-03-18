@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const ClassroomAttendanceSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, default: 1 },
+    schoolId: { type: Number, required: true },
     gradeId: { type: mongoose.Schema.Types.ObjectId, ref: "Grade", required: true },
     sectionId: { type: mongoose.Schema.Types.ObjectId, ref: "Grade.sections", required: true }, // Referencing the section ID in the Grade model
     teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", required: true },

@@ -19,7 +19,7 @@ import {
 import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
 import { toast } from '../../MainSystemComponents/Toast';
 
-const RoutineView = ({ schoolHours, onUpdateHours, classRoutines, onUpdateRoutines, onFinalize, gradeList }) => {
+const RoutineView = ({ schoolHours, onUpdateHours, classRoutines, onUpdateRoutines, onFinalize, gradeList, schoolName }) => {
   const [selectedGrade, setSelectedGrade] = useState(gradeList[0] || "1");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -89,7 +89,10 @@ const RoutineView = ({ schoolHours, onUpdateHours, classRoutines, onUpdateRoutin
     <div className="space-y-10 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-2">
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">Routine Structure</h2>
+          <div className="flex flex-col gap-1">
+             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">Routine Structure</h2>
+             <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">{schoolName || "Academic Scheduling Context"}</p>
+          </div>
           <p className="text-sm font-medium text-slate-500">Define structural framework without subject or teacher assignments</p>
         </div>
         <div className="flex gap-2">

@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 
 const StudentSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true, default: 1 },
+    
+    schoolId: { type: Number, required: true },
 
     // Auto generated
     studentId: { type: String, required: true, unique: true },
@@ -68,6 +69,14 @@ StudentSchema.pre("validate", async function (next) {
     this.studentId = await generateStudentId(this.constructor);
   }
   next();
+});
+
+// Cascade delete: Remove associated User when Student is deleted
+StudentSchema.post("findOneAndDelete", async function (doc) {
+  if (doc) {
+    const User = mongoose.model("User");
+    await User.deleteOne({ studentId: doc._id });
+  }
 });
 
 module.exports = mongoose.model("Student", StudentSchema);

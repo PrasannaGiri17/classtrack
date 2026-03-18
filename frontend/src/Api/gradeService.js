@@ -3,23 +3,25 @@ import axios from "axios";
 // Base URL configuration
 const API_URL = "http://localhost:7000/api/grades";
 
-const getGrades = async () => {
-  const response = await axios.get(API_URL);
+const getGrades = async (schoolId) => {
+  const response = await axios.get(API_URL, { params: { schoolId } });
   return response.data;
 };
 
-const updateGradeSections = async (gradeNumber, sectionCount) => {
+const updateGradeSections = async (gradeNumber, sectionCount, schoolId) => {
   const response = await axios.post(`${API_URL}/update-sections`, {
     gradeNumber,
-    sectionCount
+    sectionCount,
+    schoolId
   });
   return response.data;
 };
 
-const syncSections = async (sectionCount, gradeList = []) => {
+const syncSections = async (sectionCount, gradeList = [], schoolId) => {
   const response = await axios.post(`${API_URL}/sync-sections`, {
     sectionCount,
-    gradeList
+    gradeList,
+    schoolId
   });
   return response.data;
 };
@@ -29,10 +31,11 @@ const updateSectionName = async (payload) => {
   return response.data;
 };
 
-const updateGradeFee = async (gradeNumber, monthlyFee) => {
+const updateGradeFee = async (gradeNumber, monthlyFee, schoolId) => {
   const response = await axios.post(`${API_URL}/update-fee`, {
     gradeNumber,
-    monthlyFee
+    monthlyFee,
+    schoolId
   });
   return response.data;
 };

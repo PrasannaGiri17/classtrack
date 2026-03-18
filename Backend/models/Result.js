@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const resultSchema = new mongoose.Schema({
+  schoolId: { type: Number, required: true },
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
   gradeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Grade', required: true },
   sectionName: { type: String, required: true },

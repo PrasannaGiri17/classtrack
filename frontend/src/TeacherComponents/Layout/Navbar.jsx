@@ -50,14 +50,19 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         let teacherId = localStorage.getItem("teacherId");
         if (teacherId === "undefined" || teacherId === "null") teacherId = null;
 
-        if (teacherId) {
+        if (teacherId && teacherId !== "undefined" && teacherId !== "null") {
           const data = await teacherService.getTeacherById(teacherId);
           setTeacherInfo(data);
+          // Sync localStorage
+          localStorage.setItem("userName", `${data.firstName} ${data.lastName}`);
+          if (data.profilePhoto) localStorage.setItem("userPhoto", data.profilePhoto);
         } else {
-          const allTeachers = await teacherService.getAllTeachers();
-          if (allTeachers && allTeachers.length > 0) {
-            setTeacherInfo(allTeachers[0]);
-          }
+          // Fallback to localStorage if fetch fails or ID is missing
+          setTeacherInfo({
+            firstName: localStorage.getItem("userName")?.split(' ')[0] || "User",
+            lastName: localStorage.getItem("userName")?.split(' ').slice(1).join(' ') || "",
+            profilePhoto: localStorage.getItem("userPhoto")
+          });
         }
       } catch (error) {
         console.error("Failed to load teacher data for navbar:", error);

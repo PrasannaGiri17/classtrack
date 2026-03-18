@@ -5,7 +5,7 @@ const AdminAuthSchema = new mongoose.Schema({
     email:    { type: String, required: true, unique: true },
     password: { type: String, required: true },
 
-    schoolId: { type: mongoose.Schema.Types.ObjectId, ref: "School", required: true },
+    schoolId: { type: Number, required: true },
     schoolName: { type: String, required: true },
 
     createdAt: { type: Date, default: Date.now }

@@ -4,17 +4,19 @@ const { School } = require("../models/School");
 // Get Routine Matrix (All Grade Routines + Operating Hours)
 const getRoutineMatrix = async (req, res) => {
   try {
+    const schoolId = req.query.schoolId || req.headers['x-school-id'];
+    if (!schoolId) {
+      return res.status(400).json({ message: "schoolId required" });
+    }
+
     // 1. Get School Hours
-    const school = await School.findOne({ _id: 1 });
+    const school = await School.findOne({ _id: schoolId });
     const operatingHours = school?.operatingHours || { start: "09:00", end: "16:00" };
 
     // 2. Get All Grade Routines
-    const routines = await Routine.find({ schoolId: 1 });
+    const routines = await Routine.find({ schoolId });
     
     // Transform into map { "1": { slots: [], isLocked: false } } 
-    // Frontend expects: classRoutines map.
-    // OLD: routineMap[r.gradeNumber] = r.slots;
-    // NEW: routineMap[r.gradeNumber] = { slots: r.slots, isLocked: r.isLocked };
     const routineMap = {};
     routines.forEach(r => {
         routineMap[r.gradeNumber] = { 
@@ -33,13 +35,14 @@ const getRoutineMatrix = async (req, res) => {
 // Update Operating Hours
 const updateOperatingHours = async (req, res) => {
     try {
-        const { start, end } = req.body;
+        const { start, end, schoolId } = req.body;
+        if (!schoolId) return res.status(400).json({ message: "schoolId required" });
         if (!start || !end) {
             return res.status(400).json({ message: "Start and End times are required" });
         }
 
         const updatedSchool = await School.findOneAndUpdate(
-            { _id: 1 },
+            { _id: schoolId },
             { $set: { operatingHours: { start, end } } },
             { upsert: true, new: true }
         );
@@ -54,14 +57,16 @@ const updateOperatingHours = async (req, res) => {
 const updateGradeRoutine = async (req, res) => {
     try {
         const { gradeNumber } = req.params;
-        const { slots, isLocked } = req.body;
+        const { slots, isLocked, schoolId } = req.body;
+
+        if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
         if (!slots || !Array.isArray(slots)) {
             return res.status(400).json({ message: "Invalid slots data" });
         }
 
         const updatedRoutine = await Routine.findOneAndUpdate(
-            { schoolId: 1, gradeNumber },
+            { schoolId, gradeNumber },
             { 
                 $set: { 
                     slots, 

@@ -74,7 +74,15 @@ const ResetFirstLogin = () => {
 
       setPopupType("success");
       setPopupMessage("Password changed successfully.");
-      setTimeout(() => navigate("/home"), 1000); // useNavigate redirect [web:438]
+      
+      const role = localStorage.getItem("role");
+      setTimeout(() => {
+        if (role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/home");
+        }
+      }, 1000);
     } catch (err) {
       setPopupType("warning");
       setPopupMessage("Server error, please try again.");

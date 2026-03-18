@@ -18,12 +18,14 @@ import schoolService from '../Api/schoolService';
 import gradeService from '../Api/gradeService';
 import subjectService from '../Api/subjectService';
 import routineService from '../Api/routineService';
+import adminService from '../Api/adminService';
 import { toast } from '../MainSystemComponents/Toast';
 
 
 const SchoolManagement = () => {
   const [activeView, setActiveView] = useState('menu');
   const [isLoading, setIsLoading] = useState(false);
+  const [adminSchoolId, setAdminSchoolId] = useState(null);
 
   // --- Shared Global State ---
   const [schoolConfig, setSchoolConfig] = useState({
@@ -55,71 +57,90 @@ const SchoolManagement = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Fetch School config
-        const schoolData = await schoolService.getSchool();
-        if (schoolData) {
-          const transformedData = {
-            name: schoolData.name || "",
-            address: schoolData.address || "",
-            logo: schoolData.logo || "",
-            // Backend stores 'email', frontend uses 'schoolEmail'
-            schoolEmail: schoolData.email || "",
-            motto: schoolData.motto || "",
-            establishedYear: schoolData.establishedYear || "",
-            affiliation: schoolData.affiliation || "",
-            principalName: schoolData.principalName || "",
-            website: schoolData.website || "",
-            gradeSpan: schoolData.gradeSpan || { start: 1, end: 10 },
-            phoneNumbers: schoolData.phoneNumbers && Array.isArray(schoolData.phoneNumbers)
-              ? schoolData.phoneNumbers.map(p => ({ number: p.phoneNumber, label: p.type || "Phone" }))
-              : [],
-            socialLinks: schoolData.socialLinks && Array.isArray(schoolData.socialLinks)
-              ? schoolData.socialLinks.reduce((acc, curr) => ({ ...acc, [curr.platform]: curr.url }), {})
-              : {}
-          };
-          setSchoolConfig(prev => ({ ...prev, ...transformedData }));
-          if (schoolData.gradeSpan) {
-            setRange({ from: schoolData.gradeSpan.start || 1, to: schoolData.gradeSpan.end || 10 });
-          }
-        }
+        // 0. Get Admin Profile to find schoolId
+        const adminId = localStorage.getItem("adminId");
+        if (!adminId) return;
 
-        // 2. Fetch Grades
-        const gradesData = await gradeService.getGrades();
-        if (gradesData && Array.isArray(gradesData)) {
-          // ... (existing grade logic)
-          const sMap = {};
-          const cMap = {};
-          gradesData.forEach(g => {
-            const gNum = String(g.gradeNumber);
-            sMap[gNum] = g.sections ? g.sections.length : 1;
+        const adminProfile = await adminService.getAdminById(adminId);
+        const schoolId = adminProfile?.schoolId;
+        setAdminSchoolId(schoolId);
 
-            // Process Subjects
-            const cores = [];
-            const extras = [];
-            if (g.subjects) {
-              g.subjects.forEach(sub => {
-                const name = sub.subjectId ? sub.subjectId.subjectName : "Unknown";
-                if (sub.isMandatory) cores.push(name);
-                else extras.push({ subjectName: name, gradeNum: gNum });
-              });
+        if (!schoolId) return;
+
+        // 1. Fetch School config by ID
+        try {
+          const schoolData = await schoolService.getSchoolById(schoolId);
+          if (schoolData) {
+            const transformedData = {
+              name: schoolData.name || "",
+              address: schoolData.address || "",
+              logo: schoolData.logo || "",
+              schoolEmail: schoolData.email || "",
+              motto: schoolData.motto || "",
+              establishedYear: schoolData.establishedYear || "",
+              affiliation: schoolData.affiliation || "",
+              principalName: schoolData.principalName || "",
+              website: schoolData.website || "",
+              gradeSpan: schoolData.gradeSpan || { start: 1, end: 10 },
+              phoneNumbers: schoolData.phoneNumbers && Array.isArray(schoolData.phoneNumbers)
+                ? schoolData.phoneNumbers.map(p => ({ number: p.phoneNumber, label: p.type || "Phone" }))
+                : [],
+              socialLinks: schoolData.socialLinks && Array.isArray(schoolData.socialLinks)
+                ? schoolData.socialLinks.reduce((acc, curr) => ({ ...acc, [curr.platform]: curr.url }), {})
+                : {}
+            };
+            setSchoolConfig(prev => ({ ...prev, ...transformedData }));
+            if (schoolData.gradeSpan) {
+              setRange({ from: schoolData.gradeSpan.start || 1, to: schoolData.gradeSpan.end || 10 });
             }
-            cMap[gNum] = { core: cores, extra: extras };
-          });
-          setSectionMap(sMap);
-          setCurriculumMap(cMap);
-        }
-
-        // 3. Fetch Routines
-        const routineData = await routineService.getRoutineMatrix();
-        if (routineData) {
-          if (routineData.operatingHours) {
-            setSchoolHours(routineData.operatingHours);
           }
-          if (routineData.classRoutines) {
-            setClassRoutines(routineData.classRoutines);
+        } catch (schoolError) {
+          if (schoolError.response?.status === 404) {
+            console.log("New school admin - showing empty profile to add details.");
+          } else {
+            console.error("Error fetching school:", schoolError);
           }
         }
 
+        // 2. Fetch Grades (only if school exists)
+        if (schoolId) {
+          try {
+            const gradesData = await gradeService.getGrades(schoolId);
+            if (gradesData && Array.isArray(gradesData)) {
+              const sMap = {};
+              const cMap = {};
+              gradesData.forEach(g => {
+                const gNum = String(g.gradeNumber);
+                sMap[gNum] = g.sections ? g.sections.length : 1;
+                const cores = [];
+                const extras = [];
+                if (g.subjects) {
+                  g.subjects.forEach(sub => {
+                    const name = sub.subjectId ? sub.subjectId.subjectName : "Unknown";
+                    if (sub.isMandatory) cores.push(name);
+                    else extras.push({ subjectName: name, gradeNum: gNum });
+                  });
+                }
+                cMap[gNum] = { core: cores, extra: extras };
+              });
+              setSectionMap(sMap);
+              setCurriculumMap(cMap);
+            }
+          } catch (gradeErr) {
+            console.warn("No grade data for this school yet.", gradeErr.message);
+          }
+
+          // 3. Fetch Routines
+          try {
+            const routineData = await routineService.getRoutineMatrix(schoolId);
+            if (routineData) {
+              if (routineData.operatingHours) setSchoolHours(routineData.operatingHours);
+              if (routineData.classRoutines) setClassRoutines(routineData.classRoutines);
+            }
+          } catch (routineErr) {
+            console.warn("No routine data for this school yet.", routineErr.message);
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch data:", error);
       }
@@ -133,7 +154,7 @@ const SchoolManagement = () => {
   // --- Routine Handlers ---
   const handleUpdateHours = async (newHours) => {
     try {
-      await routineService.updateOperatingHours(newHours.start, newHours.end);
+      await routineService.updateOperatingHours(newHours.start, newHours.end, adminSchoolId);
       setSchoolHours(newHours);
       toast({ type: 'success', message: "Operating hours updated.", duration: 2000 });
     } catch (e) {
@@ -154,10 +175,8 @@ const SchoolManagement = () => {
       const routineData = classRoutines[grade];
       if (!routineData) return;
 
-      // Ensure it's saved as locked
-      await routineService.updateGradeRoutine(grade, routineData.slots, true);
+      await routineService.updateGradeRoutine(grade, routineData.slots, true, adminSchoolId);
 
-      // Update local state to reflect finalized/locked status
       setClassRoutines(prev => ({
         ...prev,
         [grade]: { ...prev[grade], isLocked: true }
@@ -199,11 +218,18 @@ const SchoolManagement = () => {
 
   const saveConfig = async (payload) => {
     try {
-      await schoolService.updateSchool(payload);
+      if (!adminSchoolId) return false;
+      
+      // Add schoolId to payload
+      const finalPayload = { ...payload, schoolId: adminSchoolId };
+      
+      await schoolService.updateSchool(adminSchoolId, finalPayload);
       return true;
     } catch (e) {
       if (e.response?.status === 404) {
-        await schoolService.addSchool(payload);
+        // Add schoolId for new record
+        const finalPayload = { ...payload, _id: adminSchoolId, schoolId: adminSchoolId };
+        await schoolService.addSchool(finalPayload);
         return true;
       }
       throw e;
@@ -241,7 +267,7 @@ const SchoolManagement = () => {
 
   const handleUpdateSections = async (grade, count) => {
     try {
-      await gradeService.updateGradeSections(grade, count);
+      await gradeService.updateGradeSections(grade, count, adminSchoolId);
       setSectionMap(prev => ({ ...prev, [grade]: count }));
       toast({ type: 'success', message: `Grade ${grade} sections updated to ${count}.`, duration: 3000 });
     } catch (error) {
@@ -252,7 +278,7 @@ const SchoolManagement = () => {
   const handleSyncSections = async (count) => {
     try {
       const gradesToSync = Array.from({ length: range.to - range.from + 1 }, (_, i) => (range.from + i).toString());
-      await gradeService.syncSections(count, gradesToSync);
+      await gradeService.syncSections(count, gradesToSync, adminSchoolId);
       const newMap = { ...sectionMap };
       gradesToSync.forEach(g => newMap[g] = count);
       setSectionMap(newMap);
@@ -265,7 +291,7 @@ const SchoolManagement = () => {
   // --- Curriculum Handlers ---
   const handleAddCore = async (grade, name) => {
     try {
-      await subjectService.addSubjectGlobal(name, 'core');
+      await subjectService.addSubjectGlobal(name, 'core', adminSchoolId);
       setCurriculumMap(prev => {
         const newMap = { ...prev };
         Object.keys(newMap).forEach(gKey => {
@@ -282,7 +308,7 @@ const SchoolManagement = () => {
 
   const handleRemoveCore = async (grade, name) => {
     try {
-      await subjectService.removeSubjectGlobal(name);
+      await subjectService.removeSubjectGlobal(name, adminSchoolId);
       setCurriculumMap(prev => {
         const newMap = { ...prev };
         Object.keys(newMap).forEach(gKey => {
@@ -300,19 +326,14 @@ const SchoolManagement = () => {
   const handleAddExtra = async (grades, name) => {
     setIsLoading(true);
     try {
-      // Process all grades
       for (const grade of grades) {
-        await subjectService.addSubject(grade, name, 'elective');
+        await subjectService.addSubject(grade, name, 'elective', adminSchoolId);
       }
-
       setCurriculumMap(prev => {
         const newMap = { ...prev };
         grades.forEach(grade => {
           const gData = newMap[grade] || { core: [], extra: [] };
-          newMap[grade] = {
-            ...gData,
-            extra: [...gData.extra, { subjectName: name, gradeNum: grade }]
-          };
+          newMap[grade] = { ...gData, extra: [...gData.extra, { subjectName: name, gradeNum: grade }] };
         });
         return newMap;
       });
@@ -328,17 +349,13 @@ const SchoolManagement = () => {
     setIsLoading(true);
     try {
       for (const grade of grades) {
-        await subjectService.removeSubject(grade, name);
+        await subjectService.removeSubject(grade, name, adminSchoolId);
       }
-
       setCurriculumMap(prev => {
         const newMap = { ...prev };
         grades.forEach(grade => {
           const gData = newMap[grade] || { core: [], extra: [] };
-          newMap[grade] = {
-            ...gData,
-            extra: gData.extra.filter(e => e.subjectName !== name)
-          };
+          newMap[grade] = { ...gData, extra: gData.extra.filter(e => e.subjectName !== name) };
         });
         return newMap;
       });
@@ -369,6 +386,7 @@ const SchoolManagement = () => {
           range={range}
           sectionMap={sectionMap}
           gradeList={gradeList}
+          schoolName={schoolConfig.name}
           onUpdateRange={handleUpdateRange}
           onUpdateSections={handleUpdateSections}
           onSyncSections={handleSyncSections}
@@ -378,6 +396,7 @@ const SchoolManagement = () => {
           gradeList={gradeList}
           getCoreForGrade={getCoreForGrade}
           extraSubjects={allExtras}
+          schoolName={schoolConfig.name}
           onAddCore={handleAddCore}
           onRemoveCore={handleRemoveCore}
           onAddExtra={handleAddExtra}
@@ -391,6 +410,7 @@ const SchoolManagement = () => {
           onUpdateRoutines={handleUpdateRoutines}
           onFinalize={handleFinalizeRoutine}
           gradeList={gradeList}
+          schoolName={schoolConfig.name}
         />;
       default:
         return null;

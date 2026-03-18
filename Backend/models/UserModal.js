@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true, default: 1 },
+    schoolId: { type: Number, required: true},
     email: { type: String, required: true, unique: true, trim: true },
     password: { type: String, required: true }, // hashed by pre-save
 
@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema(
     
     teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher", default: null },
     studentId: { type: mongoose.Schema.Types.ObjectId, ref: "Student", default: null },
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
 
     mustChangePassword: { type: Boolean, default: true },
 
@@ -47,5 +48,21 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = function (candidate) {
   return bcrypt.compare(candidate, this.password);
 };
+
+// Cascade delete: Remove associated Student, Teacher, or Admin when User is deleted
+userSchema.post("findOneAndDelete", async function (doc) {
+  if (doc) {
+    if (doc.role === "student" && doc.studentId) {
+      const Student = mongoose.model("Student");
+      await Student.deleteOne({ _id: doc.studentId });
+    } else if (doc.role === "teacher" && doc.teacherId) {
+      const Teacher = mongoose.model("Teacher");
+      await Teacher.deleteOne({ _id: doc.teacherId });
+    } else if (doc.role === "admin" && doc.adminId) {
+      const Admin = mongoose.model("Admin");
+      await Admin.deleteOne({ _id: doc.adminId });
+    }
+  }
+});
 
 module.exports = mongoose.model("User", userSchema);

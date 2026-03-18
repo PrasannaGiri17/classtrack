@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 
 const TeacherSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true, default: 1 },
+    schoolId: { type: Number, required: true },
 
     // Auto generated like studentId
     teacherCode: { type: String, required: true, unique: true },
@@ -46,6 +46,14 @@ TeacherSchema.pre("validate", function (next) {
     this.teacherCode = `TCH-${Date.now()}-${random}`;
   }
   next();
+});
+
+// Cascade delete: Remove associated User when Teacher is deleted
+TeacherSchema.post("findOneAndDelete", async function (doc) {
+  if (doc) {
+    const User = mongoose.model("User");
+    await User.deleteOne({ teacherId: doc._id });
+  }
 });
 
 module.exports = mongoose.model("Teacher", TeacherSchema);

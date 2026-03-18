@@ -2,9 +2,14 @@ import React from 'react';
 import './App.css';
 import { BrowserRouter as Router, Route, Routes,Navigate } from 'react-router-dom';
 import { ActivePageProvider } from './context/ActivePageContext';
+
+import SuSchoolDetailPage from './SuperAdminpages/suSchoolDetailPage';
+import SuSchoolsPage from './SuperAdminpages/suSchoolsPage';
+import SuDashboard from './SuperAdminpages/suDashboard';
+import SuAdminLayout from './SuperAdmincomponents/Layout/suAdminLayout';
+
 import AdminLayout from './AdminComponents/Layout/AdminLayout';
 import DashboardPage from './Adminpages/Dashboard';
-
 import CalendarPage from './Adminpages/CalendarPage';
 import StudentRecord from './Adminpages/StudentRecord';
 import TeacherRecord from './Adminpages/TeacherRecord';
@@ -17,6 +22,7 @@ import Fee from './Adminpages/Fee';
 import StudentFee from './Adminpages/StudentFee';
 import PlaceholderPage from './Adminpages/PlaceholderPage';
 import StudentPage from './Page/studentpage';
+import AdminMePage from './Adminpages/AdminMePage';
 import TeacherPage from './Page/teacherpage';
 import MessagesPage from './Page/MessagesPage';
 
@@ -87,8 +93,16 @@ function App() {
               <Route path="gcalendar" element={<Gcalender />} />
               <Route path="gcalendar/:id" element={<GcalenderDetail />} />
             </Route>  */}
+            <Route path="/super-admin" element={<SuAdminLayout />}>
+            <Route index element={<Navigate to="/super-admin/dashboard" replace />} />
+            <Route path="dashboard" element={<SuDashboard />} />
+            <Route path="school" element={<SuSchoolsPage />} />
+            <Route path="school/:id" element={<SuSchoolDetailPage />} />
+            <Route path="messages" element={<MessagesPage />} />
+            </Route>
+            
             <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="school" element={<SchoolManagement />} />
           <Route path="student-record" element={<StudentRecord />} />
@@ -103,6 +117,7 @@ function App() {
           <Route path="student/:id" element={<StudentPage />} />
           <Route path="teacher/:id" element={<TeacherPage />} />
           <Route path="messages" element={<MessagesPage />} />
+          <Route path="profile" element={<AdminMePage />} />
         </Route>
 
         <Route path="/teacher" element={<TeacherLayout />}>

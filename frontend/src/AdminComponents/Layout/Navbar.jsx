@@ -19,7 +19,8 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       exam: 'Examination',
       notification: 'Notifications',
       fee: 'Fee Management',
-      messages: 'Messages'
+      messages: 'Messages',
+      profile: 'Admin Profile'
     };
     return pageNames[activePage] || 'Dashboard';
   };
@@ -31,8 +32,24 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    
+    const handleUpdate = () => {
+      // Force re-render by updating a dummy state if needed, 
+      // or just rely on the fact that any state change in parent or 
+      // this component's logic will re-read localStorage.
+      // But actually, we need a local state to trigger React's render.
+      setUpdateTrigger(prev => !prev);
+    };
+
+    window.addEventListener('profileUpdated', handleUpdate);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('profileUpdated', handleUpdate);
+    };
   }, []);
+
+  const [updateTrigger, setUpdateTrigger] = useState(false);
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-US', {
@@ -138,16 +155,21 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-2 transition-colors"></div>
 
         {/* User Profile */}
-        <button className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group">
+        <button 
+          onClick={() => navigate('/admin/profile')}
+          className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group"
+        >
           <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
             <img
-              src="https://picsum.photos/seed/admin/200/200"
+              src={localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200"}
               alt="Profile"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="hidden sm:block">
-            <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">Admin User</p>
+            <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">
+              {localStorage.getItem("userName") || "Admin User"}
+            </p>
             <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase transition-colors">Headmaster</p>
           </div>
         </button>

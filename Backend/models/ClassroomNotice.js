@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const ClassroomNoticeSchema = new mongoose.Schema(
   {
+    schoolId: { type: Number, required: true },
     text: {
       type: String,
       required: true,

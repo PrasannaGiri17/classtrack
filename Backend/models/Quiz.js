@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const questionSchema = new mongoose.Schema({
+  schoolId: { type: Number, required: true },
   text: { 
     type: String, 
     required: [true, 'Question text is required'] 
@@ -24,6 +25,7 @@ const questionSchema = new mongoose.Schema({
 });
 
 const quizSchema = new mongoose.Schema({
+  schoolId: { type: Number, required: true },
   title: { 
     type: String, 
     required: [true, 'Quiz title is required'],

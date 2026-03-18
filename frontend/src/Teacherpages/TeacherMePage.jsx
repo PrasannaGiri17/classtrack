@@ -76,19 +76,31 @@ const TeacherMePage = () => {
                 setLoading(true);
                 // Fetch teacher data
                 let teacherData;
-                let targetId = id || localStorage.getItem("teacherId");
+                let targetId = id;
+                if (!targetId || targetId === "undefined" || targetId === "null") {
+                    targetId = localStorage.getItem("teacherId");
+                }
 
-                if (targetId === "undefined" || targetId === "null") targetId = null;
+                // Deep sync: try to extract from JWT if missing
+                if (!targetId || targetId === "undefined" || targetId === "null") {
+                    const token = localStorage.getItem("token");
+                    if (token) {
+                        try {
+                            const payload = JSON.parse(atob(token.split('.')[1]));
+                            if (payload.teacherId) {
+                                targetId = payload.teacherId;
+                                localStorage.setItem("teacherId", targetId);
+                            }
+                        } catch (e) { console.error("Token parse error", e); }
+                    }
+                }
 
-                if (targetId) {
+                if (targetId && targetId !== "undefined" && targetId !== "null") {
                     teacherData = await teacherService.getTeacherById(targetId);
                 } else {
-                    const allTeachers = await teacherService.getAllTeachers();
-                    if (allTeachers && allTeachers.length > 0) {
-                        teacherData = allTeachers[0];
-                    } else {
-                        throw new Error("No teachers found");
-                    }
+                    toast({ type: 'error', message: "Teacher ID not found. Please log in again." });
+                    setLoading(false);
+                    return;
                 }
 
                 setTeacher(teacherData);
@@ -241,6 +253,9 @@ const TeacherMePage = () => {
             } else {
                 setTeacher(prev => ({ ...prev, profilePhoto: pendingPhoto }));
             }
+
+            // Sync with localStorage
+            localStorage.setItem("userPhoto", pendingPhoto);
 
             // Tell Navbar to update
             window.dispatchEvent(new Event('profileUpdated'));

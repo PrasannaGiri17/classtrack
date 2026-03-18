@@ -18,17 +18,22 @@ const generateSections = (count) => {
 // Get all grades (populated with subjects)
 const getGrades = async (req, res) => {
   try {
+    const schoolId = req.query.schoolId || req.headers['x-school-id'];
+    if (!schoolId) {
+      return res.status(400).json({ message: "School ID is required as a query parameter or header." });
+    }
+
     // 1. Fetch current school span
-    const school = await School.findOne({ _id: 1 });
+    const school = await School.findOne({ _id: schoolId });
     if (!school) {
       return res.status(404).json({ message: "School config not found" });
     }
 
-    const { start, end } = school.gradeSpan;
+    const { start, end } = school.gradeSpan || { start: 1, end: 10 };
 
     // 2. Filter grades based on span
     const grades = await Grade.find({
-      schoolId: 1,
+      schoolId: schoolId,
       gradeNumber: { $gte: start, $lte: end }
     })
       .sort({ gradeNumber: 1 })
@@ -42,10 +47,12 @@ const getGrades = async (req, res) => {
 // Update section count for a single grade
 const updateGradeSections = async (req, res) => {
   try {
-    const { gradeNumber, sectionCount } = req.body;
+    const { gradeNumber, sectionCount, schoolId } = req.body;
+
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
     // Check if grade exists
-    let grade = await Grade.findOne({ schoolId: 1, gradeNumber });
+    let grade = await Grade.findOne({ schoolId, gradeNumber });
 
     if (grade) {
       // Update existing grade
@@ -74,7 +81,7 @@ const updateGradeSections = async (req, res) => {
     } else {
       // Create new grade
       const newGrade = new Grade({
-        schoolId: 1,
+        schoolId,
         gradeNumber,
         gradeName: `Grade ${gradeNumber}`,
         sections: generateSections(sectionCount),
@@ -91,7 +98,8 @@ const updateGradeSections = async (req, res) => {
 // Sync all sections
 const syncSections = async (req, res) => {
   try {
-    const { sectionCount, gradeList } = req.body; // gradeList is expected to be ["1", "2", ... "10"]
+    const { sectionCount, gradeList, schoolId } = req.body;
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
     const count = parseInt(sectionCount);
 
     // Validation
@@ -109,7 +117,7 @@ const syncSections = async (req, res) => {
       if (isNaN(gradeNumber)) return null;
 
       // Find existing to see current sections
-      let grade = await Grade.findOne({ schoolId: 1, gradeNumber });
+      let grade = await Grade.findOne({ schoolId, gradeNumber });
       let newSections = [];
 
       if (grade) {
@@ -133,10 +141,10 @@ const syncSections = async (req, res) => {
       }
 
       return Grade.findOneAndUpdate(
-        { schoolId: 1, gradeNumber },
+        { schoolId, gradeNumber },
         {
           $set: {
-            schoolId: 1,
+            schoolId,
             gradeNumber,
             gradeName: `Grade ${gradeNumber}`,
             sections: newSections,
@@ -160,13 +168,14 @@ const syncSections = async (req, res) => {
 // Add Subject to Grade
 const addSubjectToGrade = async (req, res) => {
   try {
-    const { gradeNumber, subjectName, type } = req.body; // type: 'core' or 'elective'
+    const { gradeNumber, subjectName, type, schoolId } = req.body; // type: 'core' or 'elective'
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
     // 1. Find or Create Subject
-    let subject = await Subject.findOne({ schoolId: 1, subjectName: new RegExp(`^${subjectName}$`, 'i') });
+    let subject = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${subjectName}$`, 'i') });
     if (!subject) {
       subject = new Subject({
-        schoolId: 1,
+        schoolId,
         subjectName,
         subjectType: type || 'core',
         subjectCode: subjectName.substring(0, 3).toUpperCase() // Simple code gen
@@ -175,7 +184,7 @@ const addSubjectToGrade = async (req, res) => {
     }
 
     // 2. Add to Grade
-    const grade = await Grade.findOne({ schoolId: 1, gradeNumber });
+    const grade = await Grade.findOne({ schoolId, gradeNumber });
     if (!grade) {
       return res.status(404).json({ message: "Grade not found. Please setup grade first." });
     }
@@ -206,15 +215,16 @@ const addSubjectToGrade = async (req, res) => {
 // Remove Subject from Grade
 const removeSubjectFromGrade = async (req, res) => {
   try {
-    const { gradeNumber, subjectName } = req.body;
+    const { gradeNumber, subjectName, schoolId } = req.body;
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
     // Find Subject ID first
-    const subject = await Subject.findOne({ schoolId: 1, subjectName: new RegExp(`^${subjectName}$`, 'i') });
+    const subject = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${subjectName}$`, 'i') });
     if (!subject) {
       return res.status(404).json({ message: "Subject not found" });
     }
 
-    const grade = await Grade.findOne({ schoolId: 1, gradeNumber });
+    const grade = await Grade.findOne({ schoolId, gradeNumber });
     if (!grade) return res.status(404).json({ message: "Grade not found" });
 
     grade.subjects = grade.subjects.filter(s => !s.subjectId.equals(subject._id));
@@ -231,13 +241,14 @@ const removeSubjectFromGrade = async (req, res) => {
 // Add Subject to All Grades (Global Core)
 const addSubjectToAllGrades = async (req, res) => {
   try {
-    const { subjectName, type } = req.body; // type usually 'core'
+    const { subjectName, type, schoolId } = req.body; // type usually 'core'
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
     // 1. Find or Create Subject
-    let subject = await Subject.findOne({ schoolId: 1, subjectName: new RegExp(`^${subjectName}$`, 'i') });
+    let subject = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${subjectName}$`, 'i') });
     if (!subject) {
       subject = new Subject({
-        schoolId: 1,
+        schoolId,
         subjectName,
         subjectType: type || 'core',
         subjectCode: subjectName.substring(0, 3).toUpperCase()
@@ -246,7 +257,7 @@ const addSubjectToAllGrades = async (req, res) => {
     }
 
     // 2. Add to ALL Grades
-    const grades = await Grade.find({ schoolId: 1 });
+    const grades = await Grade.find({ schoolId });
     // Use Promise.all to update in parallel
     await Promise.all(grades.map(async (grade) => {
       const exists = grade.subjects.some(s => s.subjectId.equals(subject._id));
@@ -270,16 +281,17 @@ const addSubjectToAllGrades = async (req, res) => {
 // Remove Subject from All Grades
 const removeSubjectFromAllGrades = async (req, res) => {
   try {
-    const { subjectName } = req.body;
+    const { subjectName, schoolId } = req.body;
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
-    const subject = await Subject.findOne({ schoolId: 1, subjectName: new RegExp(`^${subjectName}$`, 'i') });
+    const subject = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${subjectName}$`, 'i') });
     if (!subject) {
       return res.status(404).json({ message: "Subject not found" });
     }
 
     // Update all grades
     await Grade.updateMany(
-      { schoolId: 1 },
+      { schoolId },
       { $pull: { subjects: { subjectId: subject._id } } }
     );
 
@@ -293,9 +305,10 @@ const removeSubjectFromAllGrades = async (req, res) => {
 // Update section's custom name
 const updateSectionName = async (req, res) => {
   try {
-    const { gradeNumber, sectionName, classRoomName } = req.body;
+    const { gradeNumber, sectionName, classRoomName, schoolId } = req.body;
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
-    const grade = await Grade.findOne({ schoolId: 1, gradeNumber });
+    const grade = await Grade.findOne({ schoolId, gradeNumber });
     if (!grade) return res.status(404).json({ message: "Grade not found" });
 
     const section = grade.sections.find(s => s.sectionName === sectionName);
@@ -313,9 +326,10 @@ const updateSectionName = async (req, res) => {
 // Assign class teacher to a section
 const assignClassTeacher = async (req, res) => {
   try {
-    const { gradeNumber, sectionName, teacherId } = req.body;
+    const { gradeNumber, sectionName, teacherId, schoolId } = req.body;
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
-    const grade = await Grade.findOne({ schoolId: 1, gradeNumber });
+    const grade = await Grade.findOne({ schoolId, gradeNumber });
     if (!grade) return res.status(404).json({ message: "Grade not found" });
 
     const section = grade.sections.find(s => s.sectionName === sectionName);
@@ -377,10 +391,11 @@ const assignClassMonitor = async (req, res) => {
 // Update monthly fee for a grade
 const updateGradeFee = async (req, res) => {
   try {
-    const { gradeNumber, monthlyFee } = req.body;
+    const { gradeNumber, monthlyFee, schoolId } = req.body;
+    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
 
     const grade = await Grade.findOneAndUpdate(
-      { schoolId: 1, gradeNumber },
+      { schoolId, gradeNumber },
       { $set: { monthlyFee } },
       { new: true }
     );

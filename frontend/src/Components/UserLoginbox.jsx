@@ -51,6 +51,14 @@ const UserLoginbox = () => {
         setPopupMessage(data.message || "Login failed.");
         return;
       }
+      
+      // Clear old session data to prevent data crossover (ID and Photo issues)
+      localStorage.removeItem("studentId");
+      localStorage.removeItem("teacherId");
+      localStorage.removeItem("adminId");
+      localStorage.removeItem("userPhoto");
+      localStorage.removeItem("userName");
+      localStorage.removeItem("userEmail");
 
       // Save JWT and user details
       localStorage.setItem("token", data.token);
@@ -58,10 +66,13 @@ const UserLoginbox = () => {
       const studentId = data.studentId;
       if (studentId) localStorage.setItem("studentId", studentId);
       if (data.teacherId) localStorage.setItem("teacherId", data.teacherId);
+      if (data.adminId) localStorage.setItem("adminId", data.adminId);
+      if (data.schoolId) localStorage.setItem("schoolId", data.schoolId);
 
-      const nameToStore = [data.firstName, data.lastName].filter(Boolean).join(" ") || data.name || data.email?.split('@')[0] || "Student";
+      const nameToStore = [data.firstName, data.lastName].filter(Boolean).join(" ") || data.name || data.email?.split('@')[0] || "User";
       localStorage.setItem("userName", nameToStore);
       localStorage.setItem("userEmail", data.email || email);
+      if (data.profilePhoto) localStorage.setItem("userPhoto", data.profilePhoto);
 
       // Redirect based on first-login flag
       if (data.mustChangePassword) {
@@ -72,8 +83,10 @@ const UserLoginbox = () => {
           navigate("/teacher/dashboard");
         } else if (data.role === "student") {
           navigate("/student/dashboard");
+        } else if (data.role === "admin") {
+          navigate("/admin/dashboard");
         } else {
-          // Fallback or Admin
+          // Fallback
           navigate("/dashboard");
         }
       }
@@ -122,16 +135,27 @@ const UserLoginbox = () => {
           setPopupMessage(data.message || "Google login failed.");
           return;
         }
+        
+        // Clear old session data to prevent data crossover (ID and Photo issues)
+        localStorage.removeItem("studentId");
+        localStorage.removeItem("teacherId");
+        localStorage.removeItem("adminId");
+        localStorage.removeItem("userPhoto");
+        localStorage.removeItem("userName");
+        localStorage.removeItem("userEmail");
 
         // 3) backend returned your JWT → save and go in
         localStorage.setItem("token", data.token);
         localStorage.setItem("googleUser", JSON.stringify(googleUser));
         localStorage.setItem("role", data.role);
-        localStorage.setItem("userName", googleUser.name || "User");
-        localStorage.setItem("userEmail", googleUser.email);
+        const nameToStore = [data.firstName, data.lastName].filter(Boolean).join(" ") || data.name || googleUser.name || "User";
+        localStorage.setItem("userName", nameToStore);
+        localStorage.setItem("userEmail", data.email || googleUser.email);
+        if (data.profilePhoto) localStorage.setItem("userPhoto", data.profilePhoto);
 
         if (data.teacherId) localStorage.setItem("teacherId", data.teacherId);
         if (data.studentId) localStorage.setItem("studentId", data.studentId);
+        if (data.adminId) localStorage.setItem("adminId", data.adminId);
 
         // Redirect based on first-login flag
         if (data.mustChangePassword) {
@@ -142,8 +166,10 @@ const UserLoginbox = () => {
             navigate("/teacher/dashboard");
           } else if (data.role === "student") {
             navigate("/student/dashboard");
+          } else if (data.role === "admin") {
+            navigate("/admin/dashboard");
           } else {
-            // Fallback or Admin
+            // Fallback
             navigate("/dashboard");
           }
         }

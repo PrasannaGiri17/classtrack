@@ -18,6 +18,7 @@ const CurriculumView = ({
   onAddExtra,
   onRemoveExtra,
   gradeList,
+  schoolName,
 }) => {
   const [selectedGrade, setSelectedGrade] = useState(gradeList[0] || "1");
   const [newSub, setNewSub] = useState("");
@@ -164,9 +165,12 @@ const CurriculumView = ({
   return (
     <div className="space-y-10">
       <div className="space-y-6">
-        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
-          School Subjects
-        </h2>
+        <div className="flex flex-col gap-1">
+           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
+             School Subjects
+           </h2>
+           <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">{schoolName || "Academic Curriculum Context"}</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">

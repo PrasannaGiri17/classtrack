@@ -185,13 +185,19 @@ exports.getFeeSummary = async (req, res) => {
         const { academicYear } = req.query;
         const ay = academicYear || "2081/82";
 
-        const records = await FeeRecord.find({ student: studentId, academicYear: ay });
+        const records = await FeeRecord.find({ student: studentId, academicYear: ay })
+                                       .sort({ monthIndex: 1 });
         
+        const unpaidRecords = records.filter(r => r.status !== 'PAID');
+        const upcoming = unpaidRecords.length > 0 ? unpaidRecords[0] : null;
+
         const summary = {
             yearlyTotal: records.reduce((sum, r) => sum + r.totalAmount, 0),
             totalPaid: records.reduce((sum, r) => sum + r.paidAmount, 0),
             totalDue: records.reduce((sum, r) => sum + r.dueAmount, 0),
-            unpaidCount: records.filter(r => r.status !== 'PAID').length
+            unpaidCount: unpaidRecords.length,
+            upcomingMonth: upcoming ? upcoming.monthName : "N/A",
+            upcomingAmount: upcoming ? upcoming.totalAmount : 0
         };
 
         res.json(summary);

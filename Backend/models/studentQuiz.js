@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const studentQuizSchema = new mongoose.Schema({
+  schoolId: { type: Number, required: true },
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

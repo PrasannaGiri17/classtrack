@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const teacherRoutineSchema = new mongoose.Schema({
+  schoolId: { type: Number, required: true },
   teacherId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher',

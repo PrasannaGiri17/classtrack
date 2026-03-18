@@ -4,7 +4,8 @@ const mongoose = require("mongoose");
 // SCHOOL MODEL
 // =============================================
 const schoolSchema = new mongoose.Schema({
-  _id: { type: Number, default: 1 },  // Fixed school_id = 1
+  schoolId: { type: Number, required: true },
+  _id: { type: mongoose.Schema.Types.Mixed }, // Support legacy Numeric ID (1) and new ObjectIds
   name: { type: String, required: true },
   address: String,
   email: String,
@@ -13,7 +14,9 @@ const schoolSchema = new mongoose.Schema({
   motto: String,
   establishedYear: String,
   affiliation: String,
-  principalName: String,
+  kycDocument: String,
+  status: { type: String, default: 'Active' },
+  coverImage: String,
   gradeSpan: {
     start: { type: Number, default: 1 },
     end: { type: Number, default: 10 }

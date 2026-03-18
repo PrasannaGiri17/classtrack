@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const SectionSchema = new mongoose.Schema(
   {
+    schoolId: { type: Number, required: true },
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Class",

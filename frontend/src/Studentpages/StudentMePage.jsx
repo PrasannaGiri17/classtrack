@@ -38,6 +38,7 @@ import { toast } from '../MainSystemComponents/Toast';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import studentService from '../Api/studentService';
 import attendanceService from '../Api/attendanceService';
+import feeService from '../Api/feeService';
 import PhotoCropModal from '../MainSystemComponents/PhotoCropModal';
 import ForgotPasswordModal from '../TeacherComponents/Layout/ForgotPasswordModal';
 import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
@@ -60,58 +61,49 @@ const calculateAge = (dob) => {
 const NEPALI_MONTHS = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
 
 const STUDENT_ME_INITIAL = {
-  flag: 'yellow',
-  name: 'Cristiano Ronaldo',
-  rollNo: '07',
-  studentId: 'S-2024001',
-  grade: '10',
-  section: 'A',
-  dateOfBirth: '05/10/2004',
-  avatarUrl: 'https://picsum.photos/seed/cristiano/400/400',
-  email: 'cristiano.ronaldo@madridacademy.edu',
-  phone: '98XXXXXXXX',
-  fatherName: 'Jose Dinis Aveiro',
-  fatherPhone: '+977-9800000000',
-  motherName: '',
-  motherPhone: '',
-  address: 'KATHMANDU, NP',
-  permanentAddress: 'Nayabazar, Banasthali, Kathmandu',
-  lastTermGPA: '3.85',
-  classTeacher: 'Prof. Carlo Ancelotti',
+  flag: 'green',
+  name: '---',
+  rollNo: '---',
+  studentId: '---',
+  grade: '---',
+  section: '---',
+  dateOfBirth: '---',
+  avatarUrl: 'https://i.pinimg.com/736x/8b/27/ff/8b27ff4a7a6cefb81f33d8282b5dfaa7.jpg',
+  email: '---',
+  phone: '---',
+  fatherName: '---',
+  fatherPhone: '---',
+  motherName: '---',
+  motherPhone: '---',
+  address: '---',
+  permanentAddress: '---',
+  lastTermGPA: '---',
+  classTeacher: '---',
   attendance: {
-    month: 'Kartik',
-    presentDays: 25,
+    month: '---',
+    presentDays: 0,
     totalDays: 30,
-    absentDates: ['2nd Kartik', '3rd Kartik', '12th Kartik', '25th Kartik', '28th Kartik', '30th Kartik']
+    absentDates: []
   },
   yearlyAttendance: {
-    rate: 92,
-    present: 242,
-    absent: 18
+    rate: 0,
+    present: 0,
+    absent: 0
   },
   marksheet: {
-    termName: 'First Term Examination 2081',
-    percentage: '86.6%',
-    gradePoint: '3.8',
-    overallGrade: 'A',
-    gradeRank: '14th',
-    classRank: '5th',
-    subjects: [
-      { code: 'MATH', name: 'Mathematics', theory: 85, maxTheory: 100, grade: 'A+' },
-      { code: 'SCI', name: 'Science', theory: 65, maxTheory: 75, practical: 25, maxPractical: 25, grade: 'A' },
-      { code: 'ENG', name: 'English', theory: 88, maxTheory: 100, grade: 'A' },
-      { code: 'SOC', name: 'Social Studies', theory: 92, maxTheory: 100, grade: 'A+' },
-      { code: 'NEP', name: 'Nepali', theory: 75, maxTheory: 100, grade: 'B+' },
-      { code: 'COM', name: 'Computer', theory: 60, maxTheory: 75, practical: 24, maxPractical: 25, grade: 'A+' },
-      { code: 'ACC', name: 'Accountancy', theory: 80, maxTheory: 100, grade: 'A' },
-      { code: 'OPM', name: 'Opt. Mathematics', theory: 89, maxTheory: 100, grade: 'A' },
-    ]
+    termName: '---',
+    percentage: '0%',
+    gradePoint: '0.0',
+    overallGrade: '---',
+    gradeRank: '---',
+    classRank: '---',
+    subjects: []
   },
   feeStatus: {
-    upcomingMonth: 'Mangsir',
-    upcomingAmount: 2500,
-    pendingMonthsCount: 2,
-    totalDueAmount: 6200
+    upcomingMonth: '---',
+    upcomingAmount: 0,
+    pendingMonthsCount: 0,
+    totalDueAmount: 0
   }
 };
 
@@ -189,8 +181,8 @@ const AttendanceSummaryCard = ({ yearly, studentId }) => {
             <CalendarDays size={20} />
           </div>
           <div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">Attendance Summary</h3>
-            <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1.5 flex items-center gap-2">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white capitalize tracking-tight leading-none">Attendance Summary</h3>
+            <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 capitalize tracking-widest mt-1.5 flex items-center gap-2">
               <span className="w-1 h-1 rounded-full bg-emerald-500/50" />
               Academic Year {selectedYear}
             </p>
@@ -471,17 +463,17 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
             </div>
 
             <div className="text-center md:text-left pb-1 flex flex-col items-center md:items-start">
-              <div className={`px-2.5 py-0.5 ${currentTheme.badge} border rounded-lg text-[7px] font-black uppercase tracking-[0.2em] mb-3 w-fit transition-all`}>
+              <div className={`px-2.5 py-0.5 ${currentTheme.badge} border rounded-lg text-[7px] font-black capitalize tracking-[0.2em] mb-3 w-fit transition-all`}>
                 {currentTheme.label}
               </div>
-              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-4">
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white capitalize tracking-tighter leading-none mb-4">
                 {student.name}
               </h2>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-5">
                 <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10">
                   <Hash size={14} className={currentTheme.icon} />
-                  <span className="text-xs font-black uppercase tracking-[0.1em] text-slate-700 dark:text-slate-300">{student.studentId}</span>
+                  <span className="text-xs font-black capitalize tracking-[0.1em] text-slate-700 dark:text-slate-300">{student.studentId}</span>
                 </div>
               </div>
             </div>
@@ -489,18 +481,18 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
 
           <div className="bg-slate-50/50 dark:bg-white/5 backdrop-blur-md rounded-[32px] border border-slate-100 dark:border-white/10 px-8 py-5 flex items-center justify-between lg:min-w-[420px]">
             <div className="flex-1 flex flex-col items-center text-center min-w-fit">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">GPA</p>
-              <p className={`text-2xl font-black ${currentTheme.icon} tracking-tight leading-none uppercase transition-colors`}>{student.lastTermGPA}</p>
+              <p className="text-[8px] font-black text-slate-400 capitalize tracking-widest mb-1.5">GPA</p>
+              <p className={`text-2xl font-black ${currentTheme.icon} tracking-tight leading-none capitalize transition-colors`}>{student.lastTermGPA}</p>
             </div>
             <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
             <div className="flex-1 flex flex-col items-center text-center min-w-fit">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">RANK</p>
-              <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none uppercase">{student.marksheet.gradeRank}</p>
+              <p className="text-[8px] font-black text-slate-400 capitalize tracking-widest mb-1.5">RANK</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none capitalize">{student.marksheet.gradeRank}</p>
             </div>
             <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
             <div className="flex-1 flex flex-col items-center text-center min-w-fit">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">ROLL</p>
-              <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none uppercase">{student.rollNo}</p>
+              <p className="text-[8px] font-black text-slate-400 capitalize tracking-widest mb-1.5">ROLL</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none capitalize">{student.rollNo}</p>
             </div>
           </div>
         </div>
@@ -509,16 +501,16 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-y-6">
           <div className="space-y-1.5">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">EMAIL ADDRESS</p>
+            <p className="text-[9px] font-black text-slate-400 capitalize tracking-widest">EMAIL ADDRESS</p>
             <p className="text-sm font-black text-slate-800 dark:text-white lowercase tracking-tight">{student.email}</p>
           </div>
           <div className="space-y-1.5">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">GRADE LEVEL</p>
-            <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">Grade {student.grade} {student.section}</p>
+            <p className="text-[9px] font-black text-slate-400 capitalize tracking-widest">GRADE LEVEL</p>
+            <p className="text-sm font-black text-slate-800 dark:text-white capitalize tracking-tight">Grade {student.grade} {student.section}</p>
           </div>
           <div className="space-y-1.5">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">DATE OF BIRTH</p>
-            <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">
+            <p className="text-[9px] font-black text-slate-400 capitalize tracking-widest">DATE OF BIRTH</p>
+            <p className="text-sm font-black text-slate-800 dark:text-white capitalize tracking-tight">
               {student.dateOfBirth || '---'}
               {student.dateOfBirth && calculateAge(student.dateOfBirth) !== null && (
                 <span className="text-emerald-500"> ({calculateAge(student.dateOfBirth)})</span>
@@ -526,8 +518,8 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
             </p>
           </div>
           <div className="space-y-1.5">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">CLASS TEACHER</p>
-            <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">{student.classTeacher}</p>
+            <p className="text-[9px] font-black text-slate-400 capitalize tracking-widest">CLASS TEACHER</p>
+            <p className="text-sm font-black text-slate-800 dark:text-white capitalize tracking-tight">{student.classTeacher}</p>
           </div>
 
           {/* Action Buttons */}
@@ -584,13 +576,13 @@ const SubjectResultCard = ({ s }) => {
 
       {/* Full Subject Name Badge */}
       <div className="px-6 py-2 bg-slate-200 dark:bg-slate-900/80 rounded-2xl border border-slate-300 dark:border-slate-700/50 backdrop-blur-sm shadow-md dark:shadow-xl">
-        <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-[0.25em]">{s.name}</span>
+        <span className="text-xs font-black text-slate-800 dark:text-white capitalize tracking-[0.25em]">{s.name}</span>
       </div>
 
       <div className="flex flex-row items-center justify-center w-full gap-5 lg:gap-8 relative z-10">
         {/* Theory Circle */}
         <div className="flex flex-col items-center gap-4">
-          <span className="text-[10px] font-black text-emerald-500/80 uppercase tracking-widest">THEORY</span>
+          <span className="text-[10px] font-black text-emerald-500/80 capitalize tracking-widest">THEORY</span>
           <div className="relative">
             <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full flex flex-col items-center justify-center bg-slate-200 dark:bg-slate-900/50 shadow-[inset_0_0_15px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
               <span className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tighter">{s.theory}</span>
@@ -614,7 +606,7 @@ const SubjectResultCard = ({ s }) => {
         {/* Practical Circle (If exists) */}
         {s.maxPractical && (
           <div className="flex flex-col items-center gap-4">
-            <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-widest">PRACTICAL</span>
+            <span className="text-[10px] font-black text-indigo-400/80 capitalize tracking-widest">PRACTICAL</span>
             <div className="relative">
               <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full flex flex-col items-center justify-center bg-slate-200 dark:bg-slate-900/50 shadow-[inset_0_0_15px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
                 <span className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tighter">{s.practical}</span>
@@ -640,9 +632,9 @@ const SubjectResultCard = ({ s }) => {
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">OVERALL PERFORMANCE</span>
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-widest">OVERALL PERFORMANCE</span>
           </div>
-          <span className="text-sm font-black text-emerald-500 uppercase">{s.grade}</span>
+          <span className="text-sm font-black text-emerald-500 capitalize">{s.grade}</span>
         </div>
         <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
           <div className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)] transition-all duration-1000" style={{ width: `${overallPercent}%` }} />
@@ -663,9 +655,9 @@ const MarksheetSection = ({ marksheet }) => {
             <Medal size={24} />
           </div>
           <div className="space-y-0.5">
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">RANK OUTCOME</p>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-[0.25em]">RANK OUTCOME</p>
             <h4 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
-              {marksheet.gradeRank} <span className="text-[10px] text-slate-400 font-bold ml-1 uppercase tracking-tight">GRADE</span>
+              {marksheet.gradeRank} <span className="text-[10px] text-slate-400 font-bold ml-1 capitalize tracking-tight">GRADE</span>
             </h4>
           </div>
         </div>
@@ -676,9 +668,9 @@ const MarksheetSection = ({ marksheet }) => {
             <Trophy size={24} />
           </div>
           <div className="space-y-0.5">
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">RANK OF CLASS</p>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-[0.25em]">RANK OF CLASS</p>
             <h4 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
-              {marksheet.classRank} <span className="text-[10px] text-slate-400 font-bold ml-1 uppercase tracking-tight">SECTION</span>
+              {marksheet.classRank} <span className="text-[10px] text-slate-400 font-bold ml-1 capitalize tracking-tight">SECTION</span>
             </h4>
           </div>
         </div>
@@ -690,7 +682,7 @@ const MarksheetSection = ({ marksheet }) => {
 
           {/* Percentage (Left) */}
           <div className="flex-1 flex flex-col items-start gap-0.5 relative z-10">
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none">Percentage</p>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-[0.2em] leading-none">Percentage</p>
             <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums leading-none">{marksheet.percentage}</p>
           </div>
 
@@ -698,7 +690,7 @@ const MarksheetSection = ({ marksheet }) => {
 
           {/* Grade Point (Center) */}
           <div className="flex-1 flex flex-col items-center text-center gap-0.5 relative z-10">
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none">GPA</p>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-[0.2em] leading-none">GPA</p>
             <p className="text-3xl font-black text-indigo-500 dark:text-indigo-400 tracking-tighter tabular-nums leading-none">{marksheet.gradePoint}</p>
           </div>
 
@@ -706,7 +698,7 @@ const MarksheetSection = ({ marksheet }) => {
 
           {/* Overall Grade (Right) */}
           <div className="flex-1 flex flex-col items-center text-center gap-0.5 relative z-10">
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none">Grade</p>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-[0.2em] leading-none">Grade</p>
             <p className="text-3xl font-black text-emerald-500 tracking-tighter leading-none">{marksheet.overallGrade}</p>
           </div>
         </div>
@@ -725,7 +717,7 @@ const InfoItem = ({ label, value, icon, accent, red }) => (
   <div className="space-y-2 group">
     <div className="flex items-center gap-2">
       {icon}
-      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+      <span className="text-[10px] font-black text-slate-400 capitalize tracking-widest">{label}</span>
     </div>
     <p className={`text-lg font-black tracking-tight leading-tight transition-colors ${red ? 'text-red-500' : accent ? 'text-emerald-500' : 'text-slate-800 dark:text-slate-100 group-hover:text-emerald-600'
       }`}>
@@ -738,11 +730,11 @@ const EditableInfoItem = ({ label, value, onChange, icon, placeholder, maxLength
   <div className="space-y-2.5 group">
     <div className="flex items-center gap-2">
       {icon}
-      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+      <span className="text-[10px] font-black text-slate-400 capitalize tracking-widest">{label}</span>
     </div>
     <div className="relative group/input">
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder || `Enter ${label}`} maxLength={maxLength} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 text-base font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all shadow-inner" />
-      {maxLength && <span className="absolute right-4 bottom-2 text-[8px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-tighter">{value.length}/{maxLength}</span>}
+      {maxLength && <span className="absolute right-4 bottom-2 text-[8px] font-black text-slate-300 dark:text-slate-700 capitalize tracking-tighter">{value.length}/{maxLength}</span>}
     </div>
   </div>
 );
@@ -759,8 +751,26 @@ const StudentMePage = () => {
 
   const fetchStudentData = async () => {
     try {
-      const studentId = localStorage.getItem("studentId");
-      if (!studentId) {
+      let studentId = localStorage.getItem("studentId");
+      
+      // Deep sync: try to extract from JWT if missing
+      if (!studentId || studentId === "undefined" || studentId === "null") {
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.studentId) {
+              studentId = payload.studentId;
+              localStorage.setItem("studentId", studentId);
+            }
+          } catch (e) {
+            console.error("Token parse error", e);
+          }
+        }
+      }
+
+      if (!studentId || studentId === "undefined" || studentId === "null") {
+        toast({ type: 'error', message: "Student ID not found. Please log in again." });
         setIsLoaded(true);
         return;
       }
@@ -807,6 +817,21 @@ const StudentMePage = () => {
         motherPhone: data.motherPhone || STUDENT_ME_INITIAL.motherPhone,
         yearlyAttendance: yearlyStats
       };
+
+      // Fetch Fee Summary
+      try {
+        const feeData = await feeService.getFeeSummary(data._id);
+        if (feeData) {
+          studentData.feeStatus = {
+            upcomingMonth: feeData.upcomingMonth || "N/A",
+            upcomingAmount: feeData.upcomingAmount || 0,
+            pendingMonthsCount: feeData.unpaidCount || 0,
+            totalDueAmount: feeData.totalDue || 0
+          };
+        }
+      } catch (fe) {
+        console.warn("Failed to fetch fee summary", fe);
+      }
 
       setStudent(studentData);
 
@@ -871,7 +896,7 @@ const StudentMePage = () => {
           className="group flex items-center gap-3 px-6 py-2.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-400 hover:text-emerald-500 transition-all shadow-sm w-fit"
         >
           <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Back to Records</span>
+          <span className="text-[10px] font-black capitalize tracking-[0.2em]">Back to Records</span>
         </button>
       )}
 
@@ -882,7 +907,7 @@ const StudentMePage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <GuardianInfoCard student={student} onUpdate={handleUpdateStudent} readOnly={isTeacherView} />
-          <FeeStatusCard feeStatus={student.feeStatus} readOnly={isTeacherView} />
+          <FeeStatusCard feeStatus={student.feeStatus} readOnly={isTeacherView} onNavigate={() => navigate('/student/fee')} />
         </div>
 
         <AttendanceSummaryCard yearly={student.yearlyAttendance} studentId={student._id} />
@@ -894,21 +919,21 @@ const StudentMePage = () => {
                 <BookOpen size={24} />
               </div>
               <div>
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">Latest Marksheet</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{selectedTerm} Examination 2081</p>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white capitalize tracking-tight leading-none">Latest Marksheet</h3>
+                <p className="text-[10px] font-bold text-slate-400 capitalize tracking-widest mt-2">{selectedTerm} Examination 2081</p>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
               <div className="relative group/select">
-                <label className="absolute -top-2 left-4 px-1.5 bg-white dark:bg-slate-900 text-[8px] font-black text-slate-400 uppercase tracking-widest z-10 transition-colors group-focus-within/select:text-emerald-500">
+                <label className="absolute -top-2 left-4 px-1.5 bg-white dark:bg-slate-900 text-[8px] font-black text-slate-400 capitalize tracking-widest z-10 transition-colors group-focus-within/select:text-emerald-500">
                   Academic Term
                 </label>
                 <div className="flex items-center">
                   <select
                     value={selectedTerm}
                     onChange={(e) => setSelectedTerm(e.target.value)}
-                    className="appearance-none bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 pr-12 text-sm font-black text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/30 transition-all cursor-pointer shadow-inner min-w-[200px] uppercase tracking-wider"
+                    className="appearance-none bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 pr-12 text-sm font-black text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/30 transition-all cursor-pointer shadow-inner min-w-[200px] capitalize tracking-wider"
                   >
                     <option value="First Term">First Term</option>
                     <option value="Second Term">Second Term</option>
@@ -920,7 +945,7 @@ const StudentMePage = () => {
 
               <button
                 onClick={() => navigate('/exam')}
-                className="flex items-center gap-3 px-8 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-white dark:hover:bg-slate-800 group active:scale-95"
+                className="flex items-center gap-3 px-8 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded-2xl font-black text-[10px] capitalize tracking-widest transition-all hover:bg-white dark:hover:bg-slate-800 group active:scale-95"
               >
                 <Layers size={16} className="group-hover:rotate-12 transition-transform" />
                 See All Marksheets
@@ -979,10 +1004,10 @@ const GuardianInfoCard = ({ student, onUpdate, readOnly }) => {
           <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
             <User size={20} />
           </div>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Guardian Dets</h3>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white capitalize tracking-tight">Guardian Dets</h3>
         </div>
         {hasChanges && (
-          <button onClick={() => setIsConfirmDialogOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-500/20">
+          <button onClick={() => setIsConfirmDialogOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-[9px] capitalize tracking-widest shadow-lg shadow-emerald-500/20">
             <Save size={12} /> Save
           </button>
         )}
@@ -1011,7 +1036,7 @@ const GuardianInfoCard = ({ student, onUpdate, readOnly }) => {
 
 const SkeletonBlock = ({ height }) => (<div className={`w-full ${height} bg-slate-200 dark:bg-slate-800/50 rounded-[40px]`} />);
 
-const FeeStatusCard = ({ feeStatus, readOnly }) => (
+const FeeStatusCard = ({ feeStatus, readOnly, onNavigate }) => (
   <div className="bg-white dark:bg-[#0b1220] rounded-[40px] border border-slate-100 dark:border-white/5 shadow-xl p-6 lg:p-8 transition-all relative overflow-hidden group/card shadow-indigo-500/5 h-full flex flex-col justify-between">
     {/* Decorative background elements */}
     <div className="absolute top-[-80px] left-[-80px] w-64 h-64 bg-indigo-500/[0.05] blur-[100px] rounded-full pointer-events-none" />
@@ -1024,12 +1049,12 @@ const FeeStatusCard = ({ feeStatus, readOnly }) => (
             <CreditCard size={20} />
           </div>
           <div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Finances</h3>
-            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Status Overview</p>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white capitalize tracking-tight">Finances</h3>
+            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 capitalize tracking-widest mt-0.5">Status Overview</p>
           </div>
         </div>
         {feeStatus.totalDueAmount > 0 && (
-          <div className="px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-red-500/5 animate-pulse">
+          <div className="px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-[9px] font-black capitalize tracking-widest shadow-lg shadow-red-500/5 animate-pulse">
             Due Balance
           </div>
         )}
@@ -1040,7 +1065,7 @@ const FeeStatusCard = ({ feeStatus, readOnly }) => (
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Calendar size={12} className="text-indigo-400" />
-              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Upcoming ({feeStatus.upcomingMonth})</span>
+              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-widest">Upcoming ({feeStatus.upcomingMonth})</span>
             </div>
           </div>
           <p className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight tabular-nums">
@@ -1053,19 +1078,22 @@ const FeeStatusCard = ({ feeStatus, readOnly }) => (
         <div className="bg-red-500/[0.02] p-4 lg:p-5 rounded-[28px] border border-red-500/10 transition-all hover:bg-red-500/[0.04] group/item">
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheck size={12} className="text-red-500" />
-            <span className="text-[9px] font-black text-red-500/60 uppercase tracking-widest">Total Dues</span>
+            <span className="text-[9px] font-black text-red-500/60 capitalize tracking-widest">Total Dues</span>
           </div>
           <p className="text-3xl font-black text-red-500 leading-none tracking-tight tabular-nums">
             <span className="text-lg font-bold text-red-500/40 mr-1">Rs.</span>
             {feeStatus.totalDueAmount.toLocaleString()}
           </p>
-          <p className="text-[8px] font-bold text-red-500/30 uppercase mt-2.5">Clear pending dues early</p>
+          <p className="text-[8px] font-bold text-red-500/30 capitalize mt-2.5">Clear pending dues early</p>
         </div>
       </div>
     </div>
 
     {!readOnly && (
-      <button className="w-full mt-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[24px] font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3">
+      <button 
+        onClick={onNavigate}
+        className="w-full mt-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[24px] font-black text-[10px] capitalize tracking-[0.2em] shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
+      >
         Make Payment
         <CreditCard size={14} />
       </button>

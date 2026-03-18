@@ -6,7 +6,7 @@ import { toast } from '../../MainSystemComponents/Toast';
 import PortalPopup from '../../MainSystemComponents/PortalPopup';
 import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
 
-const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncSections, gradeList }) => {
+const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncSections, gradeList, schoolName }) => {
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(true); // Default to locked? Or unlocked? User didn't specify default. Let's start Unlocked usually, or Locked for safety? User said "when locked show red". Let's start Unlocked (Green).
@@ -114,7 +114,10 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
     <div className="space-y-10">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="space-y-2 text-center sm:text-left">
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">Grades & Sections</h2>
+          <div className="flex flex-col gap-1">
+             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">Grades & Sections</h2>
+             <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">{schoolName || "Academic Institutional Context"}</p>
+          </div>
           <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-lg px-4 py-2 mt-2 inline-flex">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Span:</span>
             <span className="text-xs font-bold text-emerald-600">Grade {range.from} — {range.to}</span>

@@ -1,8 +1,11 @@
 // controllers/userAuthController.js
-const jwt = require("jsonwebtoken");
+const jwt = require("jsonwebtoken"); // test edit
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 const User = require("../models/UserModal");
+const Teacher = require("../models/teacherModel");
+const Student = require("../models/studentModel");
+const Admin = require("../models/AdminModel");
 
 // helper to create JWT
 function createJwt(payload) {
@@ -59,8 +62,13 @@ exports.login = async (req, res) => {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: "INVALID_PASSWORD" });
+    const token = createJwt({ id: user._id, role: user.role, adminId: user.adminId, teacherId: user.teacherId, studentId: user.studentId });
 
-    const token = createJwt({ id: user._id, role: user.role });
+    // Fetch profile to prevent crossover
+    let profileData = null;
+    if (user.role === "student" && user.studentId) profileData = await Student.findById(user.studentId).select("firstName lastName profilePhoto");
+    else if (user.role === "teacher" && user.teacherId) profileData = await Teacher.findById(user.teacherId).select("firstName lastName profilePhoto");
+    else if (user.role === "admin" && user.adminId) profileData = await Admin.findById(user.adminId).select("firstName lastName profilePhoto");
 
     return res.json({
       token,
@@ -70,6 +78,11 @@ exports.login = async (req, res) => {
       userId: user._id,
       studentId: user.studentId,
       teacherId: user.teacherId,
+      adminId: user.adminId,
+      schoolId: user.schoolId,
+      profilePhoto: profileData?.profilePhoto || null,
+      firstName: profileData?.firstName || null,
+      lastName: profileData?.lastName || null,
     });
   } catch (err) {
     console.error("LOGIN ERROR:", err);
@@ -93,7 +106,13 @@ exports.googleLogin = async (req, res) => {
       await user.save();
     }
 
-    const token = createJwt({ id: user._id, role: user.role });
+    const token = createJwt({ id: user._id, role: user.role, adminId: user.adminId, teacherId: user.teacherId, studentId: user.studentId });
+
+    // Fetch profile to prevent crossover
+    let profileData = null;
+    if (user.role === "student" && user.studentId) profileData = await Student.findById(user.studentId).select("firstName lastName profilePhoto");
+    else if (user.role === "teacher" && user.teacherId) profileData = await Teacher.findById(user.teacherId).select("firstName lastName profilePhoto");
+    else if (user.role === "admin" && user.adminId) profileData = await Admin.findById(user.adminId).select("firstName lastName profilePhoto");
 
     return res.json({
       token,
@@ -103,6 +122,11 @@ exports.googleLogin = async (req, res) => {
       userId: user._id,
       studentId: user.studentId,
       teacherId: user.teacherId,
+      adminId: user.adminId,
+      schoolId: user.schoolId,
+      profilePhoto: null, // to be updated below
+      firstName: null,
+      lastName: null,
     });
   } catch (err) {
     console.error("GOOGLE LOGIN ERROR:", err);

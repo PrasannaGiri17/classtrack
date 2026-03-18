@@ -2,16 +2,15 @@ const mongoose = require("mongoose");
 
 const feeRecordSchema = new mongoose.Schema(
   {
+    schoolId: { type: Number, required: true },
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Student",
       required: true,
     },
-    school: {
+    schoolId: {
       type: Number, 
-      ref: "School",
       required: true,
-      default: 1,
     },
     academicYear: {
       type: String,

@@ -3,6 +3,11 @@ import axios from "axios";
 // Base URL configuration (adjust port if needed, assuming backend 7000 from index.js)
 const API_URL = "http://localhost:7000/api/school";
 
+const getSchoolById = async (id) => {
+  const response = await axios.get(`${API_URL}/${id}`);
+  return response.data;
+};
+
 const getSchool = async () => {
   const response = await axios.get(API_URL);
   return response.data;
@@ -13,13 +18,14 @@ const addSchool = async (data) => {
   return response.data;
 };
 
-const updateSchool = async (data) => {
-  const response = await axios.put(`${API_URL}/update`, data);
+const updateSchool = async (id, data) => {
+  const response = await axios.put(`${API_URL}/update/${id}`, data);
   return response.data;
 };
 
 const schoolService = {
   getSchool,
+  getSchoolById,
   addSchool,
   updateSchool,
 };

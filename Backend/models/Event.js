@@ -1,11 +1,7 @@
 const mongoose = require('mongoose');
 
 const eventSchema = new mongoose.Schema({
-  school_id: {
-    type: Number,
-    required: true,
-    default: 1
-  },
+  schoolId: { type: Number, required: true },
   title: {
     type: String,
     required: [true, 'Title is required'],
