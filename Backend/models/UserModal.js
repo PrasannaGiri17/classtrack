@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true},
+    schoolId: { type: Number, required: true, index: true },
     email: { type: String, required: true, unique: true, trim: true },
     password: { type: String, required: true }, // hashed by pre-save
 

@@ -9,7 +9,7 @@ const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
 const getAllAdmins = async (req, res) => {
   try {
-    const admins = await Admin.find();
+    const admins = await Admin.find({ schoolId: req.schoolId });
     res.status(200).json(admins);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -44,12 +44,12 @@ const addAdmin = async (req, res) => {
     }
 
     // Prevent duplicate email
-    const existingAdmin = await Admin.findOne({ email: email.trim() });
+    const existingAdmin = await Admin.findOne({ schoolId: req.schoolId,  email: email.trim() });
     if (existingAdmin) {
       return res.status(409).json({ message: "Email already exists in Admin profile." });
     }
 
-    const existingUser = await User.findOne({ email: email.trim() });
+    const existingUser = await User.findOne({ schoolId: req.schoolId,  email: email.trim() });
     if (existingUser) {
       return res.status(409).json({ message: "Email already exists in User accounts." });
     }
@@ -120,7 +120,7 @@ const getAdminById = async (req, res) => {
 
 const updateAdmin = async (req, res) => {
   try {
-    const updatedAdmin = await Admin.findByIdAndUpdate(req.params.id, req.body, {
+    const updatedAdmin = await Admin.findOneAndUpdate({ _id: req.params.id, schoolId: req.schoolId }, req.body, {
       new: true,
       runValidators: true,
     });
@@ -139,7 +139,7 @@ const deleteAdmin = async (req, res) => {
     // delete linked user
     await User.findOneAndDelete({ adminId: admin._id });
 
-    await Admin.findByIdAndDelete(req.params.id);
+    await Admin.findOneAndDelete({ _id: req.params.id, schoolId: req.schoolId });
     res.status(200).json({ message: "Admin and linked user deleted successfully" });
   } catch (error) {
     res.status(400).json({ message: error.message });

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const diarySchema = new mongoose.Schema({
-  schoolId: { type: Number, required: true },
+  schoolId: { type: Number, required: true, index: true },
   teacherId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher',

@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 // SCHOOL MODEL
 // =============================================
 const schoolSchema = new mongoose.Schema({
-  schoolId: { type: Number, required: true },
+  schoolId: { type: Number, required: true, index: true },
   _id: { type: mongoose.Schema.Types.Mixed }, // Support legacy Numeric ID (1) and new ObjectIds
   name: { type: String, required: true },
   address: String,
@@ -18,14 +18,14 @@ const schoolSchema = new mongoose.Schema({
   status: { type: String, default: 'Active' },
   coverImage: String,
   gradeSpan: {
-    start: { type: Number, default: 1 },
-    end: { type: Number, default: 10 }
+    start: { type: Number, default: null },
+    end: { type: Number, default: null }
   },
   operatingHours: {
     start: { type: String, default: "09:00" },
     end: { type: String, default: "16:00" }
   },
-  maxSectionsPerGrade: { type: Number, default: 10 },
+  maxSectionsPerGrade: { type: Number, default: null },
   phoneNumbers: [{
     phoneNumber: { type: String, required: true },
     type: { type: String, default: 'main' },  // Free-text label e.g. "Main Office"

@@ -23,6 +23,7 @@ exports.protect = async (req, res, next) => {
 
     // Grant access to protected route
     req.user = currentUser;
+    req.schoolId = currentUser.schoolId || decoded.schoolId; // Attach multi-tenant ID
     next();
   } catch (err) {
     console.error("AUTH ERROR:", err);

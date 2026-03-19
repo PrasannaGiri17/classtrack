@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 
 const TeacherSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true },
+    schoolId: { type: Number, required: true, index: true },
 
     // Auto generated like studentId
     teacherCode: { type: String, required: true, unique: true },

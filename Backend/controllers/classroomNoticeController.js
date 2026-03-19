@@ -9,13 +9,13 @@ const createNotice = async (req, res) => {
     // Optional: Validation of authorization
     // If student, check if sectionId matches their enrollment
     if (authorType === 'student') {
-        const student = await Student.findOne({ _id: authorId, sectionId });
+        const student = await Student.findOne({ schoolId: req.schoolId,  _id: authorId, sectionId });
         if (!student) {
             return res.status(403).json({ message: "You are not authorized to post in this section." });
         }
     } else if (authorType === 'teacher') {
         // Find if this teacher is the class teacher of this section
-        const grade = await Grade.findOne({ "sections._id": sectionId, "sections.classTeacherId": authorId });
+        const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections._id": sectionId, "sections.classTeacherId": authorId });
         if (!grade) {
             return res.status(403).json({ message: "You are not authorized to post in this section." });
         }
@@ -39,7 +39,7 @@ const createNotice = async (req, res) => {
 const getNoticesBySection = async (req, res) => {
   try {
     const { sectionId } = req.params;
-    const notices = await ClassroomNotice.find({ sectionId }).sort({ isPinned: -1, createdAt: -1 });
+    const notices = await ClassroomNotice.find({ schoolId: req.schoolId,  sectionId }).sort({ isPinned: -1, createdAt: -1 });
     res.status(200).json(notices);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -58,7 +58,7 @@ const deleteNotice = async (req, res) => {
     let authorized = notice.authorId.toString() === userId;
     
     if (!authorized && userType === 'teacher') {
-        const grade = await Grade.findOne({ "sections._id": notice.sectionId, "sections.classTeacherId": userId });
+        const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections._id": notice.sectionId, "sections.classTeacherId": userId });
         if (grade) authorized = true;
     }
 
@@ -66,7 +66,7 @@ const deleteNotice = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to delete this notice." });
     }
 
-    await ClassroomNotice.findByIdAndDelete(id);
+    await ClassroomNotice.findOneAndDelete({ _id: id, schoolId: req.schoolId });
     res.status(200).json({ message: "Notice deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -85,7 +85,7 @@ const togglePinNotice = async (req, res) => {
     let authorized = notice.authorId.toString() === userId;
     
     if (!authorized && userType === 'teacher') {
-        const grade = await Grade.findOne({ "sections._id": notice.sectionId, "sections.classTeacherId": userId });
+        const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections._id": notice.sectionId, "sections.classTeacherId": userId });
         if (grade) authorized = true;
     }
 

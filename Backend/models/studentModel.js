@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const StudentSchema = new mongoose.Schema(
   {
     
-    schoolId: { type: Number, required: true },
+    schoolId: { type: Number, required: true, index: true },
 
     // Auto generated
     studentId: { type: String, required: true, unique: true },

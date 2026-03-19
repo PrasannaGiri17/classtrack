@@ -28,7 +28,7 @@ exports.getQuizDetails = async (req, res) => {
 
     // Check if student already attempted
     if (studentId) {
-      const existingAttempt = await StudentQuiz.findOne({ studentId, quizId: id });
+      const existingAttempt = await StudentQuiz.findOne({ schoolId: req.schoolId,  studentId, quizId: id });
       if (existingAttempt) {
         return res.status(403).json({ message: 'You have already attempted this quiz' });
       }
@@ -62,7 +62,7 @@ exports.submitQuiz = async (req, res) => {
     }
 
     // Check if already attempted
-    const existingAttempt = await StudentQuiz.findOne({ studentId, quizId });
+    const existingAttempt = await StudentQuiz.findOne({ schoolId: req.schoolId,  studentId, quizId });
     if (existingAttempt) {
       console.log('Already attempted:', { studentId, quizId });
       return res.status(403).json({ message: 'You have already submitted this quiz' });
@@ -107,7 +107,7 @@ exports.submitQuiz = async (req, res) => {
 
     // Update Quiz stats
     quiz.stats.attempted += 1;
-    const allAttempts = await StudentQuiz.find({ quizId });
+    const allAttempts = await StudentQuiz.find({ schoolId: req.schoolId,  quizId });
     
     const totalPercentage = allAttempts.reduce((sum, curr) => sum + curr.percentage, 0);
     quiz.stats.avgScore = Math.round(totalPercentage / quiz.stats.attempted);
@@ -143,7 +143,7 @@ exports.submitQuiz = async (req, res) => {
 exports.getStudentAttempts = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const attempts = await StudentQuiz.find({ studentId }).populate('quizId', 'title subject');
+    const attempts = await StudentQuiz.find({ schoolId: req.schoolId,  studentId }).populate('quizId', 'title subject');
     res.status(200).json(attempts);
   } catch (error) {
     console.error('Get attempts error:', error);

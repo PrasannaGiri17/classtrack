@@ -30,7 +30,11 @@ const TeacherRecord = () => {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:7000/api/teachers");
+      const schoolId = localStorage.getItem("schoolId");
+      const url = schoolId
+        ? `http://localhost:7000/api/teachers?schoolId=${schoolId}`
+        : "http://localhost:7000/api/teachers";
+      const response = await axios.get(url);
       setTeachers(response.data);
       setError(null);
     } catch (err) {

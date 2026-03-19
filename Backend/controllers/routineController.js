@@ -10,7 +10,7 @@ const getRoutineMatrix = async (req, res) => {
     }
 
     // 1. Get School Hours
-    const school = await School.findOne({ _id: schoolId });
+    const school = await School.findOne({ schoolId: req.schoolId,  _id: schoolId });
     const operatingHours = school?.operatingHours || { start: "09:00", end: "16:00" };
 
     // 2. Get All Grade Routines

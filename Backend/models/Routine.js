@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const routineSchema = new mongoose.Schema({
-  schoolId: { type: Number, required: true },
+  schoolId: { type: Number, required: true, index: true },
   gradeNumber: { type: String, required: true }, // Using String to match frontend "1", "2" etc.
   slots: [{
     id: String,

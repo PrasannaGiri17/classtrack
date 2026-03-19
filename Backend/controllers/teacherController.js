@@ -50,7 +50,7 @@ const resolveTeacherRelations = async (schoolId, data) => {
 // Helper: compute assigned classes from timetable and persist to teacher
 const syncAssignedClasses = async (teacherId) => {
   // Find all timetable entries where this teacher is assigned to at least one slot
-  const entries = await Timetable.find({ "assignments.teacherId": teacherId });
+  const entries = await Timetable.find({ schoolId: req.schoolId,  "assignments.teacherId": teacherId });
   const uniqueClasses = new Set();
   entries.forEach(entry => {
     // Only add classes where this specific teacher appears in assignments
@@ -63,13 +63,16 @@ const syncAssignedClasses = async (teacherId) => {
   });
   const classList = Array.from(uniqueClasses).sort();
   // Save back to teacher document
-  await Teacher.findByIdAndUpdate(teacherId, { assignedClasses: classList });
+  await Teacher.findOneAndUpdate({ _id: teacherId, schoolId: req.schoolId }, { assignedClasses: classList });
   return classList;
 };
 
 const getAllTeachers = async (req, res) => {
   try {
-    const teachers = await Teacher.find()
+    const { schoolId } = req.query;
+    const filter = schoolId ? { schoolId: Number(schoolId) } : {};
+
+    const teachers = await Teacher.find(filter)
       .populate("assignedGrades", "gradeNumber")
       .populate("primarySubject", "subjectName")
       .populate("secondarySubject", "subjectName");
@@ -78,7 +81,7 @@ const getAllTeachers = async (req, res) => {
     await Promise.all(teachers.map(t => syncAssignedClasses(t._id)));
 
     // Re-fetch with updated assignedClasses
-    const updatedTeachers = await Teacher.find()
+    const updatedTeachers = await Teacher.find(filter)
       .populate("assignedGrades", "gradeNumber")
       .populate("primarySubject", "subjectName")
       .populate("secondarySubject", "subjectName");
@@ -106,7 +109,7 @@ const addTeacher = async (req, res) => {
       birthdate,
     } = req.body;
 
-    const schoolId = 1;
+    const schoolId = req.body.schoolId ? Number(req.body.schoolId) : 1;
 
     // Validation
     const fieldErrors = {};
@@ -120,13 +123,13 @@ const addTeacher = async (req, res) => {
     }
 
     // Prevent duplicate teacher email (teacher collection)
-    const existingTeacher = await Teacher.findOne({ email: email.trim() });
+    const existingTeacher = await Teacher.findOne({ schoolId: req.schoolId,  email: email.trim() });
     if (existingTeacher) {
       return res.status(409).json({ message: "Email already exists (teacher)." });
     }
 
     // Prevent duplicate user email (auth collection)
-    const existingUser = await User.findOne({ email: email.trim() });
+    const existingUser = await User.findOne({ schoolId: req.schoolId,  email: email.trim() });
     if (existingUser) {
       return res.status(409).json({ message: "Email already exists (user account)." });
     }
@@ -242,7 +245,7 @@ const getTeacherByName = async (req, res) => {
     const firstName = parts[0] || "";
     const lastName = parts.slice(1).join(" ") || ".";
 
-    const teacher = await Teacher.findOne({ firstName, lastName });
+    const teacher = await Teacher.findOne({ schoolId: req.schoolId,  firstName, lastName });
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
     res.status(200).json(teacher);
@@ -270,7 +273,7 @@ const updateTeacher = async (req, res) => {
     if (resolvedGradeIds !== undefined) updateData.assignedGrades = resolvedGradeIds;
     if (req.body.profilePhoto !== undefined) updateData.profilePhoto = req.body.profilePhoto;
 
-    const updatedTeacher = await Teacher.findByIdAndUpdate(req.params.id, updateData, {
+    const updatedTeacher = await Teacher.findOneAndUpdate({ _id: req.params.id, schoolId: req.schoolId }, updateData, {
       new: true,
       runValidators: true,
     }).populate("assignedGrades", "gradeNumber")
@@ -291,7 +294,7 @@ const deleteTeacher = async (req, res) => {
     // also delete linked user
     await User.findOneAndDelete({ teacherId: teacher._id });
 
-    await Teacher.findByIdAndDelete(req.params.id);
+    await Teacher.findOneAndDelete({ _id: req.params.id, schoolId: req.schoolId });
     res.status(200).json({ message: "Teacher (and linked user) deleted successfully" });
   } catch (error) {
     res.status(400).json({ message: error.message });

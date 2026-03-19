@@ -44,7 +44,7 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     // Force re-render on profile update
     const handleUpdate = () => setUpdateTrigger(prev => !prev);
     window.addEventListener('profileUpdated', handleUpdate);
@@ -187,7 +187,7 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           </div>
           <div className="hidden sm:block">
             <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">
-              {localStorage.getItem("userName") || "Super Admin"}
+              {localStorage.getItem("suUserName") || "Super Admin"}
             </p>
             <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase transition-colors">SUPERADMIN</p>
           </div>

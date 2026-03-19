@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from '../Utils/axiosInstance';
+import { useSchoolFetch } from '../Utils/useSchoolFetch';
 import { useNavigate } from "react-router-dom";
 import { Users, Search, Trash2, Plus, ChevronLeft, ChevronRight, Loader2, AlertCircle, Pencil } from "lucide-react";
 import { AddPopupStudent } from "../AdminComponents/Admin/AddPopupStudent";
@@ -10,9 +11,9 @@ import Loading from "../MainSystemComponents/Loading";
 const StudentRecord = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: fetchedData, loading, error, setData: setStudentsList } = useSchoolFetch('/students');
+  const students = fetchedData || [];
+
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [popupMode, setPopupMode] = useState("add");
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -20,23 +21,17 @@ const StudentRecord = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  const fetchStudents = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("http://localhost:7000/api/students");
-      setStudents(response.data);
-      setError(null);
-    } catch (err) {
-      setError("Failed to fetch student records. Please ensure backend is running.");
-      console.error(err);
-    } finally {
-      setLoading(false);
+  const setStudents = (action) => {
+    if (typeof action === 'function') {
+      setStudentsList(action(students));
+    } else {
+      setStudentsList(action);
     }
   };
 
-  React.useEffect(() => {
-    fetchStudents();
-  }, []);
+  const fetchStudents = async () => {
+    // handled by useSchoolFetch natively. Dummy function for AddPopup references
+  };
 
   const getFlagColor = (flag) => {
     switch (flag) {
@@ -66,7 +61,7 @@ const StudentRecord = () => {
   const handleConfirmDelete = async () => {
     const { studentId } = deleteDialog;
     try {
-      await axios.delete(`http://localhost:7000/api/students/${studentId}`);
+      await api.delete(`/students/${studentId}`);
       setStudents(prev => prev.filter(s => s._id !== studentId));
       toast({ type: 'success', message: "Student record and account deleted.", duration: 3000 });
       if (currentItems.length === 1 && currentPage > 1) {

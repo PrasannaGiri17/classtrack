@@ -30,7 +30,7 @@ const submissionSchema = new mongoose.Schema({
 });
 
 const assignmentSchema = new mongoose.Schema({
-  schoolId: { type: Number, required: true },
+  schoolId: { type: Number, required: true, index: true },
   title: { 
     type: String, 
     required: [true, 'Assignment title is required'],

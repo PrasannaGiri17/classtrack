@@ -5,15 +5,51 @@ import { Plus, X, RefreshCw, ChevronDown, CheckCircle2, Layers, Info, Lock, Unlo
 import { toast } from '../../MainSystemComponents/Toast';
 import PortalPopup from '../../MainSystemComponents/PortalPopup';
 import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
+import adminService from '../../Api/adminService';
+import schoolService from '../../Api/schoolService';
+import gradeService from '../../Api/gradeService';
 
-const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncSections, gradeList, schoolName }) => {
+const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncSections, gradeList, schoolName, schoolId }) => {
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [isLocked, setIsLocked] = useState(true); // Default to locked? Or unlocked? User didn't specify default. Let's start Unlocked usually, or Locked for safety? User said "when locked show red". Let's start Unlocked (Green).
-  // Actually commonly read-only views start locked. But editing views start unlocked.
-  // Let's initialize false (Unlocked).
+  const [isLocked, setIsLocked] = useState(true); 
+  const [adminSchoolId, setAdminSchoolId] = useState(schoolId || localStorage.getItem("schoolId") ? Number(localStorage.getItem("schoolId")) : null);
 
-  const [tempRange, setTempRange] = useState(range);
+  React.useEffect(() => {
+    if (schoolId) setAdminSchoolId(schoolId);
+  }, [schoolId]);
+
+  React.useEffect(() => {
+    if (range && range.from && range.to) {
+      setTempRange(range);
+    }
+  }, [range]);
+
+  React.useEffect(() => {
+    if (!adminSchoolId) {
+      const fetchAdminData = async () => {
+        try {
+          const sid = localStorage.getItem("schoolId");
+          if (sid) {
+            setAdminSchoolId(Number(sid));
+            return;
+          }
+          const adminId = localStorage.getItem("adminId");
+          if (adminId) {
+            const adminProfile = await adminService.getAdminById(adminId);
+            if (adminProfile?.schoolId) {
+              setAdminSchoolId(adminProfile.schoolId);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching admin profile:", error);
+        }
+      };
+      fetchAdminData();
+    }
+  }, [adminSchoolId]);
+
+  const [tempRange, setTempRange] = useState(range || { from: 1, to: 10 });
   const [syncCount, setSyncCount] = useState(1);
 
   // --- Per-Grade Edit State ---
@@ -62,16 +98,15 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
   };
 
   // --- Actions ---
-  const handleSyncSections = (count) => {
+  const handleSyncSections = async (count) => {
     try {
       const validatedCount = Math.max(1, Math.min(10, count));
 
       if (onSyncSections) {
-        onSyncSections(validatedCount);
-      } else {
-        // Fallback to loop if bulk sync is not provided (though updated SchoolManagement will provide it)
+        onSyncSections(validatedCount, adminSchoolId);
+      } else if (gradeList.length > 0) {
         gradeList.forEach(grade => {
-          onUpdateSections(grade, validatedCount);
+          onUpdateSections(grade, validatedCount, adminSchoolId);
         });
       }
 
@@ -83,9 +118,12 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
     }
   };
 
-  const handleSaveRange = (from, to) => {
+  const handleSaveRange = async (from, to) => {
+    if (!from || !to) return;
     try {
-      onUpdateRange(from, to);
+      if (onUpdateRange) {
+        onUpdateRange(from, to, adminSchoolId);
+      }
       setIsRangeModalOpen(false);
       setIsConfirmOpen(false);
       toast({ type: 'success', message: `Academic range saved.`, duration: 3000 });
@@ -94,10 +132,13 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
     }
   };
 
-  const handleUpdateGradeSections = () => {
+  const handleUpdateGradeSections = async () => {
     if (!editingGrade) return;
     try {
-      onUpdateSections(editingGrade, pendingCount);
+      if (onUpdateSections) {
+        onUpdateSections(editingGrade, pendingCount, adminSchoolId);
+      }
+      
       toast({
         type: 'success',
         message: `Sections updated: Grade ${editingGrade} → ${pendingCount}`,

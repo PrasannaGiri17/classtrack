@@ -18,11 +18,11 @@ exports.generateYearlyFees = async (req, res) => {
     }
 
     // 1. Fetch Student
-    const student = await Student.findOne({ studentId }).populate("classId");
+    const student = await Student.findOne({ schoolId: req.schoolId,  studentId }).populate("classId");
     if (!student) return res.status(404).json({ message: "Student not found" });
 
     // 2. Fetch School (global config)
-    const school = await School.findOne();
+    const school = await School.findOne({ schoolId: req.schoolId });
     if (!school) return res.status(404).json({ message: "School configuration not found" });
 
     // 3. Fetch Grade (for base monthly fee)
@@ -30,7 +30,7 @@ exports.generateYearlyFees = async (req, res) => {
     if (student.classId) {
         grade = await Grade.findById(student.classId);
     } else if (student.studentClass) {
-        grade = await Grade.findOne({ gradeNumber: student.studentClass });
+        grade = await Grade.findOne({ schoolId: req.schoolId,  gradeNumber: student.studentClass });
     }
 
     if (!grade) return res.status(404).json({ message: "Matching Grade/Class not found for student" });
@@ -135,7 +135,7 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
     const ay = academicYear || "2081/82";
     
     const feeData = await Promise.all(students.map(async (student) => {
-        const fees = await StudentFee.find({ student: student._id, academicYear: ay })
+        const fees = await StudentFee.find({ schoolId: req.schoolId,  student: student._id, academicYear: ay })
             .sort({ monthIndex: 1 });
             
         const totalDue = fees.reduce((acc, f) => acc + (f.dueAmount || 0), 0);
@@ -319,7 +319,7 @@ exports.getMyFees = async (req, res) => {
 
         const ay = "2081/82"; // Default academic year
         
-        let fees = await StudentFee.find({ student: studentId, academicYear: ay })
+        let fees = await StudentFee.find({ schoolId: req.schoolId,  student: studentId, academicYear: ay })
             .sort({ monthIndex: 1 });
 
         // AUTOMATIC GENERATION: If no fees found, generate them on the fly
@@ -328,14 +328,14 @@ exports.getMyFees = async (req, res) => {
             
             // Re-use logic to find student and config
             const student = await Student.findById(studentId).populate("classId");
-            const school = await School.findOne();
+            const school = await School.findOne({ schoolId: req.schoolId });
             
             if (student && school) {
                 let grade;
                 if (student.classId) {
                     grade = await Grade.findById(student.classId);
                 } else if (student.studentClass) {
-                    grade = await Grade.findOne({ gradeNumber: student.studentClass });
+                    grade = await Grade.findOne({ schoolId: req.schoolId,  gradeNumber: student.studentClass });
                 }
 
                 if (grade) {
@@ -390,12 +390,12 @@ exports.bulkGenerateFees = async (req, res) => {
         const ay = academicYear || "2081/82";
 
         // 1. Fetch all active students
-        const students = await Student.find({ status: "active" }).populate("classId");
+        const students = await Student.find({ schoolId: req.schoolId,  status: "active" }).populate("classId");
         
         // 2. Fetch School and Grades for configuration
         const [school, grades] = await Promise.all([
-            School.findOne(),
-            Grade.find({})
+            School.findOne({ schoolId: req.schoolId }),
+            Grade.find({ schoolId: req.schoolId })
         ]);
 
         if (!school) return res.status(404).json({ message: "School configuration not found" });

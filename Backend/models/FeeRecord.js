@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const feeRecordSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true },
+    schoolId: { type: Number, required: true, index: true },
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Student",

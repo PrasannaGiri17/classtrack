@@ -62,7 +62,7 @@ exports.login = async (req, res) => {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: "INVALID_PASSWORD" });
-    const token = createJwt({ id: user._id, role: user.role, adminId: user.adminId, teacherId: user.teacherId, studentId: user.studentId });
+    const token = createJwt({ id: user._id, role: user.role, adminId: user.adminId, teacherId: user.teacherId, studentId: user.studentId, schoolId: user.schoolId });
 
     // Fetch profile to prevent crossover
     let profileData = null;
@@ -106,7 +106,7 @@ exports.googleLogin = async (req, res) => {
       await user.save();
     }
 
-    const token = createJwt({ id: user._id, role: user.role, adminId: user.adminId, teacherId: user.teacherId, studentId: user.studentId });
+    const token = createJwt({ id: user._id, role: user.role, adminId: user.adminId, teacherId: user.teacherId, studentId: user.studentId, schoolId: user.schoolId });
 
     // Fetch profile to prevent crossover
     let profileData = null;

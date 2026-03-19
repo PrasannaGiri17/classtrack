@@ -27,9 +27,18 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // Fetch school config
-        const schoolRes = await axios.get("http://localhost:7000/api/school");
-        setSchoolConfig(schoolRes.data);
+        // Fetch school config scoped to the logged-in admin's school
+        const adminSchoolId = localStorage.getItem("schoolId");
+        const schoolRes = await axios.get(
+          adminSchoolId
+            ? `http://localhost:7000/api/school/${adminSchoolId}`
+            : "http://localhost:7000/api/school"
+        );
+        // API may return a single object or an array; normalise to single object
+        const schoolData = Array.isArray(schoolRes.data)
+          ? schoolRes.data.find(s => String(s.schoolId) === String(adminSchoolId) || String(s._id) === String(adminSchoolId)) || schoolRes.data[0]
+          : schoolRes.data;
+        setSchoolConfig(schoolData);
 
         // Fetch subjects
         const gradesData = await gradeService.getGrades();
@@ -122,6 +131,8 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
     const lastName = parts.slice(1).join(" ") || ".";
 
     try {
+      const schoolId = Number(localStorage.getItem("schoolId") || 1);
+
       const payload = {
         firstName,
         lastName,
@@ -134,6 +145,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
         primarySubject: formData.subject,
         secondarySubject: formData.secondarySubject,
         assignedGrades: formData.class,
+        schoolId,
       };
 
       let res;

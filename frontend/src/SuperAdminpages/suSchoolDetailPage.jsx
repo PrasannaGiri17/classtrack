@@ -4,8 +4,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Phone, Mail, Globe, Users, BookOpen,
   GraduationCap, Award, Facebook, Instagram, Twitter,
-  Building2, User, ShieldCheck, CheckCircle2, Calendar, Bookmark, Quote
+  Building2, User, ShieldCheck, CheckCircle2, Calendar, Bookmark, Quote, Trash2
 } from 'lucide-react';
+import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
+import { toast } from '../MainSystemComponents/Toast';
 
 // Using a placeholder icon for TikTok since lucide-react doesn't have a dedicated one
 const TikTokIcon = ({ size = 24, className = "" }) => (
@@ -30,6 +32,7 @@ const SuSchoolDetailPage = () => {
   const navigate = useNavigate();
   const [school, setSchool] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   useEffect(() => {
     const fetchSchoolDetails = async () => {
@@ -53,7 +56,7 @@ const SuSchoolDetailPage = () => {
           establishedYear: data.establishedYear,
           motto: data.motto,
           affiliation: data.affiliation || 'N/A',
-          
+
           // These would typically come from count APIs or aggregations
           studentCount: data.studentCount || 0,
           teacherCount: data.teacherCount || 0,
@@ -83,6 +86,19 @@ const SuSchoolDetailPage = () => {
 
     if (id) fetchSchoolDetails();
   }, [id]);
+
+  const confirmDeleteSchool = async () => {
+    try {
+      const response = await axios.delete(`http://localhost:7000/api/school/delete/${id}`);
+      toast({ type: 'success', message: response.data.message || "School and associated records deleted successfully!" });
+      setDeleteDialog(false);
+      navigate('/super-admin/school', { replace: true });
+    } catch (error) {
+      console.error("Error deleting school:", error);
+      toast({ type: 'error', message: error.response?.data?.message || "Failed to delete school." });
+      setDeleteDialog(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -125,12 +141,15 @@ const SuSchoolDetailPage = () => {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
 
-          {/* Status Badge */}
+          {/* Delete Button */}
           <div className="absolute top-6 right-6">
-            <span className="px-4 py-2 text-sm font-bold rounded-full shadow-lg backdrop-blur-md bg-emerald-500/90 text-white flex items-center gap-2">
-              <CheckCircle2 size={16} />
-              {school.status}
-            </span>
+            <button
+              onClick={() => setDeleteDialog(true)}
+              className="p-3 bg-red-500/90 hover:bg-red-600 text-white rounded-full shadow-lg shadow-red-500/20 backdrop-blur-md transition-all hover:-translate-y-0.5"
+              title="Delete School"
+            >
+              <Trash2 size={20} />
+            </button>
           </div>
         </div>
 
@@ -312,6 +331,14 @@ const SuSchoolDetailPage = () => {
 
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteDialog}
+        onClose={() => setDeleteDialog(false)}
+        onConfirm={confirmDeleteSchool}
+        title="Confirm School Deletion"
+        message="Are you sure you want to delete this school? All associated admin and user records will also be permanently removed. This action cannot be undone."
+      />
     </div>
   );
 };

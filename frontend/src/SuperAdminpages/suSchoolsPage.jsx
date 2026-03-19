@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Building2, MapPin, Phone, FileText, User, Mail, Users, Calendar, Globe, X, Check, Settings, Search } from 'lucide-react';
+import { Plus, Building2, MapPin, Phone, FileText, User, Mail, Users, Calendar, Globe, X, Check, Settings, Search, Trash2 } from 'lucide-react';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
 import { toast } from '../MainSystemComponents/Toast';
+import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 
 
 const SuSchoolsPage = () => {
@@ -16,7 +17,7 @@ const SuSchoolsPage = () => {
       try {
         const response = await axios.get('http://localhost:7000/api/school');
         const data = response.data;
-        
+
         if (data && Array.isArray(data)) {
           // Map backend array to frontend format
           const formatted = data.map(item => ({
@@ -26,7 +27,7 @@ const SuSchoolsPage = () => {
             contactNumber: item.phoneNumbers?.[0]?.phoneNumber || 'N/A',
             otherNumber: item.phoneNumbers?.[1]?.phoneNumber || 'N/A',
             kycDocument: item.kycDocument || 'Not Uploaded',
-            status: item.status || 'Active',
+            status: item.status === 'Active' ? 'Active' : 'Not Active',
             coverImage: item.coverImage || 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?q=80&w=2069&auto=format&fit=crop',
             logo: item.logo,
             email: item.email,
@@ -47,16 +48,17 @@ const SuSchoolsPage = () => {
   }, []);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newSchool, setNewSchool] = useState(() => {
-    const saved = localStorage.getItem('schoolRegistrationDraft');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [newSchool, setNewSchool] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [registrationLoading, setRegistrationLoading] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, schoolId: null });
 
+  // Save draft only when the modal is open (to avoid persisting stale data across sessions)
   useEffect(() => {
-    localStorage.setItem('schoolRegistrationDraft', JSON.stringify(newSchool));
-  }, [newSchool]);
+    if (isAddModalOpen) {
+      localStorage.setItem('schoolRegistrationDraft', JSON.stringify(newSchool));
+    }
+  }, [newSchool, isAddModalOpen]);
 
   const filteredSchools = schools.filter(school =>
     (school.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -76,7 +78,7 @@ const SuSchoolsPage = () => {
           ...(newSchool.otherNumber ? [{ phoneNumber: newSchool.otherNumber, isPrimary: false, type: 'other' }] : [])
         ],
         kycDocument: newSchool.kycDocument,
-        status: 'Pending',
+        status: 'Not Active',
         coverImage: newSchool.coverImage,
         logo: newSchool.logo,
         email: newSchool.adminEmail,
@@ -117,6 +119,26 @@ const SuSchoolsPage = () => {
     }
   };
 
+  const handleDeleteClick = (e, schoolId) => {
+    e.stopPropagation();
+    setDeleteDialog({ isOpen: true, schoolId });
+  };
+
+  const confirmDeleteSchool = async () => {
+    if (!deleteDialog.schoolId) return;
+
+    try {
+      const response = await axios.delete(`http://localhost:7000/api/school/delete/${deleteDialog.schoolId}`);
+      setSchools(schools.filter(school => school.id !== deleteDialog.schoolId));
+      toast({ type: 'success', message: response.data.message || "School and associated records deleted successfully!" });
+    } catch (error) {
+      console.error("Error deleting school:", error);
+      toast({ type: 'error', message: error.response?.data?.message || "Failed to delete school." });
+    } finally {
+      setDeleteDialog({ isOpen: false, schoolId: null });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -151,7 +173,12 @@ const SuSchoolsPage = () => {
         </div>
 
         <button
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            // Always start with a blank form — never carry over previous school data
+            setNewSchool({});
+            localStorage.removeItem('schoolRegistrationDraft');
+            setIsAddModalOpen(true);
+          }}
           className="px-8 py-3.5 bg-emerald-500 text-white rounded-full font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
         >
           <Plus size={18} /> ADD SCHOOL
@@ -175,11 +202,15 @@ const SuSchoolsPage = () => {
                   <Building2 size={48} opacity={0.5} />
                 </div>
               )}
-              {/* Status Badge positioned on the cover image */}
-              <div className="absolute top-4 right-4 z-20">
-                <span className={`px-3 py-1.5 text-xs font-bold rounded-full shadow-sm backdrop-blur-md ${school.status === 'Active' ? 'bg-emerald-500/90 text-white' : 'bg-amber-500/90 text-white'}`}>
-                  {school.status}
-                </span>
+              {/* Delete Button positioned on the cover image */}
+              <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
+                <button
+                  onClick={(e) => handleDeleteClick(e, school.id)}
+                  className="p-1.5 bg-red-500/90 hover:bg-red-600 text-white rounded-full shadow-sm shadow-red-500/20 backdrop-blur-md transition-colors"
+                  title="Delete School"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
 
@@ -407,7 +438,11 @@ const SuSchoolsPage = () => {
             <div className="flex justify-end items-center gap-6 pt-6 border-t border-slate-200 dark:border-slate-800/60">
               <button
                 type="button"
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setNewSchool({});
+                  localStorage.removeItem('schoolRegistrationDraft');
+                }}
                 className="text-sm font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
                 disabled={registrationLoading}
               >
@@ -429,6 +464,15 @@ const SuSchoolsPage = () => {
           </form>
         </div>
       </PortalPopup>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, schoolId: null })}
+        onConfirm={confirmDeleteSchool}
+        title="Confirm School Deletion"
+        message="Are you sure you want to delete this school? All associated admin and user records will also be permanently removed. This action cannot be undone."
+      />
     </div>
   );
 };

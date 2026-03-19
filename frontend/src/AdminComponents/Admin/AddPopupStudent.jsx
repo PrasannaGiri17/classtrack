@@ -140,6 +140,8 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
     }
 
     try {
+      const schoolId = Number(localStorage.getItem("schoolId") || 1);
+
       if (isEditMode && studentData?._id) {
         await axios.put(`http://localhost:7000/api/students/${studentData._id}`, {
           firstName,
@@ -168,6 +170,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
           studentClass: Number(formData.class),
           birthdate: formData.birthdate,
           gender: formData.gender,
+          schoolId,
         });
         setPopup({ message: "Student record successfully saved.", type: "success" });
       }

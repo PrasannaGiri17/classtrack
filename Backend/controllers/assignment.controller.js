@@ -27,7 +27,7 @@ exports.createAssignment = async (req, res) => {
 exports.getAllAssignments = async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const assignments = await Assignment.find({ teacherId }).sort({ createdAt: -1 });
+    const assignments = await Assignment.find({ schoolId: req.schoolId,  teacherId }).sort({ createdAt: -1 });
     res.status(200).json(assignments);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -56,8 +56,7 @@ exports.getAssignmentById = async (req, res) => {
  */
 exports.updateAssignment = async (req, res) => {
   try {
-    const assignment = await Assignment.findByIdAndUpdate(
-      req.params.id,
+    const assignment = await Assignment.findOneAndUpdate({ _id: req.params.id, schoolId: req.schoolId },
       req.body,
       { new: true, runValidators: true }
     );
@@ -76,7 +75,7 @@ exports.updateAssignment = async (req, res) => {
  */
 exports.deleteAssignment = async (req, res) => {
   try {
-    const assignment = await Assignment.findByIdAndDelete(req.params.id);
+    const assignment = await Assignment.findOneAndDelete({ _id: req.params.id, schoolId: req.schoolId });
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
     }
@@ -190,7 +189,7 @@ exports.getStudentAssignments = async (req, res) => {
     const { studentId } = req.query;
     
     // Find assignments that target 'ALL' sections of that grade OR the specific section
-    const assignments = await Assignment.find({
+    const assignments = await Assignment.find({ schoolId: req.schoolId, 
       grade: grade,
       $or: [
         { section: 'ALL' },

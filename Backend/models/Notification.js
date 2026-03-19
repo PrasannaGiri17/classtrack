@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const NotificationSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true },
+    schoolId: { type: Number, required: true, index: true },
     title: { type: String, required: true, trim: true },
     message: { type: String, required: true },
     priority: { 
@@ -18,7 +18,7 @@ const NotificationSchema = new mongoose.Schema(
       enum: ["admin", "teacher", "student"], 
       default: "admin" 
     },
-    schoolId: { type: Number, required: true },
+    schoolId: { type: Number, required: true, index: true },
     
     // Optional attachment or links could be added here
     attachment: { type: String, default: null },

@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 
 const AdminSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true },
+    schoolId: { type: Number, required: true, index: true },
 
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },

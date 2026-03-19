@@ -10,14 +10,17 @@ const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
 const getAllStudents = async (req, res) => {
   try {
-    const { studentClass, sectionId, classTeacherId } = req.query;
+    const { studentClass, sectionId, classTeacherId, schoolId } = req.query;
     const filter = {};
-    
+
+    // Filter by schoolId if provided (scopes data to the admin's school)
+    if (schoolId) filter.schoolId = Number(schoolId);
+
     if (sectionId) {
       filter.sectionId = sectionId;
     } else if (classTeacherId) {
       // Find which section this teacher belongs to as Class Teacher
-      const grade = await Grade.findOne({ "sections.classTeacherId": classTeacherId });
+      const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections.classTeacherId": classTeacherId });
       if (grade) {
         const section = grade.sections.find(s => s.classTeacherId?.toString() === classTeacherId);
         if (section) {
@@ -84,7 +87,7 @@ const addStudent = async (req, res) => {
       profilePhoto,
     } = req.body;
 
-    const schoolId = 1;
+    const schoolId = req.body.schoolId ? Number(req.body.schoolId) : 1;
 
     // Validation
     const fieldErrors = {};
@@ -113,7 +116,7 @@ const addStudent = async (req, res) => {
     }
 
     // Also prevent duplicate user email
-    const existingUser = await User.findOne({ email: email.trim() });
+    const existingUser = await User.findOne({ schoolId: req.schoolId,  email: email.trim() });
     if (existingUser) {
       return res.status(409).json({ message: "Email already exists (user account)." });
     }
@@ -255,7 +258,7 @@ const getStudentByName = async (req, res) => {
     const firstName = parts[0] || "";
     const lastName = parts.slice(1).join(" ") || ".";
 
-    const student = await Student.findOne({ firstName, lastName });
+    const student = await Student.findOne({ schoolId: req.schoolId,  firstName, lastName });
     if (!student) return res.status(404).json({ message: "Student not found" });
 
     res.status(200).json(student);
@@ -286,7 +289,7 @@ const updateStudent = async (req, res) => {
       updateData.profilePhoto = req.body.profilePhoto;
     }
 
-    const updatedStudent = await Student.findByIdAndUpdate(req.params.id, updateData, {
+    const updatedStudent = await Student.findOneAndUpdate({ _id: req.params.id, schoolId: req.schoolId }, updateData, {
       new: true,
       runValidators: true,
     });
@@ -305,7 +308,7 @@ const deleteStudent = async (req, res) => {
     // also delete linked user (optional but recommended)
     await User.findOneAndDelete({ studentId: student._id });
 
-    await Student.findByIdAndDelete(req.params.id);
+    await Student.findOneAndDelete({ _id: req.params.id, schoolId: req.schoolId });
     res.status(200).json({ message: "Student (and linked user) deleted successfully" });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -321,8 +324,7 @@ const removeStudentFromSection = async (req, res) => {
       return res.status(400).json({ message: "studentId is required" });
     }
 
-    await Student.findByIdAndUpdate(
-      studentId,
+    await Student.findOneAndUpdate({ _id: studentId, schoolId: req.schoolId },
       { $set: { sectionId: null, studentClass: null } }
     );
 

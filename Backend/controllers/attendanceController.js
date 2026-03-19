@@ -11,7 +11,7 @@ const getAttendance = async (req, res) => {
       return res.status(400).json({ message: "sectionId, year, and month are required." });
     }
 
-    let attendance = await ClassroomAttendance.findOne({ sectionId, year, month }).populate("attendanceData.studentId", "firstName lastName studentId profilePhoto");
+    let attendance = await ClassroomAttendance.findOne({ schoolId: req.schoolId,  sectionId, year, month }).populate("attendanceData.studentId", "firstName lastName studentId profilePhoto");
 
     if (!attendance) {
       // If no records exist yet, we might want to return an empty structure or handle it in the frontend
@@ -34,7 +34,7 @@ const saveAttendance = async (req, res) => {
     }
 
     // Find and update or create new
-    let attendance = await ClassroomAttendance.findOne({ sectionId, year, month });
+    let attendance = await ClassroomAttendance.findOne({ schoolId: req.schoolId,  sectionId, year, month });
 
     if (attendance) {
       // Update existing record
@@ -66,7 +66,7 @@ const saveAttendance = async (req, res) => {
 const getStudentMonthlyAttendance = async (req, res) => {
     try {
         const { studentId, year, month } = req.params;
-        const attendance = await ClassroomAttendance.findOne({ 
+        const attendance = await ClassroomAttendance.findOne({ schoolId: req.schoolId,  
             year, 
             month, 
             "attendanceData.studentId": studentId 
@@ -86,7 +86,7 @@ const getStudentMonthlyAttendance = async (req, res) => {
 const getStudentYearlyAttendance = async (req, res) => {
     try {
         const { studentId, year } = req.params;
-        const records = await ClassroomAttendance.find({ 
+        const records = await ClassroomAttendance.find({ schoolId: req.schoolId,  
             year, 
             "attendanceData.studentId": studentId 
         });

@@ -19,14 +19,14 @@ exports.generateFees = async (req, res) => {
     const student = await Student.findById(studentId).populate("classId");
     if (!student) return res.status(404).json({ message: "Student not found" });
 
-    const school = await School.findOne({ _id: 1 });
+    const school = await School.findOne({ schoolId: req.schoolId,  _id: 1 });
     
     // Find grade by classId or studentClass
     let grade;
     if (student.classId) {
         grade = await Grade.findById(student.classId);
     } else if (student.studentClass) {
-        grade = await Grade.findOne({ gradeNumber: student.studentClass });
+        grade = await Grade.findOne({ schoolId: req.schoolId,  gradeNumber: student.studentClass });
     }
 
     if (!grade) return res.status(404).json({ message: "Grade/Class fee not configured for this student" });
@@ -67,7 +67,7 @@ exports.bulkGenerateFees = async (req, res) => {
         const { academicYear } = req.body;
         const ay = academicYear || "2081/82";
 
-        const students = await Student.find({ status: 'active' });
+        const students = await Student.find({ schoolId: req.schoolId,  status: 'active' });
         const results = { total: students.length, created: 0, skipped: 0 };
 
         for (const student of students) {
@@ -75,14 +75,14 @@ exports.bulkGenerateFees = async (req, res) => {
             if (student.classId) {
                 grade = await Grade.findById(student.classId);
             } else if (student.studentClass) {
-                grade = await Grade.findOne({ gradeNumber: student.studentClass });
+                grade = await Grade.findOne({ schoolId: req.schoolId,  gradeNumber: student.studentClass });
             }
 
             if (!grade) continue;
 
             for (let i = 0; i < 12; i++) {
                 try {
-                    const exists = await FeeRecord.findOne({ student: student._id, academicYear: ay, monthIndex: i });
+                    const exists = await FeeRecord.findOne({ schoolId: req.schoolId,  student: student._id, academicYear: ay, monthIndex: i });
                     if (!exists) {
                         await FeeRecord.create({
                             student: student._id,
@@ -113,7 +113,7 @@ exports.bulkGenerateFees = async (req, res) => {
 exports.getStudentFees = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const records = await FeeRecord.find({ student: studentId })
+    const records = await FeeRecord.find({ schoolId: req.schoolId,  student: studentId })
       .populate("school", "name")
       .sort({ monthIndex: 1 });
     res.json(records);
@@ -126,12 +126,12 @@ exports.getStudentFees = async (req, res) => {
 exports.getAdminStatus = async (req, res) => {
   try {
     console.log("FEE API: getAdminStatus called");
-    const students = await Student.find()
+    const students = await Student.find({ schoolId: req.schoolId })
       .populate("classId", "gradeName gradeNumber")
       .sort({ firstName: 1 });
 
     const statusReport = await Promise.all(students.map(async (stu) => {
-      const records = await FeeRecord.find({ student: stu._id });
+      const records = await FeeRecord.find({ schoolId: req.schoolId,  student: stu._id });
       const totalDue = records.reduce((sum, r) => sum + r.dueAmount, 0);
       const totalPaid = records.reduce((sum, r) => sum + r.paidAmount, 0);
       const currentMonthIndex = NEPALI_MONTHS.indexOf('Falgun');
@@ -185,7 +185,7 @@ exports.getFeeSummary = async (req, res) => {
         const { academicYear } = req.query;
         const ay = academicYear || "2081/82";
 
-        const records = await FeeRecord.find({ student: studentId, academicYear: ay })
+        const records = await FeeRecord.find({ schoolId: req.schoolId,  student: studentId, academicYear: ay })
                                        .sort({ monthIndex: 1 });
         
         const unpaidRecords = records.filter(r => r.status !== 'PAID');
@@ -254,7 +254,7 @@ exports.getMyFees = async (req, res) => {
             return res.status(403).json({ message: "Only students can access this route" });
         }
         
-        const records = await FeeRecord.find({ student: req.user.studentId })
+        const records = await FeeRecord.find({ schoolId: req.schoolId,  student: req.user.studentId })
                                        .sort({ monthIndex: 1 });
         res.json(records);
     } catch (err) {

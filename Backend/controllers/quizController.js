@@ -39,7 +39,7 @@ exports.createQuiz = async (req, res) => {
 // @access  Public
 exports.getAllQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find().sort({ createdAt: -1 });
+    const quizzes = await Quiz.find({ schoolId: req.schoolId }).sort({ createdAt: -1 });
     res.status(200).json(quizzes);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -66,8 +66,7 @@ exports.getQuizById = async (req, res) => {
 // @access  Teacher
 exports.updateQuiz = async (req, res) => {
   try {
-    const quiz = await Quiz.findByIdAndUpdate(
-      req.params.id,
+    const quiz = await Quiz.findOneAndUpdate({ _id: req.params.id, schoolId: req.schoolId },
       req.body,
       { new: true, runValidators: true }
     );
@@ -86,7 +85,7 @@ exports.updateQuiz = async (req, res) => {
 // @access  Teacher
 exports.deleteQuiz = async (req, res) => {
   try {
-    const quiz = await Quiz.findByIdAndDelete(req.params.id);
+    const quiz = await Quiz.findOneAndDelete({ _id: req.params.id, schoolId: req.schoolId });
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz not found' });
     }

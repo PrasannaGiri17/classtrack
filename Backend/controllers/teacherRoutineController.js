@@ -18,7 +18,7 @@ exports.getTeacherRoutineForDate = async (req, res) => {
     const dayOfWeek = queryDate.getDay(); // 0 (Sun) - 6 (Sat)
 
     // 1. Get Teacher's Schedule for this day of week
-    const schedule = await TeacherRoutine.find({ teacherId, dayOfWeek });
+    const schedule = await TeacherRoutine.find({ schoolId: req.schoolId,  teacherId, dayOfWeek });
 
     // 2. Get Diary entries for this teacher and date
     // Normalize date to YYYY-MM-DD for comparison if stored that way, 
@@ -26,7 +26,7 @@ exports.getTeacherRoutineForDate = async (req, res) => {
     const startOfDay = new Date(queryDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(queryDate.setHours(23, 59, 59, 999));
 
-    const diaries = await Diary.find({
+    const diaries = await Diary.find({ schoolId: req.schoolId, 
       teacherId,
       date: { $gte: startOfDay, $lte: endOfDay }
     });

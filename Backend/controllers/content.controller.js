@@ -87,8 +87,7 @@ exports.updateResource = async (req, res) => {
       return res.status(400).json({ message: "Invalid resource ID." });
     }
 
-    const updatedResource = await Content.findByIdAndUpdate(
-      id,
+    const updatedResource = await Content.findOneAndUpdate({ _id: id, schoolId: req.schoolId },
       { $set: req.body },
       { new: true, runValidators: true }
     );
@@ -111,8 +110,7 @@ exports.archiveResource = async (req, res) => {
       return res.status(400).json({ message: "Invalid resource ID." });
     }
 
-    const resource = await Content.findByIdAndUpdate(
-      id,
+    const resource = await Content.findOneAndUpdate({ _id: id, schoolId: req.schoolId },
       { isArchived: true },
       { new: true }
     );
@@ -135,7 +133,7 @@ exports.deleteResource = async (req, res) => {
       return res.status(400).json({ message: "Invalid resource ID." });
     }
 
-    const resource = await Content.findByIdAndDelete(id);
+    const resource = await Content.findOneAndDelete({ _id: id, schoolId: req.schoolId });
     if (!resource) {
       return res.status(404).json({ message: "Resource not found." });
     }

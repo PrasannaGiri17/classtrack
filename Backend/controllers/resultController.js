@@ -7,7 +7,7 @@ exports.upsertResult = async (req, res) => {
   try {
     const { studentId, gradeId, sectionName, term, marks } = req.body;
 
-    let result = await Result.findOne({ studentId, term });
+    let result = await Result.findOne({ schoolId: req.schoolId,  studentId, term });
 
     if (result) {
       result.gradeId = gradeId;
@@ -76,7 +76,7 @@ exports.getResults = async (req, res) => {
 exports.getStudentResults = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const results = await Result.find({ studentId })
+    const results = await Result.find({ schoolId: req.schoolId,  studentId })
       .populate('gradeId')
       .populate('marks.subjectId');
     res.status(200).json(results);

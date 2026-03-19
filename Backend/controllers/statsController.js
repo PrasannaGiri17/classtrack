@@ -5,9 +5,9 @@ const Teacher = require("../models/teacherModel");
 
 const getOverviewStats = async (req, res) => {
   try {
-    const schoolCount = await School.countDocuments();
-    const studentCount = await Student.countDocuments();
-    const teacherCount = await Teacher.countDocuments();
+    const schoolCount = await School.countDocuments({ schoolId: req.schoolId });
+    const studentCount = await Student.countDocuments({ schoolId: req.schoolId });
+    const teacherCount = await Teacher.countDocuments({ schoolId: req.schoolId });
 
     res.status(200).json({
       totalSchools: schoolCount,

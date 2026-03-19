@@ -107,7 +107,7 @@ exports.getEvents = async (req, res) => {
     // Fetch Events and Holidays concurrently
     const [events, dbHolidays] = await Promise.all([
       Event.find(query).sort({ startDate: 1 }),
-      Holiday.find({}) // Fetch all holidays (usually < 100 per year, very efficient)
+      Holiday.find({ schoolId: req.schoolId }) // Fetch all holidays (usually < 100 per year, very efficient)
     ]);
 
     // Map and filter Holidays in memory for robustness

@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const timetableSchema = new mongoose.Schema({
-  schoolId: { type: Number, required: true },
+  schoolId: { type: Number, required: true, index: true },
   
   gradeNumber: { type: String, required: true },
   sectionName: { type: String, required: true },

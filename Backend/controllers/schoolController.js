@@ -144,9 +144,36 @@ const updateSchool = async (req, res) => {
   }
 };
 
+const deleteSchool = async (req, res) => {
+  try {
+    const lookupId = !isNaN(req.params.id) ? Number(req.params.id) : req.params.id;
+    
+    // Find the school first to get its schoolId
+    const school = await School.findById(lookupId);
+    if (!school) {
+        return res.status(404).json({ message: "School not found." });
+    }
+
+    const schoolId = school.schoolId;
+
+    // Delete the school
+    await School.findByIdAndDelete(lookupId);
+
+    // Delete associated admins and users
+    await Admin.deleteMany({ schoolId });
+    await User.deleteMany({ schoolId });
+
+    res.status(200).json({ message: "School and associated records deleted successfully." });
+  } catch (error) {
+    console.error("Delete School Error:", error);
+    res.status(500).json({ message: "Server error during deletion.", error: error.message });
+  }
+};
+
 module.exports = {
   getAllSchools,
   getSchoolById,
   addSchool,
   updateSchool,
+  deleteSchool,
 };

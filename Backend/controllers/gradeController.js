@@ -18,13 +18,18 @@ const generateSections = (count) => {
 // Get all grades (populated with subjects)
 const getGrades = async (req, res) => {
   try {
-    const schoolId = req.query.schoolId || req.headers['x-school-id'];
-    if (!schoolId) {
+    const rawSchoolId = req.query.schoolId || req.headers['x-school-id'];
+    if (!rawSchoolId) {
       return res.status(400).json({ message: "School ID is required as a query parameter or header." });
     }
 
+    const schoolId = parseInt(rawSchoolId);
+    if (isNaN(schoolId)) {
+        return res.status(400).json({ message: "Valid numeric School ID is required." });
+    }
+
     // 1. Fetch current school span
-    const school = await School.findOne({ _id: schoolId });
+    const school = await School.findOne({ schoolId: req.schoolId,  _id: schoolId });
     if (!school) {
       return res.status(404).json({ message: "School config not found" });
     }
@@ -47,21 +52,26 @@ const getGrades = async (req, res) => {
 // Update section count for a single grade
 const updateGradeSections = async (req, res) => {
   try {
-    const { gradeNumber, sectionCount, schoolId } = req.body;
+    const { gradeNumber: gNum, sectionCount: sCount, schoolId: sId } = req.body;
 
-    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
+    const schoolId = parseInt(sId);
+    const gradeNumber = parseInt(gNum);
+    const sectionCount = parseInt(sCount);
+
+    if (isNaN(schoolId)) return res.status(400).json({ message: "Valid schoolId required" });
+    if (isNaN(gradeNumber)) return res.status(400).json({ message: "Valid gradeNumber required" });
+    if (isNaN(sectionCount)) return res.status(400).json({ message: "Valid sectionCount required" });
 
     // Check if grade exists
     let grade = await Grade.findOne({ schoolId, gradeNumber });
 
     if (grade) {
       // Update existing grade
-      const currentSections = grade.sections || [];
-      const newCount = parseInt(sectionCount);
+      let currentSections = [...(grade.sections || [])];
 
-      if (newCount > currentSections.length) {
+      if (sectionCount > currentSections.length) {
         // Add new sections
-        const addedCount = newCount - currentSections.length;
+        const addedCount = sectionCount - currentSections.length;
         const startCharCode = 65 + currentSections.length;
         for (let i = 0; i < addedCount; i++) {
           currentSections.push({
@@ -70,10 +80,13 @@ const updateGradeSections = async (req, res) => {
             isActive: true
           });
         }
-      } else if (newCount < currentSections.length) {
+      } else if (sectionCount < currentSections.length) {
         // Remove sections from the end
-        grade.sections = currentSections.slice(0, newCount);
+        currentSections = currentSections.slice(0, sectionCount);
       }
+
+      grade.sections = currentSections;
+      grade.isActive = true;
 
       // Save
       await grade.save();
@@ -85,12 +98,14 @@ const updateGradeSections = async (req, res) => {
         gradeNumber,
         gradeName: `Grade ${gradeNumber}`,
         sections: generateSections(sectionCount),
-        displayOrder: gradeNumber
+        displayOrder: gradeNumber,
+        isActive: true
       });
       await newGrade.save();
       res.status(201).json(newGrade);
     }
   } catch (error) {
+    console.error("Update Grade Sections Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -98,10 +113,13 @@ const updateGradeSections = async (req, res) => {
 // Sync all sections
 const syncSections = async (req, res) => {
   try {
-    const { sectionCount, gradeList, schoolId } = req.body;
-    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
-    const count = parseInt(sectionCount);
+    const { sectionCount: sCount, gradeList, schoolId: sId } = req.body;
+    
+    const schoolId = parseInt(sId);
+    const count = parseInt(sCount);
 
+    if (isNaN(schoolId)) return res.status(400).json({ message: "schoolId required" });
+    
     // Validation
     if (isNaN(count) || count < 1 || count > 10) {
       return res.status(400).json({ message: "Invalid section count (1-10)" });
@@ -121,7 +139,7 @@ const syncSections = async (req, res) => {
       let newSections = [];
 
       if (grade) {
-        newSections = [...grade.sections];
+        newSections = [...(grade.sections || [])];
         if (count > newSections.length) {
           const addedCount = count - newSections.length;
           const startCharCode = 65 + newSections.length; // 65 = A
@@ -152,7 +170,7 @@ const syncSections = async (req, res) => {
             isActive: true
           }
         },
-        { upsert: true, new: true }
+        { upsert: true, new: true, setDefaultsOnInsert: true }
       );
     });
 
@@ -343,7 +361,7 @@ const assignClassTeacher = async (req, res) => {
 
     // 1. If there was a previous teacher, clear their fields
     if (oldTeacherId && oldTeacherId.toString() !== teacherId) {
-      await Teacher.findByIdAndUpdate(oldTeacherId, {
+      await Teacher.findOneAndUpdate({ _id: oldTeacherId, schoolId: req.schoolId }, {
         $set: { classTeacher: null }
       });
       // Sync their assignedClasses just in case, though it's mainly from timetable
@@ -352,7 +370,7 @@ const assignClassTeacher = async (req, res) => {
 
     // 2. Update the new teacher's fields
     if (teacherId) {
-      await Teacher.findByIdAndUpdate(teacherId, {
+      await Teacher.findOneAndUpdate({ _id: teacherId, schoolId: req.schoolId }, {
         $set: {
           classTeacher: classRoomInfo
         }
@@ -372,7 +390,7 @@ const assignClassMonitor = async (req, res) => {
   try {
     const { sectionId, studentId } = req.body;
 
-    const grade = await Grade.findOne({ "sections._id": sectionId });
+    const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections._id": sectionId });
     if (!grade) return res.status(404).json({ message: "Section not found" });
 
     const section = grade.sections.id(sectionId);
@@ -414,7 +432,7 @@ const updateGradeFee = async (req, res) => {
 const getSectionByTeacher = async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const grade = await Grade.findOne({ "sections.classTeacherId": teacherId });
+    const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections.classTeacherId": teacherId });
     if (!grade) {
       return res.status(404).json({ message: "No assigned class found for this teacher." });
     }
@@ -452,7 +470,7 @@ module.exports = {
   getSectionById: async (req, res) => {
     try {
         const { sectionId } = req.params;
-        const grade = await Grade.findOne({ "sections._id": sectionId }).populate("sections.classTeacherId");
+        const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections._id": sectionId }).populate("sections.classTeacherId");
         if (!grade) {
           return res.status(404).json({ message: "No class found for this section ID." });
         }

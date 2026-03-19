@@ -57,7 +57,7 @@ exports.getDiaryForDate = async (req, res) => {
     const startOfDay = new Date(queryDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(queryDate.setHours(23, 59, 59, 999));
 
-    const diaries = await Diary.find({
+    const diaries = await Diary.find({ schoolId: req.schoolId, 
       teacherId,
       date: { $gte: startOfDay, $lte: endOfDay }
     });
@@ -85,7 +85,7 @@ exports.getDiaryForClass = async (req, res) => {
     const startOfDay = new Date(queryDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(queryDate.setHours(23, 59, 59, 999));
 
-    const diaries = await Diary.find({
+    const diaries = await Diary.find({ schoolId: req.schoolId, 
       className,
       date: { $gte: startOfDay, $lte: endOfDay }
     }).populate('teacherId', 'firstName lastName profilePhoto');

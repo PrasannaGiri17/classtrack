@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const ClassroomNoticeSchema = new mongoose.Schema(
   {
-    schoolId: { type: Number, required: true },
+    schoolId: { type: Number, required: true, index: true },
     text: {
       type: String,
       required: true,

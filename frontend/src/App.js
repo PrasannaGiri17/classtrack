@@ -7,6 +7,7 @@ import SuSchoolDetailPage from './SuperAdminpages/suSchoolDetailPage';
 import SuSchoolsPage from './SuperAdminpages/suSchoolsPage';
 import SuDashboard from './SuperAdminpages/suDashboard';
 import SuAdminLayout from './SuperAdmincomponents/Layout/suAdminLayout';
+import SuLoginPage from './SuperAdminpages/suLoginPage';
 
 import AdminLayout from './AdminComponents/Layout/AdminLayout';
 import DashboardPage from './Adminpages/Dashboard';
@@ -66,6 +67,24 @@ import ResetFirstLogin from './Page/Users/ResetFirstLogin';
 import { ToastHost } from './MainSystemComponents/Toast';
 
 function App() {
+  const token = localStorage.getItem("token");
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem("user"));
+  } catch (e) {
+    user = null;
+  }
+
+  const getRedirectPath = () => {
+    if (token && user) {
+      if (user.role === "admin") return <Navigate to="/admin/dashboard" />;
+      if (user.role === "teacher") return <Navigate to="/teacher/dashboard" />;
+      if (user.role === "student") return <Navigate to="/student/dashboard" />;
+      if (user.role === "super-admin") return <Navigate to="/super-admin/dashboard" />;
+    }
+    return <LoginPage />;
+  };
+
   return (
     <ActivePageProvider>
       <Router>
@@ -93,15 +112,25 @@ function App() {
               <Route path="gcalendar" element={<Gcalender />} />
               <Route path="gcalendar/:id" element={<GcalenderDetail />} />
             </Route>  */}
-            <Route path="/super-admin" element={<SuAdminLayout />}>
-            <Route index element={<Navigate to="/super-admin/dashboard" replace />} />
-            <Route path="dashboard" element={<SuDashboard />} />
-            <Route path="school" element={<SuSchoolsPage />} />
-            <Route path="school/:id" element={<SuSchoolDetailPage />} />
-            <Route path="messages" element={<MessagesPage />} />
+            <Route path="/super-admin/login" element={<SuLoginPage />} />
+
+            <Route path="/super-admin" element={
+              token && user && user.role === "super-admin"
+                ? <SuAdminLayout />
+                : <Navigate to="/" replace />
+            }>
+              <Route index element={<Navigate to="/super-admin/dashboard" replace />} />
+              <Route path="dashboard" element={<SuDashboard />} />
+              <Route path="school" element={<SuSchoolsPage />} />
+              <Route path="school/:id" element={<SuSchoolDetailPage />} />
+              <Route path="messages" element={<MessagesPage />} />
             </Route>
             
-            <Route path="/admin" element={<AdminLayout />}>
+            <Route path="/admin" element={
+              token && user && user.role === "admin"
+                ? <AdminLayout />
+                : <Navigate to="/" replace />
+            }>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="school" element={<SchoolManagement />} />
@@ -120,7 +149,11 @@ function App() {
           <Route path="profile" element={<AdminMePage />} />
         </Route>
 
-        <Route path="/teacher" element={<TeacherLayout />}>
+        <Route path="/teacher" element={
+          token && user && user.role === "teacher"
+            ? <TeacherLayout />
+            : <Navigate to="/" replace />
+        }>
           <Route index element={<Navigate to="/teacher/dashboard" replace />} />
           <Route path="dashboard" element={<TeacherDashboard />} />
           <Route path="routine" element={<RoutinePage />} />
@@ -137,7 +170,11 @@ function App() {
           <Route path="messages" element={<MessagesPage />} />
         </Route>
 
-        <Route path="/student" element={<StudentLayout />}>
+        <Route path="/student" element={
+          token && user && user.role === "student"
+            ? <StudentLayout />
+            : <Navigate to="/" replace />
+        }>
           <Route index element={<Navigate to="/student/dashboard" replace />} />
           <Route path="dashboard" element={<SDashboard />} />
           <Route path="routine" element={<SRoutinePage />} />
@@ -156,8 +193,8 @@ function App() {
         </Route>
 
             {/* ---------------- Public Website ---------------- */}
-            <Route path="/" element={<LoginPage />} />
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={getRedirectPath()} />
+            <Route path="/login" element={getRedirectPath()} />
             <Route path="/forget" element={<ForgetPage />} />
             <Route path="/reset" element={<ResetPage />} />
             

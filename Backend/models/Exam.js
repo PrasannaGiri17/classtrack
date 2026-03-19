@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const examSchema = new mongoose.Schema({
-  schoolId: { type: Number,required:true},
+  schoolId: { type: Number, required: true, index: true },
   config: {
     termsCount: { type: Number, default: 3 },
     includeMidTerm: { type: Boolean, default: true },
