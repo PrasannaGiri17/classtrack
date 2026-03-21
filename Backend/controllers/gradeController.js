@@ -29,7 +29,7 @@ const getGrades = async (req, res) => {
     }
 
     // 1. Fetch current school span
-    const school = await School.findOne({ schoolId: req.schoolId,  _id: schoolId });
+    const school = await School.findOne({ schoolId: schoolId });
     if (!school) {
       return res.status(404).json({ message: "School config not found" });
     }
@@ -89,6 +89,7 @@ const updateGradeSections = async (req, res) => {
       grade.isActive = true;
 
       // Save
+      grade.markModified('sections');
       await grade.save();
       res.status(200).json(grade);
     } else {
@@ -353,6 +354,21 @@ const assignClassTeacher = async (req, res) => {
     const section = grade.sections.find(s => s.sectionName === sectionName);
     if (!section) return res.status(404).json({ message: "Section not found" });
 
+    // Check if teacher is already a class teacher for another section
+    if (teacherId) {
+      const existingGrade = await Grade.findOne({
+        schoolId,
+        "sections.classTeacherId": teacherId
+      });
+      if (existingGrade) {
+        // If it's a different grade OR a different section in the same grade, it's a conflict
+        const existingSection = existingGrade.sections.find(s => s.classTeacherId?.toString() === teacherId.toString());
+        if (existingGrade._id.toString() !== grade._id.toString() || existingSection.sectionName !== sectionName) {
+           return res.status(400).json({ message: `Teacher is already assigned as Class Teacher for Grade ${existingGrade.gradeNumber} - Section ${existingSection.sectionName}` });
+        }
+      }
+    }
+
     const oldTeacherId = section.classTeacherId;
     section.classTeacherId = teacherId || null;
     await grade.save();
@@ -390,7 +406,7 @@ const assignClassMonitor = async (req, res) => {
   try {
     const { sectionId, studentId } = req.body;
 
-    const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections._id": sectionId });
+    const grade = await Grade.findOne({ "sections._id": sectionId });
     if (!grade) return res.status(404).json({ message: "Section not found" });
 
     const section = grade.sections.id(sectionId);
@@ -432,7 +448,7 @@ const updateGradeFee = async (req, res) => {
 const getSectionByTeacher = async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections.classTeacherId": teacherId });
+    const grade = await Grade.findOne({ "sections.classTeacherId": teacherId });
     if (!grade) {
       return res.status(404).json({ message: "No assigned class found for this teacher." });
     }
@@ -470,7 +486,7 @@ module.exports = {
   getSectionById: async (req, res) => {
     try {
         const { sectionId } = req.params;
-        const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections._id": sectionId }).populate("sections.classTeacherId");
+        const grade = await Grade.findOne({ "sections._id": sectionId }).populate("sections.classTeacherId");
         if (!grade) {
           return res.status(404).json({ message: "No class found for this section ID." });
         }

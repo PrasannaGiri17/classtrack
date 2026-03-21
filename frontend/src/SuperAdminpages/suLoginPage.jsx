@@ -3,9 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, ShieldCheck, ArrowRight, LayoutDashboard, Users, BookOpen } from 'lucide-react';
 
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+
 
 const SuLoginPage = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -19,10 +23,15 @@ const SuLoginPage = () => {
     try {
       const response = await axios.post('http://localhost:7000/api/superadmin/login', { username, password });
 
-      // Store isolated tracking token
+      // Store auth state in central Context
+      const superAdminUser = { ...response.data.user, role: 'super-admin' }; // Ensure role is set
+      login(superAdminUser, response.data.token);
+
+      // Keep isolated tracking tokens if needed by other components
       localStorage.setItem('superAdminToken', response.data.token);
       localStorage.setItem('suUserName', response.data.user.name);
       navigate('/super-admin/dashboard');
+
     } catch (err) {
       setError(err.response?.data?.message || "Failed to log in as Super Admin");
     } finally {

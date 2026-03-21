@@ -53,12 +53,27 @@ const SuSchoolsPage = () => {
   const [registrationLoading, setRegistrationLoading] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, schoolId: null });
 
-  // Save draft only when the modal is open (to avoid persisting stale data across sessions)
+  // Load draft on mount
   useEffect(() => {
-    if (isAddModalOpen) {
+    const draft = localStorage.getItem('schoolRegistrationDraft');
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (parsed && typeof parsed === 'object') {
+           setNewSchool(parsed);
+        }
+      } catch (e) {
+        console.error("Error parsing school draft", e);
+      }
+    }
+  }, []);
+
+  // Save draft whenever newSchool changes
+  useEffect(() => {
+    if (newSchool && Object.keys(newSchool).length > 0) {
       localStorage.setItem('schoolRegistrationDraft', JSON.stringify(newSchool));
     }
-  }, [newSchool, isAddModalOpen]);
+  }, [newSchool]);
 
   const filteredSchools = schools.filter(school =>
     (school.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -73,6 +88,7 @@ const SuSchoolsPage = () => {
       const payload = {
         name: newSchool.name,
         address: newSchool.address,
+        principalName: newSchool.principalName,
         phoneNumbers: [
           { phoneNumber: newSchool.contactNumber, isPrimary: true, type: 'main' },
           ...(newSchool.otherNumber ? [{ phoneNumber: newSchool.otherNumber, isPrimary: false, type: 'other' }] : [])
@@ -102,6 +118,7 @@ const SuSchoolsPage = () => {
         email: savedSchool.email,
         website: savedSchool.website,
         studentCount: 'N/A',
+        principalName: savedSchool.principalName, // Added to formatted object
         establishedYear: savedSchool.establishedYear,
       };
 
@@ -174,9 +191,7 @@ const SuSchoolsPage = () => {
 
         <button
           onClick={() => {
-            // Always start with a blank form — never carry over previous school data
-            setNewSchool({});
-            localStorage.removeItem('schoolRegistrationDraft');
+            // Keep the draft if it exists, otherwise start clean
             setIsAddModalOpen(true);
           }}
           className="px-8 py-3.5 bg-emerald-500 text-white rounded-full font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
@@ -362,14 +377,27 @@ const SuSchoolsPage = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Principal KYC Document</label>
-                  <input
-                    type="file"
-                    required
-                    className="w-full px-4 py-3 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white dark:file:bg-[#0f172a] file:text-emerald-600 dark:file:text-emerald-500 hover:file:bg-slate-50 dark:hover:file:bg-slate-800 transition-all cursor-pointer"
-                    onChange={e => setNewSchool({ ...newSchool, kycDocument: e.target.files?.[0]?.name || '' })}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">School Principal Name <span className="text-emerald-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Principal's full name"
+                      className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                      value={newSchool.principalName || ''}
+                      onChange={e => setNewSchool({ ...newSchool, principalName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Principal KYC Document <span className="text-emerald-500">*</span></label>
+                    <input
+                      type="file"
+                      required
+                      className="w-full px-4 py-3 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white dark:file:bg-[#0f172a] file:text-emerald-600 dark:file:text-emerald-500 hover:file:bg-slate-50 dark:hover:file:bg-slate-800 transition-all cursor-pointer"
+                      onChange={e => setNewSchool({ ...newSchool, kycDocument: e.target.files?.[0]?.name || '' })}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -440,8 +468,6 @@ const SuSchoolsPage = () => {
                 type="button"
                 onClick={() => {
                   setIsAddModalOpen(false);
-                  setNewSchool({});
-                  localStorage.removeItem('schoolRegistrationDraft');
                 }}
                 className="text-sm font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
                 disabled={registrationLoading}

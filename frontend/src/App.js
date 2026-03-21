@@ -66,14 +66,10 @@ import ResetPage from './Page/Users/ResetPage';
 import ResetFirstLogin from './Page/Users/ResetFirstLogin';
 import { ToastHost } from './MainSystemComponents/Toast';
 
+import { useAuth } from './context/AuthContext';
+
 function App() {
-  const token = localStorage.getItem("token");
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem("user"));
-  } catch (e) {
-    user = null;
-  }
+  const { token, user } = useAuth();
 
   const getRedirectPath = () => {
     if (token && user) {
@@ -117,8 +113,9 @@ function App() {
             <Route path="/super-admin" element={
               token && user && user.role === "super-admin"
                 ? <SuAdminLayout />
-                : <Navigate to="/" replace />
+                : <Navigate to="/super-admin/login" replace />
             }>
+
               <Route index element={<Navigate to="/super-admin/dashboard" replace />} />
               <Route path="dashboard" element={<SuDashboard />} />
               <Route path="school" element={<SuSchoolsPage />} />

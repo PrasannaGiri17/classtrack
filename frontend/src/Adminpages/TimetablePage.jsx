@@ -15,6 +15,7 @@ import {
 import timetableService from '../Api/timetableService';
 import gradeService from '../Api/gradeService';
 import { toast } from '../MainSystemComponents/Toast';
+import { useAuth } from '../context/AuthContext';
 
 const TimetablePage = () => {
   const [grades, setGrades] = useState([]);
@@ -33,6 +34,10 @@ const TimetablePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
+  // Get schoolId from context or localStorage (for admin flexibility)
+  const { schoolId: authSchoolId } = useAuth();
+  const schoolId = localStorage.getItem("adminSchoolId") || localStorage.getItem("schoolId") || authSchoolId;
+
   const weekdays = [
     { label: 'Sunday', value: 'SUNDAY' },
     { label: 'Monday', value: 'MONDAY' },
@@ -45,10 +50,11 @@ const TimetablePage = () => {
   // Fetch initial data (Grades)
   useEffect(() => {
     const fetchGrades = async () => {
+      if (!schoolId) return;
       try {
-        const data = await gradeService.getGrades();
+        const data = await gradeService.getGrades(schoolId);
         setGrades(data);
-        if (data.length > 0) {
+        if (data.length > 0 && !selectedGrade) {
           setSelectedGrade(data[0].gradeNumber.toString());
         }
       } catch (error) {
@@ -59,7 +65,7 @@ const TimetablePage = () => {
       }
     };
     fetchGrades();
-  }, []);
+  }, [schoolId]);
 
   // Update available sections when grade changes
   useEffect(() => {
@@ -68,19 +74,21 @@ const TimetablePage = () => {
     const grade = grades.find(g => g.gradeNumber.toString() === selectedGrade);
     if (grade) {
       setAvailableSections(grade.sections || []);
-      if (grade.sections?.length > 0 && !selectedSection) {
+      // If the current section is not in the new grade, select the first one
+      const sectionExists = grade.sections?.some(s => s.sectionName === selectedSection);
+      if (grade.sections?.length > 0 && (!selectedSection || !sectionExists)) {
         setSelectedSection(grade.sections[0].sectionName);
       }
     }
   }, [selectedGrade, grades]);
 
-  // Update options (subjects, teachers, busy list) when grade, section or weekday changes
+  // Update options (subjects, teachers, busy list) when selection changes
   useEffect(() => {
-    if (!selectedGrade || !selectedSection || !selectedWeekday) return;
+    if (!selectedGrade || !selectedSection || !selectedWeekday || !schoolId) return;
 
     const fetchOptions = async () => {
       try {
-        const options = await timetableService.getTimetableOptions(selectedGrade, selectedSection, selectedWeekday);
+        const options = await timetableService.getTimetableOptions(selectedGrade, selectedSection, selectedWeekday, schoolId);
         setSubjects(options.subjects || []);
         setTeachers(options.teachers || []);
         setBusyTeachers(options.busyTeachers || {});
@@ -89,16 +97,16 @@ const TimetablePage = () => {
       }
     };
     fetchOptions();
-  }, [selectedGrade, selectedSection, selectedWeekday]);
+  }, [selectedGrade, selectedSection, selectedWeekday, schoolId]);
 
-  // Fetch timetable when grade, section or weekday changes
+  // Fetch timetable when selection changes
   useEffect(() => {
-    if (!selectedGrade || !selectedSection || !selectedWeekday) return;
+    if (!selectedGrade || !selectedSection || !selectedWeekday || !schoolId) return;
 
     const fetchTimetable = async () => {
       setIsLoading(true);
       try {
-        const data = await timetableService.getTimetable(selectedGrade, selectedSection, selectedWeekday);
+        const data = await timetableService.getTimetable(selectedGrade, selectedSection, selectedWeekday, schoolId);
         setRoutineSlots(data.slots || []);
         setAssignments(data.assignments || {});
       } catch (error) {
@@ -110,7 +118,7 @@ const TimetablePage = () => {
       }
     };
     fetchTimetable();
-  }, [selectedGrade, selectedSection, selectedWeekday]);
+  }, [selectedGrade, selectedSection, selectedWeekday, schoolId]);
 
   const handleAssignmentChange = (periodId, field, value) => {
     // Conflict Check for Teacher
@@ -118,7 +126,7 @@ const TimetablePage = () => {
       const busyList = busyTeachers[periodId] || [];
       const conflict = busyList.find(b =>
         b.teacherId === value &&
-        !(b.gradeNumber === selectedGrade && b.sectionName === selectedSection)
+        !(b.gradeNumber.toString() === selectedGrade && b.sectionName === selectedSection)
       );
 
       if (conflict) {
@@ -126,7 +134,7 @@ const TimetablePage = () => {
           type: 'error',
           message: `Teacher ${conflict.teacherName} is already assigned to Grade ${conflict.gradeNumber} Section ${conflict.sectionName} at this time.`
         });
-        return; // Block assignment
+        return; 
       }
     }
 
@@ -135,7 +143,6 @@ const TimetablePage = () => {
       [periodId]: {
         ...(prev[periodId] || { subjectId: '', teacherId: '' }),
         [field]: value,
-        // Reset teacher if subject changes
         ...(field === 'subjectId' ? { teacherId: '' } : {})
       }
     }));
@@ -144,14 +151,11 @@ const TimetablePage = () => {
   const getAvailableTeachers = (subjectId, slotLabel) => {
     if (!subjectId) return [];
 
-    // Check if it's Physical Activity or Sport
     const label = (slotLabel || '').toLowerCase();
     if (label.includes('physical') || label.includes('sport')) {
       return [];
     }
 
-    // Filter teachers who teach this subject
-    // Handle both populated objects and ID strings
     return teachers.filter(t => {
       const primaryId = t.primarySubject?._id || t.primarySubject;
       const secondaryId = t.secondarySubject?._id || t.secondarySubject;
@@ -160,15 +164,19 @@ const TimetablePage = () => {
   };
 
   const handleSave = async () => {
+    if (!schoolId) {
+      toast({ type: 'error', message: "School ID not found." });
+      return;
+    }
     setIsSaving(true);
     try {
-      await timetableService.updateTimetable(selectedGrade, selectedSection, selectedWeekday, assignments);
+      await timetableService.updateTimetable(selectedGrade, selectedSection, selectedWeekday, assignments, schoolId);
       setIsSaved(true);
-      toast({ type: 'success', message: `Timetable for ${selectedWeekday} updated successfully!` });
+      toast({ type: 'success', message: `Timetable updated successfully!` });
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
       console.error("Error saving timetable:", error);
-      const errorMessage = error.response?.data?.message || "Failed to save timetable. Please try again.";
+      const errorMessage = error.response?.data?.message || "Failed to save timetable.";
       toast({ type: 'error', message: errorMessage });
     } finally {
       setIsSaving(false);
@@ -185,7 +193,7 @@ const TimetablePage = () => {
     return `${hours}:${minutesStr} ${ampm}`;
   };
 
-  let currentMinutes = 9 * 60; // Initialize starting time at 9:00 AM
+  let currentMinutes = 9 * 60; 
 
   if (isLoading && grades.length === 0) {
     return (
@@ -204,12 +212,12 @@ const TimetablePage = () => {
             <CalendarDays className="text-emerald-500 w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Assign Time Table</h1>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Assign Time Table</h1>
+            <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 mt-2">School ID: {schoolId}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Grade Selector */}
           <div className="relative group">
             <select
               value={selectedGrade}
@@ -222,7 +230,6 @@ const TimetablePage = () => {
             <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
           </div>
 
-          {/* Section Selector */}
           <div className="relative group">
             <select
               value={selectedSection}
@@ -237,7 +244,6 @@ const TimetablePage = () => {
         </div>
       </div>
 
-      {/* Weekday Selection Slider (Ant Design Segmented Style) */}
       <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2 rounded-[32px] shadow-sm overflow-hidden">
         <div className="flex items-center gap-1">
           {weekdays.map((day) => {
@@ -265,10 +271,8 @@ const TimetablePage = () => {
         </div>
       </div>
 
-      {/* Main Timeline Matrix */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-8 lg:p-10 space-y-6">
         <div className="flex items-center justify-end mb-5 border-b border-slate-50 dark:border-slate-800 pb-4">
-
           <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 tracking-tight text-right">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> Subject
@@ -292,14 +296,13 @@ const TimetablePage = () => {
             <div className="py-20 flex flex-col items-center text-center bg-slate-50/50 dark:bg-slate-800/20 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700">
               <AlertCircle className="text-slate-300 mb-4" size={48} />
               <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">No Routine Framework Found</h3>
-              <p className="text-xs font-medium text-slate-500 mt-2">Please define the routine structure in the Routine View first.</p>
+              <p className="text-xs font-medium text-slate-500 mt-2">Please define the routine structure in the Routine View first for School {schoolId}.</p>
             </div>
           ) : (
             routineSlots.map((period, index) => {
               const isSubject = period.type === 'subject';
               const assignment = assignments[period.id] || { subjectId: '', teacherId: '' };
 
-              // Determine if this is a physical activity/sport slot (by label or selected subject)
               const selectedSubject = subjects.find(s => s._id === assignment.subjectId);
               const subjectName = selectedSubject?.subjectName || '';
               const isPhysical = period.type === 'sport' ||
@@ -310,7 +313,6 @@ const TimetablePage = () => {
 
               const availableTeachers = getAvailableTeachers(assignment.subjectId, period.label);
 
-              // Calculate start and end times
               const startTime = formatTime(currentMinutes);
               const endTime = formatTime(currentMinutes + period.durationMinutes);
               currentMinutes += period.durationMinutes;
@@ -325,7 +327,6 @@ const TimetablePage = () => {
                       : 'bg-slate-50/50 dark:bg-slate-800/20 border-transparent opacity-80'}
                   `}
                 >
-                  {/* Time Indicator */}
                   <div className="w-full lg:w-[180px] shrink-0 flex items-center">
                     <div className="flex items-center gap-2.5 text-slate-900 dark:text-white font-black text-[10px] tracking-tight whitespace-nowrap">
                       <Clock size={16} className="text-emerald-500 shrink-0" />
@@ -333,7 +334,6 @@ const TimetablePage = () => {
                     </div>
                   </div>
 
-                  {/* Period Info */}
                   <div className="w-full lg:w-[200px] flex items-center gap-4">
                     <div className={`
                       w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm
@@ -353,10 +353,8 @@ const TimetablePage = () => {
                     </div>
                   </div>
 
-                  {/* Assignment Controls (Only for Academic Subjects) */}
                   {isSubject && !isPhysical ? (
                     <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Subject Select */}
                       <div className="relative group">
                         <select
                           value={assignment.subjectId}
@@ -371,7 +369,6 @@ const TimetablePage = () => {
                         <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
                       </div>
 
-                      {/* Teacher Select */}
                       <div className="relative group">
                         <select
                           disabled={!assignment.subjectId}
@@ -405,9 +402,7 @@ const TimetablePage = () => {
           )}
         </div>
 
-        {/* Footer Actions */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-end gap-4 pt-6 border-t border-slate-50 dark:border-slate-800">
-
           <button
             onClick={handleSave}
             disabled={routineSlots.length === 0 || isSaving}

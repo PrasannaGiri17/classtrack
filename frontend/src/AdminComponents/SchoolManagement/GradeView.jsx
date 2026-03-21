@@ -20,8 +20,8 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
   }, [schoolId]);
 
   React.useEffect(() => {
-    if (range && range.from && range.to) {
-      setTempRange(range);
+    if (range && range.from !== null && range.to !== null) {
+      setTempRange({ from: range.from, to: range.to });
     }
   }, [range]);
 
@@ -49,7 +49,10 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
     }
   }, [adminSchoolId]);
 
-  const [tempRange, setTempRange] = useState(range || { from: 1, to: 10 });
+  const [tempRange, setTempRange] = useState({ 
+    from: range?.from || 1, 
+    to: range?.to || 10 
+  });
   const [syncCount, setSyncCount] = useState(1);
 
   // --- Per-Grade Edit State ---
@@ -161,9 +164,12 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
           </div>
           <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-lg px-4 py-2 mt-2 inline-flex">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Span:</span>
-            <span className="text-xs font-bold text-emerald-600">Grade {range.from} — {range.to}</span>
+            <span className="text-xs font-bold text-emerald-600">
+              {range.from && range.to ? `Grade ${range.from} — ${range.to}` : "No range defined"}
+            </span>
           </div>
         </div>
+
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           {/* Lock Toggle */}
@@ -203,33 +209,52 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-        {gradeList.map((grade) => (
-          <div
-            key={grade}
-            onClick={() => {
-              if (isLocked) return;
-              setEditingGrade(grade);
-              setPendingCount(sectionMap[grade] || 1);
-            }}
-            className={`bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all text-center relative ${isLocked
-              ? "opacity-60 cursor-not-allowed"
-              : "group hover:border-emerald-500/30 hover:scale-[1.02] cursor-pointer"
-              }`}
-          >
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg mb-5 mx-auto transition-transform ${isLocked ? "bg-slate-400" : "bg-emerald-600 group-hover:scale-110"}`}>
-              {grade}
-            </div>
-            <h4 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight mb-3 leading-none">Grade {grade}</h4>
-            <div className="space-y-3">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none">Sections</p>
-              <div className="mt-1">
-                {renderSectionBadges(sectionMap[grade], true)}
+      {gradeList.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+          {gradeList.map((grade) => (
+            <div
+              key={grade}
+              onClick={() => {
+                if (isLocked) return;
+                setEditingGrade(grade);
+                setPendingCount(sectionMap[grade] || 1);
+              }}
+              className={`bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all text-center relative ${isLocked
+                ? "opacity-60 cursor-not-allowed"
+                : "group hover:border-emerald-500/30 hover:scale-[1.02] cursor-pointer"
+                }`}
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg mb-5 mx-auto transition-transform ${isLocked ? "bg-slate-400" : "bg-emerald-600 group-hover:scale-110"}`}>
+                {grade}
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight mb-3 leading-none">Grade {grade}</h4>
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none">Sections</p>
+                <div className="mt-1">
+                  {renderSectionBadges(sectionMap[grade], true)}
+                </div>
               </div>
             </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-[48px] border border-dashed border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-[32px] flex items-center justify-center mb-6">
+            <Layers className="text-slate-300 dark:text-slate-600 w-10 h-10" />
           </div>
-        ))}
-      </div>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">No Grades Configured</h3>
+          <p className="text-sm font-medium text-slate-400 dark:text-slate-500 text-center max-w-xs leading-relaxed mb-8 uppercase tracking-widest text-[10px]">
+             Your school's academic hierarchy is currently empty. Click "Define Academic Range" to initiate your system.
+          </p>
+          <button
+             onClick={() => setIsRangeModalOpen(true)}
+             className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2"
+          >
+            <Plus size={16} /> Define Academic Range
+          </button>
+        </div>
+      )}
+
 
       {/* 1. PER-GRADE SECTION MODAL */}
       <PortalPopup isOpen={editingGrade !== null} onClose={() => setEditingGrade(null)}>
@@ -385,7 +410,7 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Start Grade</label>
                 <div className="relative group">
                   <select
-                    value={tempRange.from}
+                    value={tempRange.from || 1}
                     onChange={(e) => setTempRange({ ...tempRange, from: parseInt(e.target.value) })}
                     className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none dark:[color-scheme:dark]"
                   >
@@ -398,7 +423,7 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">End Grade</label>
                 <div className="relative group">
                   <select
-                    value={tempRange.to}
+                    value={tempRange.to || 10}
                     onChange={(e) => setTempRange({ ...tempRange, to: parseInt(e.target.value) })}
                     className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none dark:[color-scheme:dark]"
                   >

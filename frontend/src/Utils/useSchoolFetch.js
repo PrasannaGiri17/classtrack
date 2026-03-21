@@ -7,6 +7,9 @@ export const useSchoolFetch = (url, dependencies = []) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = () => setRefreshKey(prev => prev + 1);
 
   useEffect(() => {
     let isMounted = true;
@@ -36,7 +39,7 @@ export const useSchoolFetch = (url, dependencies = []) => {
     fetchData();
 
     return () => { isMounted = false; };
-  }, [url, schoolId, ...dependencies]);
+  }, [url, schoolId, refreshKey, ...dependencies]);
 
-  return { data, loading, error, setData };
+  return { data, loading, error, setData, refetch };
 };

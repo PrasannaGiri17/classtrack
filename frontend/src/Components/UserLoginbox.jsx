@@ -3,6 +3,8 @@ import googlePhoto from "../Assests/download.png";
 import { Link, useNavigate } from "react-router-dom";
 import { useGoogleLogin, googleLogout } from "@react-oauth/google";
 import FailedPopup from "../Components/SmallerComponents/FailedPopup.jsx";
+import { useAuth } from "../context/AuthContext";
+
 
 const UserLoginbox = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,6 +16,8 @@ const UserLoginbox = () => {
   const [popupType, setPopupType] = useState("error");
 
   const navigate = useNavigate();
+  const { login } = useAuth();
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,8 +65,10 @@ const UserLoginbox = () => {
       localStorage.removeItem("userEmail");
 
       // Save JWT and user details
+      login(data, data.token);
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
+
       const studentId = data.studentId;
       if (studentId) localStorage.setItem("studentId", studentId);
       if (data.teacherId) localStorage.setItem("teacherId", data.teacherId);
@@ -145,9 +151,11 @@ const UserLoginbox = () => {
         localStorage.removeItem("userEmail");
 
         // 3) backend returned your JWT → save and go in
+        login(data, data.token);
         localStorage.setItem("token", data.token);
         localStorage.setItem("googleUser", JSON.stringify(googleUser));
         localStorage.setItem("role", data.role);
+
         const nameToStore = [data.firstName, data.lastName].filter(Boolean).join(" ") || data.name || googleUser.name || "User";
         localStorage.setItem("userName", nameToStore);
         localStorage.setItem("userEmail", data.email || googleUser.email);
@@ -267,6 +275,12 @@ const UserLoginbox = () => {
             <span>Log in with Google</span>
           </button>
         </form>
+
+        <div className="mt-8 text-center">
+          <Link to="/super-admin/login" className="text-xs font-medium text-slate-300 hover:text-emerald-600 transition-colors">
+            Super Admin Portal
+          </Link>
+        </div>
 
         <FailedPopup
           message={popupMessage}

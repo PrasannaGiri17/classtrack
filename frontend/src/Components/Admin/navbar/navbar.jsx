@@ -104,11 +104,10 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
         <button
           onClick={() => setShowNotifications((prev) => !prev)}
-          className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all relative ${
-            showNotifications
+          className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all relative ${showNotifications
               ? "bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none"
               : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400"
-          }`}
+            }`}
         >
           <Bell className="w-5 h-5" />
           <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full" />
@@ -133,11 +132,10 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
                 >
                   <div className="flex justify-between items-start mb-1">
                     <h4
-                      className={`text-xs font-bold ${
-                        notif.unread
+                      className={`text-xs font-bold ${notif.unread
                           ? "text-slate-900 dark:text-white"
                           : "text-slate-500 dark:text-slate-400"
-                      }`}
+                        }`}
                     >
                       {notif.title}
                     </h4>
@@ -165,7 +163,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
         <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-2 transition-colors" />
 
-        <button 
+        <button
           onClick={() => navigate('/admin/profile')}
           className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group"
         >

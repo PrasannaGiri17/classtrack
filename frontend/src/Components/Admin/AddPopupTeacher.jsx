@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import axios from "axios"
 import { motion, AnimatePresence } from "framer-motion"
 import { IoAddSharp, IoChevronDown } from "react-icons/io5"
 import { IoIosCloseCircle } from "react-icons/io"
 import { MdDone } from "react-icons/md"
 import FailedPopup from "../SmallerComponents/FailedPopup.jsx"
+import gradeService from "../../Api/gradeService"
 
 const AddPopupTeacher = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
@@ -26,7 +27,27 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
     type: "error",
   })
 
-  const classes = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+  const [grades, setGrades] = useState([])
+  
+  useEffect(() => {
+    const fetchGrades = async () => {
+      if (isOpen) {
+        try {
+          // Priority to adminSchoolId for admin context
+          const schoolId = localStorage.getItem("adminSchoolId") || localStorage.getItem("schoolId") || 1;
+          const data = await gradeService.getGrades(schoolId);
+          if (Array.isArray(data)) {
+            // Sort grades numerically
+            const sortedGrades = data.sort((a, b) => a.gradeNumber - b.gradeNumber);
+            setGrades(sortedGrades);
+          }
+        } catch (err) {
+          console.error("Failed to fetch grades:", err);
+        }
+      }
+    };
+    fetchGrades();
+  }, [isOpen]);
 
   const closePopup = () => setPopup({ message: "", type: "error" })
 
@@ -282,23 +303,26 @@ const AddPopupTeacher = ({ isOpen, onClose }) => {
                         Class (Select up to 3 classes)
                       </label>
                       <div className="flex flex-wrap gap-2">
-                        {classes.map((cls) => (
-                          <button
-                            key={cls}
-                            type="button"
-                            onClick={() => handleClassChange(cls)}
-                            className={`px-4 py-2 rounded-lg border-2 transition-all ${formData.class.includes(cls)
-                              ? "bg-[#22c55e] text-white border-[#22c55e]"
-                              : "bg-white text-gray-700 border-gray-300 hover:border-[#22c55e]"
-                              } ${formData.class.length >= 3 && !formData.class.includes(cls)
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                              }`}
-                            disabled={formData.class.length >= 3 && !formData.class.includes(cls)}
-                          >
-                            {cls}
-                          </button>
-                        ))}
+                        {grades.map((grade) => {
+                          const clsNum = grade.gradeNumber.toString();
+                          return (
+                            <button
+                              key={grade._id || clsNum}
+                              type="button"
+                              onClick={() => handleClassChange(clsNum)}
+                              className={`px-4 py-2 rounded-lg border-2 transition-all ${formData.class.includes(clsNum)
+                                ? "bg-[#22c55e] text-white border-[#22c55e]"
+                                : "bg-white text-gray-700 border-gray-300 hover:border-[#22c55e]"
+                                } ${formData.class.length >= 3 && !formData.class.includes(clsNum)
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : ""
+                                }`}
+                              disabled={formData.class.length >= 3 && !formData.class.includes(clsNum)}
+                            >
+                              {clsNum}
+                            </button>
+                          );
+                        })}
                       </div>
                       <p className="text-sm text-gray-500 mt-2">
                         Selected: {formData.class.join(", ") || "None"}

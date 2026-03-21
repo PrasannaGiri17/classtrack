@@ -11,7 +11,7 @@ import Loading from "../MainSystemComponents/Loading";
 const StudentRecord = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: fetchedData, loading, error, setData: setStudentsList } = useSchoolFetch('/students');
+  const { data: fetchedData, loading, error, setData: setStudentsList, refetch: fetchStudents } = useSchoolFetch('/students');
   const students = fetchedData || [];
 
   const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -27,10 +27,6 @@ const StudentRecord = () => {
     } else {
       setStudentsList(action);
     }
-  };
-
-  const fetchStudents = async () => {
-    // handled by useSchoolFetch natively. Dummy function for AddPopup references
   };
 
   const getFlagColor = (flag) => {

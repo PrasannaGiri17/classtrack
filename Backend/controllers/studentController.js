@@ -158,6 +158,7 @@ const addStudent = async (req, res) => {
     const tempPassword = generateTempPassword();
 
     const user = new User({
+      schoolId: student.schoolId, // Required by User schema
       email: student.email,
       password: tempPassword, // will hash via userSchema.pre('save')
       role: "student",

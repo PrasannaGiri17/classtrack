@@ -7,7 +7,8 @@ const { syncTeacherAssignedClasses } = require("../utils/teacherSync");
 // Get Timetable for a specific grade and section
 const getTimetable = async (req, res) => {
   try {
-    const { gradeNumber, sectionName, weekday, gradeId, sectionId } = req.query;
+    const { gradeNumber, sectionName, weekday, gradeId, sectionId, schoolId } = req.query;
+    const activeSchoolId = schoolId ? Number(schoolId) : 1;
 
     const finalGradeNumber = gradeNumber || gradeId;
     const finalSectionName = sectionName || sectionId;
@@ -16,12 +17,12 @@ const getTimetable = async (req, res) => {
       return res.status(400).json({ message: "Grade, section, and weekday are required" });
     }
 
-    const routine = await Routine.findOne({ schoolId: 1, gradeNumber: finalGradeNumber });
+    const routine = await Routine.findOne({ schoolId: activeSchoolId, gradeNumber: finalGradeNumber });
     if (!routine) {
       return res.status(404).json({ message: `Routine for Grade ${finalGradeNumber} not found` });
     }
 
-    const timetable = await Timetable.findOne({ schoolId: 1, gradeNumber: finalGradeNumber, sectionName: finalSectionName, weekday })
+    const timetable = await Timetable.findOne({ schoolId: activeSchoolId, gradeNumber: finalGradeNumber, sectionName: finalSectionName, weekday })
       .populate("assignments.subjectId", "subjectName")
       .populate("assignments.teacherId", "firstName lastName");
 
@@ -50,7 +51,8 @@ const getTimetable = async (req, res) => {
 
 const updateTimetable = async (req, res) => {
   try {
-    const { gradeNumber, sectionName, weekday, assignments } = req.body;
+    const { gradeNumber, sectionName, weekday, assignments, schoolId } = req.body;
+    const activeSchoolId = schoolId ? Number(schoolId) : 1;
 
     if (!gradeNumber || !sectionName || !weekday || !assignments) {
       return res.status(400).json({ message: "Grade, section, weekday, and assignments are required" });
@@ -61,8 +63,8 @@ const updateTimetable = async (req, res) => {
       return res.status(400).json({ message: "Invalid weekday. Must be SUNDAY-FRIDAY" });
     }
 
-    const school = await School.findById(1);
-    const routine = await Routine.findOne({ schoolId: 1, gradeNumber: gradeNumber.toString() });
+    const school = await School.findById(activeSchoolId);
+    const routine = await Routine.findOne({ schoolId: activeSchoolId, gradeNumber: gradeNumber.toString() });
     
     if (!routine || !school) {
         return res.status(400).json({ message: "Routine framework or school settings missing" });
@@ -80,7 +82,7 @@ const updateTimetable = async (req, res) => {
     });
 
     const otherTimetables = await Timetable.find({ 
-        schoolId: 1, 
+        schoolId: activeSchoolId, 
         weekday: weekday.toUpperCase(),
         $or: [
             { gradeNumber: { $ne: gradeNumber.toString() } },
@@ -88,7 +90,7 @@ const updateTimetable = async (req, res) => {
         ]
     }).populate('assignments.teacherId', 'firstName lastName');
 
-    const otherRoutines = await Routine.find({ schoolId: 1 });
+    const otherRoutines = await Routine.find({ schoolId: activeSchoolId });
     const routineMap = {};
     otherRoutines.forEach(r => routineMap[r.gradeNumber] = r);
 
@@ -144,7 +146,7 @@ const updateTimetable = async (req, res) => {
 
     // Get old teachers before update to sync them as well (in case they are removed)
     const existingTT = await Timetable.findOne({ 
-      schoolId: 1, 
+      schoolId: activeSchoolId, 
       gradeNumber: normalizedGradeNumber, 
       sectionName, 
       weekday: weekday.toUpperCase() 
@@ -152,7 +154,7 @@ const updateTimetable = async (req, res) => {
     const oldTeacherIds = existingTT ? existingTT.assignments.map(a => a.teacherId?.toString()).filter(id => id) : [];
 
     const updatedTimetable = await Timetable.findOneAndUpdate(
-      { schoolId: 1, gradeNumber: normalizedGradeNumber, sectionName, weekday: weekday.toUpperCase() },
+      { schoolId: activeSchoolId, gradeNumber: normalizedGradeNumber, sectionName, weekday: weekday.toUpperCase() },
       { 
         $set: { 
           assignments: assignmentsArray,
@@ -181,21 +183,21 @@ const updateTimetable = async (req, res) => {
 
 const getTimetableOptions = async (req, res) => {
     try {
-      const { gradeNumber, weekday, sectionName } = req.query;
-      const schoolId = 1;
+      const { gradeNumber, weekday, sectionName, schoolId } = req.query;
+      const activeSchoolId = schoolId ? Number(schoolId) : 1;
   
-      const grade = await Grade.findOne({ schoolId, gradeNumber }).populate('subjects.subjectId');
+      const grade = await Grade.findOne({ schoolId: activeSchoolId, gradeNumber }).populate('subjects.subjectId');
       if (!grade) return res.status(404).json({ message: "Grade not found" });
   
       const subjects = grade.subjects.map(s => s.subjectId);
   
-      const teachers = await Teacher.find({ schoolId })
+      const teachers = await Teacher.find({ schoolId: activeSchoolId })
           .select('firstName lastName primarySubject secondarySubject assignedGrades')
           .populate('primarySubject', 'subjectName')
           .populate('secondarySubject', 'subjectName');
   
-      const school = await School.findById(1);
-      const myRoutine = await Routine.findOne({ schoolId, gradeNumber: gradeNumber.toString() });
+      const school = await School.findById(activeSchoolId);
+      const myRoutine = await Routine.findOne({ schoolId: activeSchoolId, gradeNumber: gradeNumber.toString() });
       
       if (!school || !myRoutine) {
           return res.status(200).json({ subjects, teachers, busyTeachers: {} });
@@ -212,7 +214,7 @@ const getTimetableOptions = async (req, res) => {
       });
 
       const allTimetables = await Timetable.find({ 
-          schoolId, 
+          schoolId: activeSchoolId, 
           weekday: (weekday || 'SUNDAY').toUpperCase(),
           $or: [
               { gradeNumber: { $ne: gradeNumber.toString() } },
@@ -220,7 +222,7 @@ const getTimetableOptions = async (req, res) => {
           ]
       }).populate('assignments.teacherId', 'firstName lastName');
 
-      const otherRoutines = await Routine.find({ schoolId });
+      const otherRoutines = await Routine.find({ schoolId: activeSchoolId });
       const routineMap = {};
       otherRoutines.forEach(r => routineMap[r.gradeNumber] = r);
 
@@ -269,12 +271,18 @@ const getTeacherRoutine = async (req, res) => {
   try {
     const { teacherId } = req.params;
     if (!teacherId) return res.status(400).json({ message: "Teacher ID is required" });
+    
+    // Find teacher to get their schoolId
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+    
+    const activeSchoolId = teacher.schoolId || 1;
 
-    const school = await School.findById(1);
-    const timetables = await Timetable.find({ schoolId: 1 })
+    const school = await School.findById(activeSchoolId);
+    const timetables = await Timetable.find({ schoolId: activeSchoolId })
       .populate("assignments.subjectId", "subjectName");
 
-    const routines = await Routine.find({ schoolId: 1 });
+    const routines = await Routine.find({ schoolId: activeSchoolId });
     const routineMap = {};
     routines.forEach(r => routineMap[r.gradeNumber] = r);
 
@@ -364,8 +372,12 @@ const updateTeacherTopic = async (req, res) => {
       return res.status(400).json({ message: "Incomplete request parameters." });
     }
 
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+    const activeSchoolId = teacher.schoolId || 1;
+
     const timetable = await Timetable.findOne({
-      schoolId: 1,
+      schoolId: activeSchoolId,
       gradeNumber: gradeNumber.toString(),
       sectionName,
       weekday: weekday.toUpperCase()

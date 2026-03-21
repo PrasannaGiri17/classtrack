@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import schoolService from '../../Api/schoolService';
+
 import {
   LayoutDashboard,
   School,
@@ -16,14 +18,19 @@ import {
 
 const Sidebar = ({ activePage }) => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [schoolInfo, setSchoolInfo] = useState({ name: '', logo: null });
+
 
   useEffect(() => {
     const fetchSchoolInfo = async () => {
       try {
-        const data = await schoolService.getSchool();
-        if (data && data.name) {
-          setSchoolInfo(data);
+        const schoolId = localStorage.getItem("schoolId");
+        if (schoolId) {
+          const data = await schoolService.getSchoolById(schoolId);
+          if (data && data.name) {
+            setSchoolInfo(data);
+          }
         }
       } catch (error) {
         console.error("Error fetching school info:", error);
@@ -103,6 +110,7 @@ const Sidebar = ({ activePage }) => {
       <div className="p-4 border-t border-slate-50 dark:border-slate-800 transition-colors">
         <button
           onClick={() => {
+            logout();
             localStorage.clear();
             navigate('/login');
           }}
@@ -111,6 +119,7 @@ const Sidebar = ({ activePage }) => {
           <LogOut className="w-5 h-5 text-slate-400 group-hover:text-red-500 transition-colors" />
           <span className="text-sm font-medium">Logout</span>
         </button>
+
       </div>
     </div >
   );

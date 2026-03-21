@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
-  Loader2,
   AlertCircle,
   Pencil
 } from "lucide-react";
@@ -30,11 +29,8 @@ const TeacherRecord = () => {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const schoolId = localStorage.getItem("schoolId");
-      const url = schoolId
-        ? `http://localhost:7000/api/teachers?schoolId=${schoolId}`
-        : "http://localhost:7000/api/teachers";
-      const response = await axios.get(url);
+      const schoolId = localStorage.getItem("adminSchoolId") || localStorage.getItem("schoolId") || 1;
+      const response = await axios.get(`http://localhost:7000/api/teachers?schoolId=${schoolId}`);
       setTeachers(response.data);
       setError(null);
     } catch (err) {
@@ -50,7 +46,9 @@ const TeacherRecord = () => {
   }, []);
 
   const filteredTeachers = teachers.filter((t) => {
-    const fullName = `${t.firstName} ${t.lastName}`.toLowerCase();
+    const firstName = t.firstName || "";
+    const lastName = t.lastName || "";
+    const fullName = `${firstName} ${lastName}`.toLowerCase();
     const code = (t.teacherCode || "").toLowerCase();
     const subject = (t.primarySubject?.subjectName || "").toLowerCase();
     const search = searchTerm.toLowerCase();
@@ -83,14 +81,13 @@ const TeacherRecord = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-0 space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
-      {/* Header Stats & Tools */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="bg-white dark:bg-slate-900 px-8 py-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-colors">
           <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
             <GraduationCap className="text-emerald-500 w-7 h-7" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 tracking-widest mb-0.5">Total Teachers</p>
+            <p className="text-[10px] font-black text-slate-400 tracking-widest mb-0.5 uppercase">Total Teachers</p>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-none">{teachers.length}</h2>
           </div>
         </div>
@@ -99,7 +96,7 @@ const TeacherRecord = () => {
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
-            placeholder="Search by ID, name, class, or subject..."
+            placeholder="Search by ID, name, or subject..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -114,24 +111,23 @@ const TeacherRecord = () => {
             setEditingTeacher(null);
             setIsPopupOpen(true);
           }}
-          className="px-10 py-5 bg-emerald-500 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
+          className="px-10 py-5 bg-emerald-500 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap uppercase tracking-widest"
         >
           <Plus size={22} /> Add Teacher
         </button>
       </div>
 
-      {/* Main Table Card - h-auto ensures content-based height */}
       <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors h-auto">
         <div className="w-full overflow-x-auto scrollbar-hide">
           <table className="w-full min-w-[800px] table-auto text-left">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Teacher Id</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Faculty Details</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center">Grades</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Core Subject</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Elective</th>
-                <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center">Actions</th>
+                <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">ID</th>
+                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Faculty Details</th>
+                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center uppercase">Grades</th>
+                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Core Subject</th>
+                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Elective</th>
+                <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
@@ -146,7 +142,7 @@ const TeacherRecord = () => {
                   <td colSpan={6} className="py-32">
                     <div className="flex flex-col items-center justify-center text-red-500">
                       <AlertCircle className="w-10 h-10 mb-4" />
-                      <p className="text-sm font-bold tracking-widest">{error}</p>
+                      <p className="text-sm font-bold tracking-widest uppercase">{error}</p>
                     </div>
                   </td>
                 </tr>
@@ -212,16 +208,15 @@ const TeacherRecord = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-32 text-center text-slate-400 font-bold tracking-widest text-xs">No Faculty Records Found</td>
+                  <td colSpan={6} className="py-32 text-center text-slate-400 font-bold tracking-widest text-xs uppercase">No Faculty Records Found</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Footer Pagination - Compact flow */}
         <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
-          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-[0.2em]">Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredTeachers.length)} of {filteredTeachers.length}</p>
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] uppercase">Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredTeachers.length)} of {filteredTeachers.length}</p>
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}

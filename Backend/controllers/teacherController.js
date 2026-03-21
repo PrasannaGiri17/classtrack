@@ -48,29 +48,33 @@ const resolveTeacherRelations = async (schoolId, data) => {
 };
 
 // Helper: compute assigned classes from timetable and persist to teacher
-const syncAssignedClasses = async (teacherId) => {
-  // Find all timetable entries where this teacher is assigned to at least one slot
-  const entries = await Timetable.find({ schoolId: req.schoolId,  "assignments.teacherId": teacherId });
-  const uniqueClasses = new Set();
-  entries.forEach(entry => {
-    // Only add classes where this specific teacher appears in assignments
-    const hasTeacher = entry.assignments.some(
-      a => a.teacherId && a.teacherId.toString() === teacherId.toString()
-    );
-    if (hasTeacher) {
-      uniqueClasses.add(`Grade ${entry.gradeNumber}-${entry.sectionName}`);
-    }
-  });
-  const classList = Array.from(uniqueClasses).sort();
-  // Save back to teacher document
-  await Teacher.findOneAndUpdate({ _id: teacherId, schoolId: req.schoolId }, { assignedClasses: classList });
-  return classList;
+const syncAssignedClasses = async (schoolId, teacherId) => {
+  try {
+    // Find all timetable entries where this teacher is assigned to at least one slot
+    const entries = await Timetable.find({ schoolId, "assignments.teacherId": teacherId });
+    const uniqueClasses = new Set();
+    entries.forEach(entry => {
+      const hasTeacher = entry.assignments.some(
+        a => a.teacherId && a.teacherId.toString() === teacherId.toString()
+      );
+      if (hasTeacher) {
+        uniqueClasses.add(`Grade ${entry.gradeNumber}-${entry.sectionName}`);
+      }
+    });
+    const classList = Array.from(uniqueClasses).sort();
+    // Save back to teacher document
+    await Teacher.findOneAndUpdate({ _id: teacherId, schoolId }, { assignedClasses: classList });
+    return classList;
+  } catch (err) {
+    console.error("Sync error:", err);
+    return [];
+  }
 };
 
 const getAllTeachers = async (req, res) => {
   try {
-    const { schoolId } = req.query;
-    const filter = schoolId ? { schoolId: Number(schoolId) } : {};
+    const schoolId = req.query.schoolId ? Number(req.query.schoolId) : 1;
+    const filter = { schoolId };
 
     const teachers = await Teacher.find(filter)
       .populate("assignedGrades", "gradeNumber")
@@ -78,7 +82,7 @@ const getAllTeachers = async (req, res) => {
       .populate("secondarySubject", "subjectName");
 
     // Sync assignedClasses for each teacher from timetable
-    await Promise.all(teachers.map(t => syncAssignedClasses(t._id)));
+    await Promise.all(teachers.map(t => syncAssignedClasses(schoolId, t._id)));
 
     // Re-fetch with updated assignedClasses
     const updatedTeachers = await Teacher.find(filter)
@@ -123,40 +127,36 @@ const addTeacher = async (req, res) => {
     }
 
     // Prevent duplicate teacher email (teacher collection)
-    const existingTeacher = await Teacher.findOne({ schoolId: req.schoolId,  email: email.trim() });
+    const existingTeacher = await Teacher.findOne({ schoolId, email: email.trim() });
     if (existingTeacher) {
       return res.status(409).json({ message: "Email already exists (teacher)." });
     }
 
     // Prevent duplicate user email (auth collection)
-    const existingUser = await User.findOne({ schoolId: req.schoolId,  email: email.trim() });
+    const existingUser = await User.findOne({ schoolId, email: email.trim() });
     if (existingUser) {
       return res.status(409).json({ message: "Email already exists (user account)." });
     }
 
-    // 4 & 5) Resolve IDs
     const { primarySubId, secondarySubId, resolvedGradeIds } = await resolveTeacherRelations(schoolId, {
       primarySubject,
       secondarySubject,
       assignedGrades,
     });
 
-    // 1) Create Teacher
     const teacher = new Teacher({
       schoolId,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
       phone: phone ? String(phone).trim() : null,
-      gender: gender.trim(), // must be "male" | "female" | "other"
+      gender: gender.trim(),
       birthdate: birthdate || null,
       qualification: qualification?.trim() || null,
       currentAddress: currentAddress?.trim() || null,
       profilePhoto: req.body.profilePhoto || null,
-
       primarySubject: primarySubId,
       secondarySubject: secondarySubId,
-
       assignedGrades: resolvedGradeIds,
       assignedSections: Array.isArray(assignedSections) ? assignedSections : [],
       classTeacher: req.body.classTeacher || null,
@@ -165,12 +165,12 @@ const addTeacher = async (req, res) => {
 
     await teacher.save();
 
-    // 2) Create linked User (login)
     const tempPassword = generateTempPassword();
 
     const user = new User({
+      schoolId: teacher.schoolId,
       email: teacher.email,
-      password: tempPassword, // hashed by pre-save hook in User model
+      password: tempPassword,
       role: "teacher",
       teacherId: teacher._id,
       mustChangePassword: true,
@@ -178,7 +178,6 @@ const addTeacher = async (req, res) => {
 
     await user.save();
 
-    // 3) Send email with temp password
     try {
       await sendEmail({
         to: teacher.email,
@@ -191,8 +190,6 @@ const addTeacher = async (req, res) => {
       });
     } catch (emailErr) {
       console.error("Failed to send email:", emailErr.message);
-      // We don't want to fail the whole request if email fails, 
-      // though user might not get their password.
     }
 
     return res.status(201).json({
@@ -209,7 +206,6 @@ const addTeacher = async (req, res) => {
         duplicateValue: error.keyValue?.[key],
       });
     }
-
     if (error?.name === "ValidationError") {
       const fieldErrors = {};
       for (const field in error.errors) {
@@ -217,22 +213,24 @@ const addTeacher = async (req, res) => {
       }
       return res.status(400).json({ message: "Validation failed", errors: fieldErrors });
     }
-
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
 const getTeacherById = async (req, res) => {
   try {
-    // Sync assignedClasses from timetable first
-    await syncAssignedClasses(req.params.id);
+    const teacher = await Teacher.findById(req.params.id);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
-    const teacher = await Teacher.findById(req.params.id)
+    // Sync assignedClasses from timetable first
+    await syncAssignedClasses(teacher.schoolId, req.params.id);
+
+    const populatedTeacher = await Teacher.findById(req.params.id)
       .populate("assignedGrades", "gradeNumber")
       .populate("primarySubject", "subjectName")
       .populate("secondarySubject", "subjectName");
-    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
-    res.status(200).json(teacher);
+
+    res.status(200).json(populatedTeacher);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -240,12 +238,16 @@ const getTeacherById = async (req, res) => {
 
 const getTeacherByName = async (req, res) => {
   try {
+    const { schoolId } = req.query;
     const name = req.params.name;
     const parts = String(name).trim().split(/\s+/);
     const firstName = parts[0] || "";
     const lastName = parts.slice(1).join(" ") || ".";
 
-    const teacher = await Teacher.findOne({ schoolId: req.schoolId,  firstName, lastName });
+    const filter = { firstName, lastName };
+    if (schoolId) filter.schoolId = Number(schoolId);
+
+    const teacher = await Teacher.findOne(filter);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
     res.status(200).json(teacher);
@@ -262,10 +264,8 @@ const updateTeacher = async (req, res) => {
     const schoolId = exists.schoolId || 1;
     const updateData = { ...req.body };
 
-    // don't allow changing schoolId normally
     if ("schoolId" in updateData) delete updateData.schoolId;
 
-    // Resolve Subject/Grade IDs if they are provided in update
     const { primarySubId, secondarySubId, resolvedGradeIds } = await resolveTeacherRelations(schoolId, updateData);
 
     if (primarySubId !== undefined) updateData.primarySubject = primarySubId;
@@ -273,7 +273,7 @@ const updateTeacher = async (req, res) => {
     if (resolvedGradeIds !== undefined) updateData.assignedGrades = resolvedGradeIds;
     if (req.body.profilePhoto !== undefined) updateData.profilePhoto = req.body.profilePhoto;
 
-    const updatedTeacher = await Teacher.findOneAndUpdate({ _id: req.params.id, schoolId: req.schoolId }, updateData, {
+    const updatedTeacher = await Teacher.findOneAndUpdate({ _id: req.params.id, schoolId }, updateData, {
       new: true,
       runValidators: true,
     }).populate("assignedGrades", "gradeNumber")
@@ -294,7 +294,7 @@ const deleteTeacher = async (req, res) => {
     // also delete linked user
     await User.findOneAndDelete({ teacherId: teacher._id });
 
-    await Teacher.findOneAndDelete({ _id: req.params.id, schoolId: req.schoolId });
+    await Teacher.findOneAndDelete({ _id: req.params.id, schoolId: teacher.schoolId });
     res.status(200).json({ message: "Teacher (and linked user) deleted successfully" });
   } catch (error) {
     res.status(400).json({ message: error.message });

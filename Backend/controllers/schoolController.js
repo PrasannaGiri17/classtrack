@@ -33,7 +33,7 @@ const addSchool = async (req, res) => {
   try {
     const {
       name, address, email, logo, website, motto, establishedYear,
-      affiliation, kycDocument, status, coverImage,
+      affiliation, principalName, kycDocument, status, coverImage,
       gradeSpan, maxSectionsPerGrade, phoneNumbers, socialLinks, admissionFee,
       adminName, adminEmail
     } = req.body;
@@ -67,7 +67,7 @@ const addSchool = async (req, res) => {
       _id: nextSchoolId, // Provide _id explicitly since schema uses Mixed and doesn't auto-generate
       schoolId: nextSchoolId,
       name, address, email: email || adminEmail, logo, website, motto, establishedYear,
-      affiliation, kycDocument, status: status || 'Pending', coverImage,
+      affiliation, principalName, kycDocument, status: status || 'Pending', coverImage,
       gradeSpan, maxSectionsPerGrade, phoneNumbers, socialLinks, admissionFee
     });
 
@@ -128,10 +128,10 @@ const addSchool = async (req, res) => {
 const updateSchool = async (req, res) => {
   try {
     const lookupId = !isNaN(req.params.id) ? Number(req.params.id) : req.params.id;
-    const updatedSchool = await School.findByIdAndUpdate(
-        lookupId,
+    const updatedSchool = await School.findOneAndUpdate(
+        { schoolId: lookupId },
         { $set: req.body },
-        { new: true, runValidators: true }
+        { new: true, runValidators: true, upsert: true }
     );
 
     if (!updatedSchool) {

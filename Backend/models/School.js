@@ -14,6 +14,7 @@ const schoolSchema = new mongoose.Schema({
   motto: String,
   establishedYear: String,
   affiliation: String,
+  principalName: String,
   kycDocument: String,
   status: { type: String, default: 'Active' },
   coverImage: String,

@@ -20,11 +20,16 @@ import subjectService from '../Api/subjectService';
 import routineService from '../Api/routineService';
 import adminService from '../Api/adminService';
 import { toast } from '../MainSystemComponents/Toast';
+import { Loader2 } from 'lucide-react';
 
 
 const SchoolManagement = () => {
   const [activeView, setActiveView] = useState('menu');
   const [isLoading, setIsLoading] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [isSavingHours, setIsSavingHours] = useState(false);
+  const [newSlot, setNewSlot] = useState({ type: 'subject', label: '', durationMinutes: 45, breakType: 'Short' });
   const [adminSchoolId, setAdminSchoolId] = useState(localStorage.getItem("schoolId") ? Number(localStorage.getItem("schoolId")) : null);
 
   // --- Shared Global State ---
@@ -45,7 +50,7 @@ const SchoolManagement = () => {
 
   const [selectedGrade, setSelectedGrade] = useState("1");
 
-  const [range, setRange] = useState({ from: 1, to: 10 });
+  const [range, setRange] = useState({ from: null, to: null });
   const [sectionMap, setSectionMap] = useState({});
   const [curriculumMap, setCurriculumMap] = useState({});
 
@@ -59,22 +64,35 @@ const SchoolManagement = () => {
       try {
         // 0. Get Admin Profile to find schoolId
         const adminId = localStorage.getItem("adminId");
-        if (!adminId) return;
+        if (!adminId) {
+          console.warn("No adminId found in localStorage.");
+          return;
+        }
 
+        console.log(`Fetching admin profile for adminId: ${adminId}`);
         const adminProfile = await adminService.getAdminById(adminId);
         const schoolId = adminProfile?.schoolId;
         if (schoolId) {
           setAdminSchoolId(schoolId);
           localStorage.setItem("schoolId", schoolId);
+          console.log(`Admin profile found, schoolId: ${schoolId}`);
+        } else {
+          console.warn("Admin profile found but no schoolId associated.");
         }
 
         const effectiveSchoolId = schoolId || adminSchoolId;
-        if (!effectiveSchoolId) return;
+        if (!effectiveSchoolId) {
+          console.warn("No effective schoolId available to fetch data.");
+          return;
+        }
+        console.log(`Using effective schoolId: ${effectiveSchoolId}`);
 
         // 1. Fetch School config by ID
         try {
+          console.log(`Fetching school config for schoolId: ${effectiveSchoolId}`);
           const schoolData = await schoolService.getSchoolById(effectiveSchoolId);
           if (schoolData) {
+            console.log("School data fetched successfully:", schoolData);
             const transformedData = {
               name: schoolData.name || "",
               address: schoolData.address || "",
@@ -95,12 +113,23 @@ const SchoolManagement = () => {
             };
             setSchoolConfig(prev => ({ ...prev, ...transformedData }));
             if (schoolData.gradeSpan) {
-              setRange({ from: schoolData.gradeSpan.start || 1, to: schoolData.gradeSpan.end || 10 });
+              setRange({ 
+                from: schoolData.gradeSpan.start, 
+                to: schoolData.gradeSpan.end 
+              });
             }
+            if (schoolData.operatingHours) {
+              setSchoolHours(prev => ({
+                ...prev,
+                ...schoolData.operatingHours
+              }));
+            }
+          } else {
+            console.warn("School data was empty for schoolId:", effectiveSchoolId);
           }
         } catch (schoolError) {
           if (schoolError.response?.status === 404) {
-            console.log("New school admin - showing empty profile to add details.");
+            console.log("New school admin - showing empty profile to add details for schoolId:", effectiveSchoolId);
           } else {
             console.error("Error fetching school:", schoolError);
           }
@@ -108,8 +137,10 @@ const SchoolManagement = () => {
 
         // 2. Fetch Grades (only if school exists)
         try {
+          console.log(`Fetching grades for schoolId: ${effectiveSchoolId}`);
           const gradesData = await gradeService.getGrades(effectiveSchoolId);
           if (gradesData && Array.isArray(gradesData)) {
+            console.log("Grades data fetched successfully:", gradesData);
             const sMap = {};
             const cMap = {};
             gradesData.forEach(g => {
@@ -128,6 +159,8 @@ const SchoolManagement = () => {
             });
             setSectionMap(sMap);
             setCurriculumMap(cMap);
+          } else {
+            console.warn("Grades data was empty or not an array for schoolId:", effectiveSchoolId);
           }
         } catch (gradeErr) {
           console.warn("No grade data for this school yet.", gradeErr.message);
@@ -135,37 +168,61 @@ const SchoolManagement = () => {
 
         // 3. Fetch Routines
         try {
+          console.log(`Fetching routines for schoolId: ${effectiveSchoolId}`);
           const routineData = await routineService.getRoutineMatrix(effectiveSchoolId);
           if (routineData) {
+            console.log("Routine data fetched successfully:", routineData);
             if (routineData.operatingHours) setSchoolHours(routineData.operatingHours);
-            if (routineData.classRoutines) setClassRoutines(routineData.classRoutines);
+            
+            // Merge with local storage for unfinalized/modified routines
+            const localCache = localStorage.getItem(`routine_cache_${effectiveSchoolId}`);
+            let mergedRoutines = routineData.classRoutines || {};
+            
+            if (localCache) {
+              const parsedCache = JSON.parse(localCache);
+              Object.keys(parsedCache).forEach(grade => {
+                // If the remote version is unlocked OR we have a local version that is unlocked, 
+                // we might want to prioritize local. 
+                // Usually: if remote is LOCKED, we discard local (finalized is truth).
+                // if remote is UNLOCKED, we use local if available.
+                if (!mergedRoutines[grade]?.isLocked) {
+                   mergedRoutines[grade] = parsedCache[grade];
+                }
+              });
+            }
+            setClassRoutines(mergedRoutines);
+          }
+ else {
+            console.warn("Routine data was empty for schoolId:", effectiveSchoolId);
           }
         } catch (routineErr) {
           console.warn("No routine data for this school yet.", routineErr.message);
         }
       } catch (error) {
-        console.error("Failed to fetch data:", error);
+        console.error("Failed to fetch data in SchoolManagement useEffect:", error);
       }
     };
 
     fetchData();
   }, [adminSchoolId]);
 
+  // Persistent Cache Effect
+  useEffect(() => {
+    if (adminSchoolId && Object.keys(classRoutines).length > 0) {
+      // Only cache unfinalized parts? Or just cache everything.
+      // We'll cache everything and the merge logic takes care of priority.
+      localStorage.setItem(`routine_cache_${adminSchoolId}`, JSON.stringify(classRoutines));
+    }
+  }, [classRoutines, adminSchoolId]);
   // ... (handlers) ...
 
   // --- Routine Handlers ---
-  const handleUpdateHours = async (newHours) => {
-    try {
-      await routineService.updateOperatingHours(newHours.start, newHours.end, adminSchoolId);
-      setSchoolHours(newHours);
-      toast({ type: 'success', message: "Operating hours updated.", duration: 2000 });
-    } catch (e) {
-      console.error(e);
-      toast({ type: 'error', message: "Failed to update hours.", duration: 3000 });
-    }
+  const handleUpdateHours = (newHours) => {
+    setSchoolHours(newHours);
   };
 
   const handleUpdateRoutines = (grade, routines, isLocked) => {
+    console.log(`Updating routines for grade ${grade}:`, routines, `Locked: ${isLocked}`);
     setClassRoutines(prev => ({
       ...prev,
       [grade]: { slots: routines, isLocked }
@@ -175,19 +232,51 @@ const SchoolManagement = () => {
   const handleFinalizeRoutine = async (grade) => {
     try {
       const routineData = classRoutines[grade];
-      if (!routineData) return;
-
-      await routineService.updateGradeRoutine(grade, routineData.slots, true, adminSchoolId);
+      if (!routineData) {
+        console.warn(`No routine data found for grade ${grade} to finalize.`);
+        return;
+      }
+      console.log(`Finalizing routine for Grade ${grade}, schoolId: ${adminSchoolId}`);
+      await Promise.all([
+        routineService.updateGradeRoutine(grade, routineData.slots, true, adminSchoolId),
+        schoolService.updateSchool(adminSchoolId, { operatingHours: schoolHours })
+      ]);
 
       setClassRoutines(prev => ({
         ...prev,
         [grade]: { ...prev[grade], isLocked: true }
       }));
 
+      const localCache = localStorage.getItem(`routine_cache_${adminSchoolId}`);
+      if (localCache) {
+        const parsed = JSON.parse(localCache);
+        delete parsed[grade];
+        localStorage.setItem(`routine_cache_${adminSchoolId}`, JSON.stringify(parsed));
+      }
+
       toast({ type: 'success', message: `Routine for Grade ${grade} finalized and locked.`, duration: 2000 });
     } catch (e) {
-      console.error(e);
+      console.error(`Error finalizing routine for grade ${grade}:`, e);
       toast({ type: 'error', message: "Failed to finalize routine.", duration: 3000 });
+    }
+  };
+
+  const handleSaveGlobalTiming = async () => {
+    try {
+      if (!adminSchoolId) {
+        toast({ type: 'error', message: "School context missing." });
+        console.error("Attempted to save global timing without adminSchoolId.");
+        return;
+      }
+      setIsSavingHours(true); // Set local loading state for this specific action
+      console.log(`Saving global timing for schoolId: ${adminSchoolId}, hours:`, schoolHours);
+      await schoolService.updateSchool(adminSchoolId, { operatingHours: schoolHours });
+      toast({ type: 'success', message: "Timing matrix synchronized successfully.", duration: 2500 });
+    } catch (e) {
+      console.error("OS SAVE ERROR:", e);
+      toast({ type: 'error', message: "Failed to update global timing.", duration: 3000 });
+    } finally {
+      setIsSavingHours(false); // Reset local loading state
     }
   };
 
@@ -209,7 +298,8 @@ const SchoolManagement = () => {
       ...config,
       email: config.schoolEmail,
       socialLinks: socialArray,
-      phoneNumbers: phoneArray
+      phoneNumbers: phoneArray,
+      operatingHours: schoolHours
     };
 
     // Remove frontend-only state fields that backend doesn't expect
@@ -221,21 +311,29 @@ const SchoolManagement = () => {
   const saveConfig = async (payload, manualId) => {
     try {
       const activeId = manualId || adminSchoolId;
-      if (!activeId) return false;
+      if (!activeId) {
+        console.error("No activeId available for saving school config.");
+        return false;
+      }
       
       // Add schoolId to payload
       const finalPayload = { ...payload, schoolId: activeId };
       
+      console.log(`Attempting to update school config for schoolId: ${activeId}`, finalPayload);
       await schoolService.updateSchool(activeId, finalPayload);
+      console.log(`School config updated successfully for schoolId: ${activeId}`);
       return true;
     } catch (e) {
       const activeId = manualId || adminSchoolId;
       if (e.response?.status === 404 && activeId) {
+        console.warn(`School with ID ${activeId} not found, attempting to add new school.`);
         // Add schoolId for new record
         const finalPayload = { ...payload, _id: activeId, schoolId: activeId };
         await schoolService.addSchool(finalPayload);
+        console.log(`New school added successfully with ID: ${activeId}`);
         return true;
       }
+      console.error(`Error saving school config for schoolId: ${activeId}:`, e);
       throw e;
     }
   };
@@ -258,6 +356,7 @@ const SchoolManagement = () => {
     try {
       const newConfig = { ...schoolConfig, gradeSpan: { start: from, end: to } };
       const payload = preparePayload(newConfig);
+      console.log(`Updating grade range for schoolId: ${manualId || adminSchoolId} to ${from}-${to}`);
       await saveConfig(payload, manualId);
 
       setRange({ from, to });
@@ -272,10 +371,12 @@ const SchoolManagement = () => {
   const handleUpdateSections = async (grade, count, manualId) => {
     try {
       const activeId = manualId || adminSchoolId;
+      console.log(`Updating sections for grade ${grade} to ${count} for schoolId: ${activeId}`);
       await gradeService.updateGradeSections(grade, count, activeId);
       setSectionMap(prev => ({ ...prev, [grade]: count }));
       toast({ type: 'success', message: `Grade ${grade} sections updated to ${count}.`, duration: 3000 });
     } catch (error) {
+      console.error(`Error updating sections for grade ${grade}:`, error);
       toast({ type: 'error', message: "Failed to update section.", duration: 3000 });
     }
   };
@@ -284,12 +385,14 @@ const SchoolManagement = () => {
     try {
       const activeId = manualId || adminSchoolId;
       const gradesToSync = Array.from({ length: range.to - range.from + 1 }, (_, i) => (range.from + i).toString());
+      console.log(`Syncing sections for grades ${gradesToSync.join(', ')} to ${count} for schoolId: ${activeId}`);
       await gradeService.syncSections(count, gradesToSync, activeId);
       const newMap = { ...sectionMap };
       gradesToSync.forEach(g => newMap[g] = count);
       setSectionMap(newMap);
       toast({ type: 'success', message: `All visible grades synced to ${count} sections.`, duration: 3000 });
     } catch (error) {
+      console.error("Error syncing sections:", error);
       toast({ type: 'error', message: "Failed to sync sections.", duration: 3000 });
     }
   };
@@ -297,6 +400,7 @@ const SchoolManagement = () => {
   // --- Curriculum Handlers ---
   const handleAddCore = async (grade, name) => {
     try {
+      console.log(`Adding global core subject '${name}' for schoolId: ${adminSchoolId}`);
       await subjectService.addSubjectGlobal(name, 'core', adminSchoolId);
       setCurriculumMap(prev => {
         const newMap = { ...prev };
@@ -308,12 +412,14 @@ const SchoolManagement = () => {
       });
       toast({ type: 'success', message: `Core subject '${name}' added to all grades.`, duration: 3000 });
     } catch (e) {
+      console.error(`Error adding global core subject '${name}':`, e);
       toast({ type: 'error', message: "Failed to add global core subject.", duration: 3000 });
     }
   };
 
   const handleRemoveCore = async (grade, name) => {
     try {
+      console.log(`Removing global core subject '${name}' for schoolId: ${adminSchoolId}`);
       await subjectService.removeSubjectGlobal(name, adminSchoolId);
       setCurriculumMap(prev => {
         const newMap = { ...prev };
@@ -325,6 +431,7 @@ const SchoolManagement = () => {
       });
       toast({ type: 'success', message: "Core subject removed from all grades.", duration: 3000 });
     } catch (e) {
+      console.error(`Error removing global core subject '${name}':`, e);
       toast({ type: 'error', message: "Failed to remove subject.", duration: 3000 });
     }
   };
@@ -332,6 +439,7 @@ const SchoolManagement = () => {
   const handleAddExtra = async (grades, name) => {
     setIsLoading(true);
     try {
+      console.log(`Adding specialized subject '${name}' to grades ${grades.join(', ')} for schoolId: ${adminSchoolId}`);
       for (const grade of grades) {
         await subjectService.addSubject(grade, name, 'elective', adminSchoolId);
       }
@@ -345,6 +453,7 @@ const SchoolManagement = () => {
       });
       toast({ type: 'success', message: `Specialized subject '${name}' added to selected grades.`, duration: 3000 });
     } catch (e) {
+      console.error(`Error adding specialized subject '${name}':`, e);
       toast({ type: 'error', message: "Failed to add specialized subject.", duration: 3000 });
     } finally {
       setIsLoading(false);
@@ -354,6 +463,7 @@ const SchoolManagement = () => {
   const handleRemoveExtra = async (grades, name) => {
     setIsLoading(true);
     try {
+      console.log(`Removing specialized subject '${name}' from grades ${grades.join(', ')} for schoolId: ${adminSchoolId}`);
       for (const grade of grades) {
         await subjectService.removeSubject(grade, name, adminSchoolId);
       }
@@ -367,6 +477,7 @@ const SchoolManagement = () => {
       });
       toast({ type: 'success', message: "Specialized subject removed successfully.", duration: 3000 });
     } catch (e) {
+      console.error(`Error removing specialized subject '${name}':`, e);
       toast({ type: 'error', message: "Failed to remove specialized subject.", duration: 3000 });
     } finally {
       setIsLoading(false);
@@ -375,7 +486,9 @@ const SchoolManagement = () => {
 
   const getCoreForGrade = (grade) => curriculumMap[grade]?.core || [];
   const allExtras = Object.entries(curriculumMap).flatMap(([gNum, data]) => data.extra || []);
-  const gradeList = Array.from({ length: range.to - range.from + 1 }, (_, i) => (range.from + i).toString());
+  const gradeList = (range.from && range.to)
+    ? Array.from({ length: Math.max(0, range.to - range.from + 1) }, (_, i) => (range.from + i).toString())
+    : [];
 
   // --- Render Switcher ---
   const renderView = () => {
@@ -416,6 +529,8 @@ const SchoolManagement = () => {
           classRoutines={classRoutines}
           onUpdateRoutines={handleUpdateRoutines}
           onFinalize={handleFinalizeRoutine}
+          onSaveGlobalTiming={handleSaveGlobalTiming}
+          isSavingHours={isSavingHours} // Pass the loading state
           gradeList={gradeList}
           schoolName={schoolConfig.name}
         />;

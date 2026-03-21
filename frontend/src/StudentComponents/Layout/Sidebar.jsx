@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+
 import {
   LayoutDashboard,
   School,
@@ -17,11 +19,15 @@ import {
   MessageSquare,
   Building2
 } from 'lucide-react';
+import schoolService from '../../Api/schoolService';
 import axios from 'axios';
+
 
 const Sidebar = ({ activePage }) => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [schoolInfo, setSchoolInfo] = React.useState({
+
     name: localStorage.getItem("schoolName") || "School",
     motto: localStorage.getItem("schoolMotto") || "Management System",
     logo: localStorage.getItem("schoolLogo") || null
@@ -30,18 +36,20 @@ const Sidebar = ({ activePage }) => {
   React.useEffect(() => {
     const fetchSchool = async () => {
       try {
-        const response = await axios.get("http://localhost:7000/api/school");
-        const data = response.data;
-        if (data) {
-          const info = {
-            name: data.name,
-            motto: data.motto || "Academy",
-            logo: data.logo
-          };
-          setSchoolInfo(info);
-          localStorage.setItem("schoolName", data.name);
-          localStorage.setItem("schoolMotto", data.motto || "");
-          if (data.logo) localStorage.setItem("schoolLogo", data.logo);
+        const schoolId = localStorage.getItem("schoolId");
+        if (schoolId) {
+          const data = await schoolService.getSchoolById(schoolId);
+          if (data) {
+            const info = {
+              name: data.name,
+              motto: data.motto || "Academy",
+              logo: data.logo
+            };
+            setSchoolInfo(info);
+            localStorage.setItem("schoolName", data.name);
+            localStorage.setItem("schoolMotto", data.motto || "");
+            if (data.logo) localStorage.setItem("schoolLogo", data.logo);
+          }
         }
       } catch (err) {
         console.error("Failed to fetch school info in Sidebar", err);
@@ -49,6 +57,7 @@ const Sidebar = ({ activePage }) => {
     };
     fetchSchool();
   }, []);
+
 
   const menuItems = [
     { key: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/student/dashboard' },
@@ -123,6 +132,7 @@ const Sidebar = ({ activePage }) => {
       <div className="p-4 border-t border-slate-50 dark:border-slate-800 transition-colors">
         <button
           onClick={() => {
+            logout();
             localStorage.clear();
             navigate('/login');
           }}
@@ -131,6 +141,7 @@ const Sidebar = ({ activePage }) => {
           <LogOut className="w-5 h-5 text-slate-400 group-hover:text-red-500 transition-colors" />
           <span className="text-sm font-medium">Logout</span>
         </button>
+
       </div>
     </div>
   );

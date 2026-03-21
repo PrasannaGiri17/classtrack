@@ -5,6 +5,7 @@ import studentService from '../Api/studentService';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
 import { toast } from '../MainSystemComponents/Toast';
+import { useAuth } from '../context/AuthContext';
 import {
   Users,
   UserPlus,
@@ -21,11 +22,6 @@ import {
   Check,
   Loader2
 } from 'lucide-react';
-
-
-
-// Mock data for initial loading/demonstration (can be removed if not needed)
-const INITIAL_ENROLLED_STUDENTS = [];
 
 const ClassroomPage = () => {
   const [grades, setGrades] = useState([]);
@@ -53,38 +49,43 @@ const ClassroomPage = () => {
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [selectedForEnrollment, setSelectedForEnrollment] = useState([]);
 
-  // Fetch initial data (Grades)
+  // Robust schoolId detection
+  const { schoolId: authSchoolId } = useAuth();
+  const schoolId = localStorage.getItem("adminSchoolId") || localStorage.getItem("schoolId") || authSchoolId;
+
+  // Fetch initial data (Grades & Teachers)
   useEffect(() => {
-    const fetchGrades = async () => {
+    if (!schoolId) return;
+
+    const fetchInitialData = async () => {
+      setIsLoading(true);
       try {
-        const data = await gradeService.getGrades();
-        setGrades(data);
-        if (data.length > 0) {
-          setSelectedGrade(data[0].gradeNumber.toString());
+        // Parallel fetching
+        const [gradesData, teachersData] = await Promise.all([
+          gradeService.getGrades(schoolId),
+          teacherService.getAllTeachers(schoolId)
+        ]);
+
+        setGrades(gradesData || []);
+        setTeachers(teachersData || []);
+
+        if (gradesData && gradesData.length > 0) {
+          setSelectedGrade(gradesData[0].gradeNumber.toString());
         }
       } catch (error) {
-        console.error("Error fetching grades:", error);
-        toast({ type: 'error', message: "Failed to load grades." });
+        console.error("Error fetching initial data:", error);
+        toast({ type: 'error', message: "Failed to load required data." });
       } finally {
         setIsLoading(false);
       }
     };
-    fetchGrades();
 
-    const fetchTeachers = async () => {
-      try {
-        const data = await teacherService.getAllTeachers();
-        setTeachers(data || []);
-      } catch (error) {
-        console.error("Error fetching teachers:", error);
-      }
-    };
-    fetchTeachers();
-  }, []);
+    fetchInitialData();
+  }, [schoolId]);
 
-  // Update sections when grade changes
+  // Update sections and student pool when grade changes
   useEffect(() => {
-    if (!selectedGrade) return;
+    if (!selectedGrade || !schoolId) return;
 
     const grade = grades.find(g => g.gradeNumber.toString() === selectedGrade);
     if (grade) {
@@ -96,18 +97,18 @@ const ClassroomPage = () => {
 
     const fetchGradeStudents = async () => {
       try {
-        const data = await studentService.getStudents(selectedGrade);
+        const data = await studentService.getStudents(selectedGrade, schoolId);
         setGlobalStudentPool(data || []);
       } catch (error) {
         console.error("Error fetching grade students:", error);
       }
     };
     fetchGradeStudents();
-  }, [selectedGrade, grades]);
+  }, [selectedGrade, grades, schoolId]);
 
-  // Update classroom data when section changes
+  // Update classroom data (enrolled students) when section changes
   useEffect(() => {
-    if (!selectedGrade || !selectedSection) return;
+    if (!selectedGrade || !selectedSection || !schoolId) return;
 
     const grade = grades.find(g => g.gradeNumber.toString() === selectedGrade);
     const section = grade?.sections.find(s => s.sectionName === selectedSection);
@@ -119,7 +120,7 @@ const ClassroomPage = () => {
       const fetchEnrolledStudents = async () => {
         try {
           setIsLoading(true);
-          const data = await studentService.getStudentsBySection(selectedGrade, section._id);
+          const data = await studentService.getStudentsBySection(selectedGrade, section._id, schoolId);
           setEnrolledStudents(data || []);
         } catch (error) {
           console.error("Error fetching enrolled students:", error);
@@ -129,18 +130,29 @@ const ClassroomPage = () => {
       };
       fetchEnrolledStudents();
     }
-  }, [selectedGrade, selectedSection, grades]);
-
-  useEffect(() => {
-    console.log("Current Teachers:", teachers);
-    console.log("Selected Grade:", selectedGrade);
-  }, [teachers, selectedGrade]);
+  }, [selectedGrade, selectedSection, grades, schoolId]);
 
   const enrolledCount = enrolledStudents.length;
   const isFull = enrolledCount >= capacity;
   const remainingSlots = capacity - enrolledCount;
 
   const currentTeacher = teachers.find(t => t._id === assignedTeacherId);
+
+  // Identify teachers who are already class teachers anywhere
+  const busyClassTeachers = useMemo(() => {
+    const busy = new Map();
+    grades.forEach(g => {
+      g.sections?.forEach(s => {
+        if (s.classTeacherId) {
+          busy.set(s.classTeacherId.toString(), {
+            grade: g.gradeNumber,
+            section: s.sectionName
+          });
+        }
+      });
+    });
+    return busy;
+  }, [grades]);
 
   // Filter existing students by search
   const filteredStudents = enrolledStudents.filter(s => {
@@ -153,7 +165,7 @@ const ClassroomPage = () => {
   // Filter pool students for the modal
   const filteredModalPool = useMemo(() => {
     return globalStudentPool.filter(s => {
-      const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+      const fullName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase();
       const sId = (s.studentId || "").toLowerCase();
       const query = modalSearchQuery.toLowerCase();
       return fullName.includes(query) || sId.includes(query);
@@ -167,10 +179,8 @@ const ClassroomPage = () => {
 
   const confirmRemoveStudent = () => {
     if (!studentToDelete) return;
-
-    // Only remove from UI, not from database
     setEnrolledStudents(prev => prev.filter(s => s._id !== studentToDelete._id));
-    toast({ type: 'success', message: "Student removed from classroom!" });
+    toast({ type: 'success', message: "Student removed from classroom view!" });
     setIsDeleteModalOpen(false);
     setStudentToDelete(null);
   };
@@ -180,11 +190,14 @@ const ClassroomPage = () => {
       await gradeService.assignClassTeacher({
         gradeNumber: Number(selectedGrade),
         sectionName: selectedSection,
-        teacherId: teacherId
+        teacherId: teacherId,
+        schoolId: Number(schoolId) // Explicitly pass schoolId
       });
       setAssignedTeacherId(teacherId);
       setIsTeacherModalOpen(false);
       toast({ type: 'success', message: "Class teacher assigned successfully!" });
+      // Refresh to sync busy states
+      setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
       console.error("Error assigning teacher:", error);
       toast({ type: 'error', message: "Failed to assign teacher." });
@@ -204,7 +217,6 @@ const ClassroomPage = () => {
   const handleAddSelectedStudents = () => {
     const studentsToAdd = globalStudentPool.filter(s => selectedForEnrollment.includes(s._id));
     setEnrolledStudents(prev => {
-      // Filter out duplicates just in case
       const existingIds = new Set(prev.map(p => p._id));
       const uniqueNew = studentsToAdd.filter(s => !existingIds.has(s._id));
       return [...prev, ...uniqueNew];
@@ -217,13 +229,14 @@ const ClassroomPage = () => {
   const handleSaveClassroom = async () => {
     try {
       setIsSaving(true);
-
-      // Update Student Enrollments (Bulk)
       const studentIds = enrolledStudents.map(s => s._id);
+      // Backend bulkEnrollment should support schoolId if needed, but usually it works via student mapping
       await studentService.bulkEnrollment(studentIds, selectedSectionId, Number(selectedGrade));
 
       toast({ type: 'success', message: "Classroom saved successfully!" });
       setIsSaveModalOpen(false);
+      // Refresh to sync all states
+      setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
       console.error("Error saving classroom:", error);
       toast({ type: 'error', message: "Failed to save classroom." });
@@ -234,7 +247,7 @@ const ClassroomPage = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-      {/* Top Header & Year Control */}
+      {/* Header & Selectors */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
           <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
@@ -242,10 +255,10 @@ const ClassroomPage = () => {
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Classroom Management</h1>
+            <p className="text-[10px] uppercase tracking-widest font-black text-slate-400 mt-2">School ID: {schoolId}</p>
           </div>
         </div>
 
-        {/* Grade & Section Filters */}
         <div className="flex items-center gap-3">
           <div className="relative group">
             <select
@@ -274,7 +287,6 @@ const ClassroomPage = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-
         {/* Left Column: Student Enrollment */}
         <div className="xl:col-span-8 bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-full">
           <div className="p-8 border-b border-slate-50 dark:border-slate-800">
@@ -285,7 +297,6 @@ const ClassroomPage = () => {
               </div>
 
               <div className="flex items-center gap-4">
-                {/* Capacity Indicator */}
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className={`text-xs font-black ${isFull ? 'text-red-500' : 'text-emerald-500'}`}>{enrolledCount} / {capacity}</span>
@@ -310,7 +321,6 @@ const ClassroomPage = () => {
               </div>
             </div>
 
-            {/* Sub-search */}
             <div className="relative">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
@@ -371,7 +381,7 @@ const ClassroomPage = () => {
                           <Users size={40} className="opacity-10" />
                         )}
                         <p className="text-[10px] font-black uppercase tracking-widest">
-                          {isLoading ? "Loading students..." : "No matching students"}
+                          {isLoading ? "Loading students..." : "No matching students found"}
                         </p>
                       </div>
                     </td>
@@ -381,19 +391,19 @@ const ClassroomPage = () => {
             </table>
           </div>
 
-          {/* Footer Save Button */}
           <div className="p-8 border-t border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/10 flex justify-end">
             <button
               onClick={() => setIsSaveModalOpen(true)}
-              disabled={enrolledStudents.length === 0 || !selectedSection}
+              disabled={enrolledStudents.length === 0 || !selectedSection || isSaving}
               className="px-10 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:grayscale transition-all flex items-center gap-3"
             >
-              <CheckCircle2 size={18} /> Save Classroom
+              {isSaving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
+              {isSaving ? "Saving..." : "Save Classroom"}
             </button>
           </div>
         </div>
 
-        {/* Right Column: Class Teacher Assignment - Auto Height */}
+        {/* Right Column: Class Teacher Assignment */}
         <div className="xl:col-span-4 space-y-8 h-auto">
           <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
             <div className="relative z-10 flex flex-col">
@@ -414,7 +424,7 @@ const ClassroomPage = () => {
                       {currentTeacher.profilePhoto ? (
                         <img src={currentTeacher.profilePhoto} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <>{currentTeacher.firstName[0]}{currentTeacher.lastName[0]}</>
+                        <>{currentTeacher.firstName[0]}{currentTeacher.lastName?.[0] || ""}</>
                       )}
                     </div>
                     <div>
@@ -455,11 +465,8 @@ const ClassroomPage = () => {
                 </div>
               )}
             </div>
-
-            {/* Background Accent */}
             <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
           </div>
-
         </div>
       </div>
 
@@ -471,74 +478,70 @@ const ClassroomPage = () => {
             <button onClick={() => setIsTeacherModalOpen(false)} className="text-slate-400 hover:text-slate-900"><X size={24} /></button>
           </div>
 
-          <div className="p-4 max-h-[400px] overflow-y-auto space-y-2 scrollbar-hide">
+          <div className="p-4 max-h-[400px] overflow-y-auto space-y-2 scrollbar-hide text-slate-700 dark:text-slate-200">
             {teachers
               .filter(t => {
                 if (!selectedGrade) return true;
-                // Handle both populated grade objects and string IDs/numbers from assignedGrades
                 return t.assignedGrades?.some(g => {
                   const gNum = (g.gradeNumber || g).toString();
                   return gNum === selectedGrade;
                 });
               })
-              .map(t => (
-                <button
-                  key={t._id}
-                  onClick={() => handleAssignTeacher(t._id)}
-                  className={`w-full flex items-center justify-between p-5 rounded-3xl transition-all ${assignedTeacherId === t._id
-                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500'
-                    : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border-2 border-transparent'
-                    }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-black text-indigo-600 overflow-hidden">
-                      {t.profilePhoto ? (
-                        <img src={t.profilePhoto} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        t.firstName?.[0] || 'T'
-                      )}
+              .map(t => {
+                const busyInfo = busyClassTeachers.get(t._id);
+                const isCurrentTeacher = assignedTeacherId === t._id;
+                const isBusyElsewhere = busyInfo && !isCurrentTeacher;
+
+                return (
+                  <button
+                    key={t._id}
+                    disabled={isBusyElsewhere}
+                    onClick={() => handleAssignTeacher(t._id)}
+                    className={`w-full flex items-center justify-between p-5 rounded-3xl transition-all ${isCurrentTeacher
+                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-500'
+                      : isBusyElsewhere
+                        ? 'opacity-40 cursor-not-allowed bg-slate-50/50 dark:bg-slate-800/10 border-2 border-transparent'
+                        : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border-2 border-transparent'
+                      }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center font-black text-indigo-600 overflow-hidden">
+                        {t.profilePhoto ? (
+                          <img src={t.profilePhoto} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          t.firstName?.[0] || 'T'
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{t.firstName} {t.lastName}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          {isCurrentTeacher ? 'Current Class Teacher' :
+                            isBusyElsewhere ? `Class Teacher (G${busyInfo.grade}-${busyInfo.section})` :
+                              (t.primarySubject?.subjectName || t.primarySubject || 'Faculty')}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <p className="text-sm font-black text-slate-900 dark:text-white">{t.firstName} {t.lastName}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        {t.primarySubject?.subjectName || 'Faculty'} Specialist
-                      </p>
-                    </div>
-                  </div>
-                  {assignedTeacherId === t._id && <CheckCircle2 className="text-emerald-500" size={20} />}
-                </button>
-              ))}
+                    {isCurrentTeacher && <CheckCircle2 className="text-emerald-500" size={20} />}
+                  </button>
+                );
+              })}
 
             {teachers.length > 0 && teachers.filter(t => {
               if (!selectedGrade) return true;
               return t.assignedGrades?.some(g => (g.gradeNumber || g).toString() === selectedGrade);
             }).length === 0 && (
-                <div className="py-12 text-center">
-                  <Users className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No teachers assigned to Grade {selectedGrade}</p>
-                  <p className="text-[10px] text-slate-400 mt-2">Assign grades to teachers in the Teacher Profile page first.</p>
+                <div className="py-12 text-center text-slate-400">
+                  <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p className="text-xs font-bold uppercase tracking-widest">No teachers assigned to Grade {selectedGrade}</p>
                 </div>
               )}
-
-            {teachers.length === 0 && !isLoading && (
-              <div className="py-12 text-center">
-                <AlertCircle className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No teachers found in database</p>
-              </div>
-            )}
-          </div>
-
-          <div className="p-8 bg-slate-50/50 dark:bg-slate-800/50 text-center">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Showing Available Faculty</p>
           </div>
         </div>
       </PortalPopup>
 
-      {/* Add Student Modal (Enrollment) */}
+      {/* Add Student Modal */}
       <PortalPopup isOpen={isAddStudentModalOpen} onClose={() => setIsAddStudentModalOpen(false)}>
         <div className="relative bg-white dark:bg-slate-950 w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300 flex flex-col overflow-hidden pointer-events-auto">
-
-          {/* Modal Header */}
           <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-emerald-500/20">
@@ -547,7 +550,6 @@ const ClassroomPage = () => {
               <div>
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Add Students to Section</h3>
                 <div className="flex items-center gap-3 mt-2">
-                  <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-400 uppercase tracking-widest">SESSION</span>
                   <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">GRADE {selectedGrade} - {selectedSection}</span>
                 </div>
               </div>
@@ -557,30 +559,24 @@ const ClassroomPage = () => {
             </button>
           </div>
 
-          {/* Modal Search & Stats */}
           <div className="px-10 py-6 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="relative flex-1 w-full max-w-md">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
                 type="text"
-                placeholder="Search by Student ID or Name..."
+                placeholder="Search by ID or Name..."
                 value={modalSearchQuery}
                 onChange={(e) => setModalSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-6 py-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-slate-200"
               />
             </div>
-
             <div className="flex items-center gap-6">
               <div className="text-right">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Slots</p>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xl font-black ${remainingSlots <= 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                    {remainingSlots - selectedForEnrollment.length}
-                  </span>
-                  <span className="text-sm font-black text-slate-400">/ {capacity}</span>
-                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Slots Left</p>
+                <span className={`text-xl font-black ${remainingSlots <= 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                  {remainingSlots - selectedForEnrollment.length}
+                </span>
               </div>
-              <div className="h-10 w-px bg-slate-200 dark:bg-slate-800" />
               <div className="text-right">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Selected</p>
                 <span className="text-xl font-black text-indigo-500">{selectedForEnrollment.length}</span>
@@ -588,71 +584,43 @@ const ClassroomPage = () => {
             </div>
           </div>
 
-          {/* Modal Table Container */}
           <div className="flex-1 overflow-y-auto scrollbar-hide">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-20 bg-white dark:bg-slate-950 shadow-sm">
+            <table className="w-full text-left">
+              <thead className="sticky top-0 z-20 bg-white dark:bg-slate-950">
                 <tr className="border-b border-slate-50 dark:border-slate-800">
                   <th className="pl-10 pr-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest w-[80px]">Select</th>
-                  <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID</th>
-                  <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</th>
-                  <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Flag</th>
-                  <th className="pr-10 pl-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">GPA</th>
+                  <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
+                  <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800/30">
                 {filteredModalPool.map((s) => {
+                  const isAlreadyInSomeSection = !!s.sectionId;
                   const isAlreadyInThisSection = enrolledStudents.some(item => item._id === s._id);
                   const isSelected = selectedForEnrollment.includes(s._id);
-                  const isDisabled = isAlreadyInThisSection || (!isSelected && selectedForEnrollment.length >= remainingSlots);
+                  const isDisabled = isAlreadyInSomeSection || (!isSelected && selectedForEnrollment.length >= remainingSlots);
 
                   return (
                     <tr
                       key={s._id}
                       onClick={() => !isDisabled && toggleStudentSelection(s._id)}
-                      className={`group transition-colors cursor-pointer ${isSelected ? 'bg-emerald-50/30 dark:bg-emerald-900/10' :
-                        isAlreadyInThisSection ? 'opacity-40 cursor-not-allowed bg-slate-50/50 dark:bg-slate-900/20' :
-                          'hover:bg-slate-50 dark:hover:bg-slate-900'
-                        }`}
+                      className={`transition-colors cursor-pointer ${isSelected ? 'bg-emerald-50/30 dark:bg-emerald-900/10' :
+                        isAlreadyInSomeSection ? 'opacity-40 cursor-not-allowed bg-slate-50/50 dark:bg-slate-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-900'}`}
                     >
                       <td className="pl-10 pr-4 py-5">
-                        <div className={`
-                            w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all
-                            ${isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-200 dark:border-slate-700'}
-                          `}>
+                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center ${isSelected ? 'bg-emerald-500 border-emerald-500' : isAlreadyInSomeSection ? 'bg-slate-200 border-slate-200 dark:bg-slate-700 dark:border-slate-700' : 'border-slate-200 dark:border-slate-700'}`}>
                           {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
+                          {!isSelected && isAlreadyInSomeSection && <Check size={14} className="text-slate-400" strokeWidth={4} />}
                         </div>
                       </td>
+                      <td className="px-4 py-5 text-xs font-bold text-slate-400">{s.studentId}</td>
                       <td className="px-4 py-5">
-                        <span className={`text-xs font-bold ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                          {s.studentId}
-                        </span>
-                      </td>
-                      <td className="px-4 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs overflow-hidden ${isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                            }`}>
-                            {s.profilePhoto ? (
-                              <img src={s.profilePhoto} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              s.firstName?.[0]
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">{s.firstName} {s.lastName}</p>
-                            {isAlreadyInThisSection && (
-                              <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-0.5">Already Enrolled</p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-5 text-center text-xl">
-                        {s.flag === 'red' ? '🔴' : s.flag === 'yellow' ? '🟡' : '🟢'}
-                      </td>
-                      <td className="pr-10 pl-4 py-5 text-center">
-                        <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
-                          {s.gpa || "N/A"}
-                        </span>
+                        <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">{s.firstName} {s.lastName}</p>
+                        {isAlreadyInSomeSection && (
+                          <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mt-0.5">
+                            {isAlreadyInThisSection ? 'In This Section' : 'In Another Section'}
+                          </p>
+                        )}
                       </td>
                     </tr>
                   );
@@ -661,54 +629,33 @@ const ClassroomPage = () => {
             </table>
           </div>
 
-          {/* Modal Footer */}
-          <div className="px-10 py-8 bg-white dark:bg-slate-950 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100/50 dark:border-emerald-800/30">
-              <AlertCircle className="text-emerald-500 shrink-0" size={18} />
-              <p className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">
-                Students will be automatically linked to the <span className="underline">Academic Profile</span> upon confirmation.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsAddStudentModalOpen(false)}
-                className="px-8 py-4 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={selectedForEnrollment.length === 0}
-                onClick={handleAddSelectedStudents}
-                className="px-12 py-4 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-emerald-500/20 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all flex items-center gap-3"
-              >
-                <CheckCircle2 size={18} />
-                Add {selectedForEnrollment.length} Students
-              </button>
-            </div>
+          <div className="px-10 py-8 border-t border-slate-50 dark:border-slate-800 flex items-center justify-end gap-4">
+            <button onClick={() => setIsAddStudentModalOpen(false)} className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cancel</button>
+            <button
+              disabled={selectedForEnrollment.length === 0}
+              onClick={handleAddSelectedStudents}
+              className="px-12 py-4 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl transition-all"
+            >
+              Add {selectedForEnrollment.length} Students
+            </button>
           </div>
         </div>
       </PortalPopup>
 
-      {/* Save Classroom Confirmation Dialog */}
       <ConfirmDialog
         isOpen={isSaveModalOpen}
         onClose={() => setIsSaveModalOpen(false)}
         onConfirm={handleSaveClassroom}
         title="Save Classroom"
-        message={`Are you sure you want to save the classroom for Grade ${selectedGrade} - Section ${selectedSection} with ${enrolledStudents.length} student${enrolledStudents.length !== 1 ? 's' : ''}? This will update all selected students' grade and section in the database.`}
+        message={`Save Grade ${selectedGrade} - Section ${selectedSection} with ${enrolledStudents.length} students?`}
       />
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setStudentToDelete(null);
-        }}
+        onClose={() => { setIsDeleteModalOpen(false); setStudentToDelete(null); }}
         onConfirm={confirmRemoveStudent}
         title="Remove Student"
-        message={`Are you sure you want to remove ${studentToDelete ? `${studentToDelete.firstName} ${studentToDelete.lastName}` : 'this student'} from the classroom?`}
+        message={`Remove ${studentToDelete ? `${studentToDelete.firstName} ${studentToDelete.lastName}` : 'student'} from view?`}
       />
     </div>
   );

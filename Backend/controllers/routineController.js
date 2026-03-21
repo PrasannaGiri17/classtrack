@@ -9,8 +9,8 @@ const getRoutineMatrix = async (req, res) => {
       return res.status(400).json({ message: "schoolId required" });
     }
 
-    // 1. Get School Hours
-    const school = await School.findOne({ schoolId: req.schoolId,  _id: schoolId });
+    // 1. Get School Hours from numeric schoolId
+    const school = await School.findOne({ schoolId: schoolId });
     const operatingHours = school?.operatingHours || { start: "09:00", end: "16:00" };
 
     // 2. Get All Grade Routines
@@ -42,7 +42,7 @@ const updateOperatingHours = async (req, res) => {
         }
 
         const updatedSchool = await School.findOneAndUpdate(
-            { _id: schoolId },
+            { schoolId: schoolId },
             { $set: { operatingHours: { start, end } } },
             { upsert: true, new: true }
         );

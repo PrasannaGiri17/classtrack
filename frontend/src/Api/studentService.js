@@ -2,17 +2,18 @@ import axios from "axios";
 
 const API_URL = "http://localhost:7000/api/students";
 
-const getStudents = async (grade) => {
+const getStudents = async (grade, schoolId) => {
   const params = {};
-  if (grade) {
-    params.studentClass = grade;
-  }
+  if (grade) params.studentClass = grade;
+  if (schoolId) params.schoolId = schoolId;
   const response = await axios.get(API_URL, { params });
   return response.data;
 };
 
-const getStudentsBySection = async (grade, sectionId) => {
-  const response = await axios.get(API_URL, { params: { studentClass: grade, sectionId } });
+const getStudentsBySection = async (grade, sectionId, schoolId) => {
+  const params = { studentClass: grade, sectionId };
+  if (schoolId) params.schoolId = schoolId;
+  const response = await axios.get(API_URL, { params });
   return response.data;
 };
 

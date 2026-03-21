@@ -193,12 +193,13 @@ const SRoutinePage = () => {
     const getBaseInfo = async () => {
       if (!studentId) return;
       try {
-        const [profile, matrix] = await Promise.all([
-          studentService.getStudentById(studentId),
-          routineService.getRoutineMatrix()
-        ]);
+        const profile = await studentService.getStudentById(studentId);
         setStudentInfo(profile);
-        setOperatingHours(matrix.operatingHours?.start || "09:00");
+        
+        if (profile.schoolId) {
+          const matrix = await routineService.getRoutineMatrix(profile.schoolId);
+          setOperatingHours(matrix.operatingHours?.start || "09:00");
+        }
       } catch (err) {
         console.error("Error base info:", err);
       }
@@ -213,7 +214,7 @@ const SRoutinePage = () => {
       const gNum = studentInfo.gradeId?.gradeNumber || studentInfo.studentClass;
       const sName = studentInfo.sectionId?.sectionName || studentInfo.sectionId;
 
-      const data = await timetableService.getTimetable(gNum, sName, selectedDay.toUpperCase());
+      const data = await timetableService.getTimetable(gNum, sName, selectedDay.toUpperCase(), studentInfo.schoolId);
 
       let [h, m] = operatingHours.split(':').map(Number);
       let currentMins = h * 60 + m;

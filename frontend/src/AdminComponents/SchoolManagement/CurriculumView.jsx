@@ -46,7 +46,7 @@ const CurriculumView = ({
 
   const [selectedGradesForExtra, setSelectedGradesForExtra] = useState([]);
 
-  const activeCoreSubjects = getCoreForGrade("1"); // Core subjects are global in the system
+  const activeCoreSubjects = getCoreForGrade(gradeList[0] || "1"); // Core subjects are global in the system
 
   // Group electives by name to show a unique list with assigned grades
   const uniqueElectives = React.useMemo(() => {
@@ -92,7 +92,7 @@ const CurriculumView = ({
       return;
     }
 
-    onAddCore("1", name); // Adds globally
+    onAddCore(gradeList[0] || "1", name); // Adds globally
     setIsAddCoreOpen(false);
     setNewCoreName("");
   };
@@ -157,7 +157,7 @@ const CurriculumView = ({
       return;
     }
 
-    onRemoveCore("1", subjectToDelete); // Removes globally
+    onRemoveCore(gradeList[0] || "1", subjectToDelete); // Removes globally
     setIsDeleteCoreOpen(false);
     setSubjectToDelete("");
   };
