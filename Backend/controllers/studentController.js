@@ -10,11 +10,9 @@ const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
 const getAllStudents = async (req, res) => {
   try {
-    const { studentClass, sectionId, classTeacherId, schoolId } = req.query;
-    const filter = {};
-
-    // Filter by schoolId if provided (scopes data to the admin's school)
-    if (schoolId) filter.schoolId = Number(schoolId);
+    const { studentClass, sectionId, classTeacherId } = req.query;
+    const schoolId = req.schoolId;
+    const filter = { schoolId };
 
     if (sectionId) {
       filter.sectionId = sectionId;
@@ -87,7 +85,7 @@ const addStudent = async (req, res) => {
       profilePhoto,
     } = req.body;
 
-    const schoolId = req.body.schoolId ? Number(req.body.schoolId) : 1;
+    const schoolId = req.schoolId;
 
     // Validation
     const fieldErrors = {};
@@ -209,7 +207,7 @@ const addStudent = async (req, res) => {
 
 const getStudentById = async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id);
+    const student = await Student.findOne({ _id: req.params.id, schoolId: req.schoolId });
     if (!student) return res.status(404).json({ message: "Student not found" });
 
     // Populate Grade and Section info to find the class teacher
@@ -218,8 +216,8 @@ const getStudentById = async (req, res) => {
     if (student.studentClass || student.classId) {
       // Find the grade that this student belongs to
       const gradeQuery = student.classId 
-        ? { _id: student.classId } 
-        : { schoolId: 1, gradeNumber: student.studentClass };
+        ? { _id: student.classId, schoolId: req.schoolId } 
+        : { schoolId: req.schoolId, gradeNumber: student.studentClass };
         
       const grade = await Grade.findOne(gradeQuery).populate("sections.classTeacherId");
       

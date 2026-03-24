@@ -18,14 +18,9 @@ const generateSections = (count) => {
 // Get all grades (populated with subjects)
 const getGrades = async (req, res) => {
   try {
-    const rawSchoolId = req.query.schoolId || req.headers['x-school-id'];
-    if (!rawSchoolId) {
-      return res.status(400).json({ message: "School ID is required as a query parameter or header." });
-    }
-
-    const schoolId = parseInt(rawSchoolId);
-    if (isNaN(schoolId)) {
-        return res.status(400).json({ message: "Valid numeric School ID is required." });
+    const schoolId = req.schoolId;
+    if (!schoolId) {
+      return res.status(400).json({ message: "School ID is required from token." });
     }
 
     // 1. Fetch current school span
@@ -52,13 +47,12 @@ const getGrades = async (req, res) => {
 // Update section count for a single grade
 const updateGradeSections = async (req, res) => {
   try {
-    const { gradeNumber: gNum, sectionCount: sCount, schoolId: sId } = req.body;
+    const { gradeNumber: gNum, sectionCount: sCount } = req.body;
+    const schoolId = req.schoolId;
 
-    const schoolId = parseInt(sId);
     const gradeNumber = parseInt(gNum);
     const sectionCount = parseInt(sCount);
 
-    if (isNaN(schoolId)) return res.status(400).json({ message: "Valid schoolId required" });
     if (isNaN(gradeNumber)) return res.status(400).json({ message: "Valid gradeNumber required" });
     if (isNaN(sectionCount)) return res.status(400).json({ message: "Valid sectionCount required" });
 
@@ -114,13 +108,11 @@ const updateGradeSections = async (req, res) => {
 // Sync all sections
 const syncSections = async (req, res) => {
   try {
-    const { sectionCount: sCount, gradeList, schoolId: sId } = req.body;
+    const { sectionCount: sCount, gradeList } = req.body;
+    const schoolId = req.schoolId;
     
-    const schoolId = parseInt(sId);
     const count = parseInt(sCount);
 
-    if (isNaN(schoolId)) return res.status(400).json({ message: "schoolId required" });
-    
     // Validation
     if (isNaN(count) || count < 1 || count > 10) {
       return res.status(400).json({ message: "Invalid section count (1-10)" });
@@ -187,8 +179,8 @@ const syncSections = async (req, res) => {
 // Add Subject to Grade
 const addSubjectToGrade = async (req, res) => {
   try {
-    const { gradeNumber, subjectName, type, schoolId } = req.body; // type: 'core' or 'elective'
-    if (!schoolId) return res.status(400).json({ message: "schoolId required" });
+    const { gradeNumber, subjectName, type } = req.body; // type: 'core' or 'elective'
+    const schoolId = req.schoolId;
 
     // 1. Find or Create Subject
     let subject = await Subject.findOne({ schoolId, subjectName: new RegExp(`^${subjectName}$`, 'i') });

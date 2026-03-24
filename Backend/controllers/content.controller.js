@@ -16,6 +16,7 @@ exports.createResource = async (req, res) => {
     }
 
     const newResource = new Content({
+      schoolId: req.schoolId,
       name: name || fileName || url || "Untitled Resource",
       type,
       url: type === 'link' ? url : undefined,
@@ -46,7 +47,7 @@ exports.getAllResources = async (req, res) => {
 
     const { folderId } = req.query;
     
-    const query = { teacherId, isArchived: false };
+    const query = { schoolId: req.schoolId, teacherId, isArchived: false };
     if (folderId === 'root' || !folderId) {
       query.folderId = null;
     } else {
@@ -68,7 +69,7 @@ exports.getResourceById = async (req, res) => {
       return res.status(400).json({ message: "Invalid resource ID." });
     }
 
-    const resource = await Content.findById(id);
+    const resource = await Content.findOne({ _id: id, schoolId: req.schoolId });
     if (!resource) {
       return res.status(404).json({ message: "Resource not found." });
     }
@@ -150,7 +151,7 @@ exports.getResourcesByType = async (req, res) => {
     const { type } = req.params;
     const { teacherId } = req.query; // Assuming teacherId is passed in query for filtering
 
-    const query = { type, isArchived: false };
+    const query = { schoolId: req.schoolId, type, isArchived: false };
     if (teacherId) query.teacherId = teacherId;
 
     const resources = await Content.find(query);
@@ -166,7 +167,7 @@ exports.getResourcesBySubject = async (req, res) => {
     const { subject } = req.params;
     const { teacherId } = req.query;
 
-    const query = { subject, isArchived: false };
+    const query = { schoolId: req.schoolId, subject, isArchived: false };
     if (teacherId) query.teacherId = teacherId;
 
     const resources = await Content.find(query);
@@ -182,6 +183,7 @@ exports.getStudentResources = async (req, res) => {
     const { grade, section } = req.params;
     
     const query = {
+      schoolId: req.schoolId,
       grade: grade,
       $or: [
         { section: 'ALL' },

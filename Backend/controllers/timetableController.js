@@ -192,9 +192,10 @@ const getTimetableOptions = async (req, res) => {
       const subjects = grade.subjects.map(s => s.subjectId);
   
       const teachers = await Teacher.find({ schoolId: activeSchoolId })
-          .select('firstName lastName primarySubject secondarySubject assignedGrades')
+          .select('firstName lastName primarySubject secondarySubject assignedGrades assignedClasses')
           .populate('primarySubject', 'subjectName')
-          .populate('secondarySubject', 'subjectName');
+          .populate('secondarySubject', 'subjectName')
+          .populate('assignedGrades', 'gradeNumber');
   
       const school = await School.findById(activeSchoolId);
       const myRoutine = await Routine.findOne({ schoolId: activeSchoolId, gradeNumber: gradeNumber.toString() });
@@ -410,10 +411,34 @@ const updateTeacherTopic = async (req, res) => {
   }
 };
 
+// Clear all teacher assignments for every timetable in the school
+const clearAllTeachers = async (req, res) => {
+  try {
+    const { schoolId } = req.query;
+    if (!schoolId) return res.status(400).json({ message: 'schoolId required' });
+    const activeSchoolId = Number(schoolId);
+
+    // Find all timetables and null out every teacherId
+    const result = await Timetable.updateMany(
+      { schoolId: activeSchoolId },
+      { $set: { 'assignments.$[].teacherId': null } }
+    );
+
+    res.status(200).json({
+      message: `All teacher assignments cleared for school ${activeSchoolId}.`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('CLEAR ALL TEACHERS ERROR:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getTimetable,
   updateTimetable,
   getTimetableOptions,
   getTeacherRoutine,
-  updateTeacherTopic
+  updateTeacherTopic,
+  clearAllTeachers
 };

@@ -182,7 +182,7 @@ const SFeeManagement = () => {
 
     toast({ type: 'info', message: `Generating receipt for ${target.monthName}...` });
     setTimeout(() => {
-      toast({ type: 'success', message: `Receipt downloaded: REC-${target.monthName.tocapitalize()}.pdf` });
+      toast({ type: 'success', message: `Receipt downloaded: REC-${target.monthName.toUpperCase()}.pdf` });
     }, 1500);
   };
 

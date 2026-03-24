@@ -1,32 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const contentController = require('../controllers/content.controller');
+const { protect } = require('../middleware/authMiddleware');
 
-// Create a resource
-router.post('/create', contentController.createResource);
+// Resource management routes
+router.post('/create', protect, contentController.createResource);
+router.get('/teacher/:teacherId', protect, contentController.getAllResources);
+router.get('/:id', protect, contentController.getResourceById);
+router.put('/:id', protect, contentController.updateResource);
+router.patch('/:id/archive', protect, contentController.archiveResource);
+router.delete('/:id', protect, contentController.deleteResource);
 
-// Get all resources for a specific teacher
-router.get('/teacher/:teacherId', contentController.getAllResources);
+// Filtering routes
+router.get('/type/:type', protect, contentController.getResourcesByType);
+router.get('/subject/:subject', protect, contentController.getResourcesBySubject);
 
-// Get resources for a student
-router.get('/student/:grade/:section', contentController.getStudentResources);
-
-// Get resources by type
-router.get('/type/:type', contentController.getResourcesByType);
-
-// Get resources by subject
-router.get('/subject/:subject', contentController.getResourcesBySubject);
-
-// Get resource by ID
-router.get('/:id', contentController.getResourceById);
-
-// Update a resource
-router.put('/:id', contentController.updateResource);
-
-// Archive a resource (soft delete)
-router.patch('/:id/archive', contentController.archiveResource);
-
-// Delete a resource permanently
-router.delete('/:id', contentController.deleteResource);
+// Student resource route (grade/section based)
+router.get('/student/:grade/:section', protect, contentController.getStudentResources);
 
 module.exports = router;

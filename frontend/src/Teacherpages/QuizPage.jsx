@@ -67,6 +67,7 @@ const QuizPage = () => {
     classRef: '',
     startDate: null,
     endDate: null,
+    timeLimitMinutes: 30, // Default duration
     questions: []
   });
 
@@ -233,6 +234,7 @@ const QuizPage = () => {
       classRef: classRef,
       startDate: new Date(quiz.startTime),
       endDate: new Date(quiz.endTime),
+      timeLimitMinutes: quiz.timeLimitMinutes || 30,
       questions: quiz.questions.map(q => ({ ...q, id: q._id || Date.now().toString() }))
     });
     setIsModalOpen(true);
@@ -282,6 +284,7 @@ const QuizPage = () => {
       section,
       startTime: newQuiz.startDate.toISOString(),
       endTime: newQuiz.endDate.toISOString(),
+      timeLimitMinutes: Number(newQuiz.timeLimitMinutes),
       questions: newQuiz.questions.map(({ text, options, correctIndex }) => ({
         text,
         options,
@@ -309,6 +312,7 @@ const QuizPage = () => {
         classRef: teacherData.classOptions?.[0] || '',
         startDate: null,
         endDate: null,
+        timeLimitMinutes: 30,
         questions: []
       });
     } catch (err) {
@@ -644,6 +648,7 @@ const QuizPage = () => {
                   classRef: teacherData.classOptions?.[0] || '',
                   startDate: null,
                   endDate: null,
+                  timeLimitMinutes: 30,
                   questions: []
                 });
               }}
@@ -657,9 +662,15 @@ const QuizPage = () => {
             {/* Header Settings */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
-                <div className="space-y-2.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quiz Title</label>
-                  <input required value={newQuiz.title} onChange={e => setNewQuiz({ ...newQuiz, title: e.target.value })} type="text" placeholder="Subjective or Chapter title..." className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-inner" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-2 space-y-2.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quiz Title</label>
+                    <input required value={newQuiz.title} onChange={e => setNewQuiz({ ...newQuiz, title: e.target.value })} type="text" placeholder="Subjective or Chapter title..." className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-inner" />
+                  </div>
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Time Limit (Min)</label>
+                    <input required value={newQuiz.timeLimitMinutes} onChange={e => setNewQuiz({ ...newQuiz, timeLimitMinutes: e.target.value })} type="number" min="1" max="300" className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-inner" />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2.5">

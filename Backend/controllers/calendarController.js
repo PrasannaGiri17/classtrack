@@ -36,15 +36,15 @@ exports.createEvent = async (req, res) => {
     }
 
     const event = new Event({
-      school_id: 1, // Default as requested
+      schoolId: req.schoolId, // Dynamic from auth context
       title,
       type,
       description,
       startDate,
-      endDate, // For single day, frontend should send same start/end
+      endDate,
       audience,
       color: eventColor,
-      createdBy: req.user ? req.user.id : (req.body.createdBy || null)
+      createdBy: req.user ? req.user.id : null
     });
 
     const savedEvent = await event.save();
@@ -61,10 +61,10 @@ exports.createEvent = async (req, res) => {
 // @access  Private
 exports.getEvents = async (req, res) => {
   try {
-    const { from, to, school_id, createdBy } = req.query;
+    const { from, to, createdBy } = req.query;
 
     const query = {
-      school_id: school_id || 1
+      schoolId: req.schoolId
     };
 
     // Access Control: Students should see school events (no creator) OR their own events
@@ -107,8 +107,15 @@ exports.getEvents = async (req, res) => {
     // Fetch Events and Holidays concurrently
     const [events, dbHolidays] = await Promise.all([
       Event.find(query).sort({ startDate: 1 }),
-      Holiday.find({ schoolId: req.schoolId }) // Fetch all holidays (usually < 100 per year, very efficient)
+      Holiday.find({ 
+        $or: [
+          { schoolId: req.schoolId },
+          { schoolId: { $exists: false } },
+          { schoolId: null }
+        ]
+      })
     ]);
+
 
     // Map and filter Holidays in memory for robustness
     const mappedHolidays = dbHolidays

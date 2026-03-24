@@ -207,10 +207,19 @@ const AttendancePage = () => {
     if (!sectionInfo || !teacherId) return;
 
     try {
-      const payloadData = students.map(s => ({
-        studentId: s._id,
-        dailyStatus: attendanceRecords[s._id]
-      }));
+      const payloadData = students.map(s => {
+        // Filter out null/undefined statuses to avoid Map validation errors on backend
+        const cleanStatus = {};
+        const records = attendanceRecords[s._id] || {};
+        Object.keys(records).forEach(day => {
+          if (records[day]) cleanStatus[day] = records[day];
+        });
+
+        return {
+          studentId: s._id,
+          dailyStatus: cleanStatus
+        };
+      });
 
       await attendanceService.saveAttendance({
         gradeId: sectionInfo.gradeId,
@@ -228,7 +237,7 @@ const AttendancePage = () => {
       });
     } catch (err) {
       console.error("Save failed:", err);
-      toast({ type: 'error', message: 'Failed to save records.' });
+      toast({ type: 'error', message: err?.response?.data?.error || err?.response?.data?.message || err.message || 'Failed to save records.' });
     }
   };
 
@@ -302,16 +311,7 @@ const AttendancePage = () => {
           </div>
 
           <div className="relative w-full max-sm mb-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/40 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 transition-colors">
-                <div className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700" />
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Future Date (Disabled)</span>
-              </div>
-              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/10 px-3 py-1.5 rounded-xl border border-red-100/50 dark:border-red-900/20 transition-colors">
-                <div className="w-2 h-2 rounded-full bg-red-400" />
-                <span className="text-[9px] font-black text-red-400 uppercase tracking-widest">Holiday (Disabled)</span>
-              </div>
-            </div>
+
           </div>
 
           <div className="relative w-full max-w-sm">

@@ -4,7 +4,7 @@ import DetailedCalendar from '../AdminComponents/Calendar/DetailedCalendar';
 import AddEventModal from '../AdminComponents/Calendar/AddEventModal';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import { toast } from '../MainSystemComponents/Toast';
-import axios from 'axios';
+import calendarService from '../Api/calendarService';
 import NepaliCalendar, { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 import "@adhikarisaroj795/nepali-calendar-react/styles/nepalicalender.css";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,15 +33,8 @@ const SCalendarPage = () => {
       const from = start.toISOString().split('T')[0];
       const to = end.toISOString().split('T')[0];
 
-      const response = await axios.get(`http://localhost:7000/api/calendar/events`, {
-        params: {
-          school_id: 1,
-          from,
-          to,
-          createdBy: localStorage.getItem('studentId')
-        }
-      });
-      setEvents(response.data);
+      const data = await calendarService.getEvents(from, to, localStorage.getItem('studentId'));
+      setEvents(data);
     } catch (error) {
       console.error("Failed to fetch events", error);
     } finally {
@@ -64,7 +57,7 @@ const SCalendarPage = () => {
   const confirmDelete = async () => {
     if (!eventToDelete) return;
     try {
-      await axios.delete(`http://localhost:7000/api/calendar/events/${eventToDelete}`);
+      await calendarService.deleteEvent(eventToDelete);
       toast({ type: 'success', message: 'Event deleted successfully' });
       fetchEvents(); // Refresh list
     } catch (error) {
@@ -75,6 +68,7 @@ const SCalendarPage = () => {
       setEventToDelete(null);
     }
   };
+
 
   // Derived state: Upcoming events (Future events only, sorted)
   const upcomingEvents = events

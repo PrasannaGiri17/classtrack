@@ -11,9 +11,10 @@ import {
   ListOrdered,
   GripVertical
 } from 'lucide-react';
-import axios from 'axios';
 import { toast } from '../../MainSystemComponents/Toast';
 import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
+import examService from '../../Api/examService';
+import gradeService from '../../Api/gradeService';
 
 // Term ordinals used throughout - must match backend canonical names
 const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
@@ -57,10 +58,10 @@ const SchedulingView = () => {
   useEffect(() => {
     const fetchGrades = async () => {
       try {
-        const response = await axios.get('http://localhost:7000/api/grades');
-        setAllGrades(response.data);
-        if (response.data.length > 0) {
-          setMappingGrade(response.data[0].gradeNumber.toString());
+        const data = await gradeService.getGrades();
+        setAllGrades(data);
+        if (data.length > 0) {
+          setMappingGrade(data[0].gradeNumber.toString());
         }
         setLoading(false);
       } catch (error) {
@@ -73,8 +74,7 @@ const SchedulingView = () => {
     // Fetch Exam Config
     const fetchExamData = async () => {
       try {
-        const response = await axios.get('http://localhost:7000/api/exams');
-        const data = response.data;
+        const data = await examService.getExamData();
         if (data && data.config) {
           setYearSetup(data.config);
           setStartTime(data.config.globalStartTime || "09:00");
@@ -130,7 +130,7 @@ const SchedulingView = () => {
 
   const handleTemplateSave = async () => {
     try {
-      await axios.post('http://localhost:7000/api/exams/config', {
+      await examService.saveExamConfig({
         ...yearSetup,
         globalStartTime: startTime,
         globalDuration: duration
@@ -163,7 +163,7 @@ const SchedulingView = () => {
         date: s.date
       }));
 
-      await axios.post('http://localhost:7000/api/exams/schedule', {
+      await examService.saveExamSchedule({
         gradeNumber: mappingGrade,
         term: mappingTerm,
         entries
@@ -174,14 +174,15 @@ const SchedulingView = () => {
       setTimeout(() => setIsMappingSaved(false), 3000);
 
       // Refresh data to keep local state in sync
-      const response = await axios.get('http://localhost:7000/api/exams');
-      setExamData(response.data);
+      const data = await examService.getExamData();
+      setExamData(data);
 
     } catch (error) {
       console.error("Failed to publish schedule:", error);
       toast({ type: 'error', message: 'Failed to publish schedule' });
     }
   };
+
 
   const isSaturday = (dateString) => {
     if (!dateString) return false;
@@ -282,11 +283,11 @@ const SchedulingView = () => {
                 <Settings size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Exam Routine Template (Global)</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configure annual structure & timing logic</p>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight capitalize">Exam Routine Template (Global)</h3>
+                <p className="text-[10px] font-bold text-slate-400 capitalize tracking-widest mt-1">Configure annual structure & timing logic</p>
               </div>
             </div>
-            <div className="px-5 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-[10px] font-black text-emerald-600 uppercase tracking-widest border border-emerald-100 dark:border-emerald-800">
+            <div className="px-5 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-[10px] font-black text-emerald-600 capitalize tracking-widest border border-emerald-100 dark:border-emerald-800">
               Admin Control Only
             </div>
           </div>
@@ -298,14 +299,14 @@ const SchedulingView = () => {
             <div className="space-y-3">
               <button
                 onClick={() => setIsSetupModalOpen(true)}
-                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[20px] font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
+                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[20px] font-black text-xs capitalize tracking-widest transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
               >
                 <Settings size={18} /> Setup Exam
               </button>
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Exam Start Time</label>
+              <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">Exam Start Time</label>
               <div className="relative">
                 <input
                   type="time"
@@ -317,7 +318,7 @@ const SchedulingView = () => {
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Duration (Minutes)</label>
+              <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">Duration (Minutes)</label>
               <input
                 type="number"
                 value={duration}
@@ -330,17 +331,17 @@ const SchedulingView = () => {
 
           <div className="mt-10 flex flex-col md:flex-row items-center justify-between gap-6 pt-10 border-t border-slate-50 dark:border-slate-800">
             <div className="flex items-center gap-4">
-              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-emerald-500 font-black text-[10px] uppercase tracking-widest">
+              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-emerald-500 font-black text-[10px] capitalize tracking-widest">
                 Template Active: {yearSetup.termsCount} Terms Plan
               </div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+              <p className="text-[11px] font-bold text-slate-400 capitalize tracking-widest leading-none">
                 Global structure applied to all grade levels
               </p>
             </div>
 
             <button
               onClick={handleTemplateSave}
-              className={`flex items-center gap-3 px-12 py-4 rounded-[20px] font-black text-xs uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 shadow-xl ${isTemplateSaved ? 'bg-slate-900 text-white' : 'bg-emerald-600 text-white shadow-emerald-500/20'
+              className={`flex items-center gap-3 px-12 py-4 rounded-[20px] font-black text-xs capitalize tracking-[0.15em] transition-all hover:scale-105 active:scale-95 shadow-xl ${isTemplateSaved ? 'bg-slate-900 text-white' : 'bg-emerald-600 text-white shadow-emerald-500/20'
                 }`}
             >
               {isTemplateSaved ? <CheckCircle2 size={18} /> : <Save size={18} />}
@@ -359,8 +360,8 @@ const SchedulingView = () => {
                 <ListOrdered size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Term Schedule Mapping</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Assign subjects to dates for specific terms</p>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight capitalize">Term Schedule Mapping</h3>
+                <p className="text-[10px] font-bold text-slate-400 capitalize tracking-widest mt-1">Assign subjects to dates for specific terms</p>
               </div>
             </div>
 
@@ -371,7 +372,7 @@ const SchedulingView = () => {
                 <select
                   value={mappingTerm}
                   onChange={(e) => setMappingTerm(e.target.value)}
-                  className="appearance-none bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-[10px] font-black text-slate-500 uppercase outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
+                  className="appearance-none bg-emerald-600/10 dark:bg-slate-800/50 border border-emerald-500/20 rounded-xl pl-4 pr-10 py-2.5 text-[10px] font-black text-emerald-600 dark:text-emerald-500 capitalize outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
                 >
                   {/* Dynamic Terms based on Setup */}
                   {(() => {
@@ -395,7 +396,7 @@ const SchedulingView = () => {
                 <select
                   value={mappingGrade}
                   onChange={(e) => setMappingGrade(e.target.value)}
-                  className="appearance-none bg-emerald-600 text-white rounded-xl pl-4 pr-10 py-2.5 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all cursor-pointer"
+                  className="appearance-none bg-emerald-600 text-white rounded-xl pl-4 pr-10 py-2.5 text-[10px] font-black capitalize outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all cursor-pointer"
                 >
                   {loading ? <option>Loading...</option> : allGrades.map(g => (
                     <option key={g._id} value={g.gradeNumber}>
@@ -413,11 +414,11 @@ const SchedulingView = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-50 dark:border-slate-800">
-                <th className="pl-10 pr-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sequence</th>
-                <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Academic Subject</th>
-                <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Exam Date</th>
-                <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time</th>
-                <th className="pr-10 pl-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                <th className="pl-10 pr-4 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Sequence</th>
+                <th className="px-4 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Academic Subject</th>
+                <th className="px-4 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Exam Date</th>
+                <th className="px-4 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Time</th>
+                <th className="pr-10 pl-4 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
@@ -436,7 +437,7 @@ const SchedulingView = () => {
                       <div className="cursor-grab active:cursor-grabbing text-slate-300 group-hover:text-emerald-500 transition-colors">
                         <GripVertical size={16} />
                       </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                      <span className="text-xs font-black text-slate-900 dark:text-white capitalize tracking-tighter">
                         {getOrdinal(slot.slotOrder)} Day
                       </span>
                     </div>
@@ -465,7 +466,7 @@ const SchedulingView = () => {
                     </div>
                   </td>
                   <td className="pr-10 pl-4 py-6 text-center">
-                    <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                    <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[9px] font-black text-slate-400 capitalize tracking-widest">
                       DRAFT
                     </span>
                   </td>
@@ -474,18 +475,13 @@ const SchedulingView = () => {
             </tbody>
           </table>
 
-          <div className="p-10 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-50 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-start gap-4 p-5 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 shadow-sm max-w-xl">
-              <Info className="text-emerald-500 shrink-0 mt-0.5" size={18} />
-              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed uppercase tracking-wider">
-                Note: Changing mapping dates only affects this specific term. The global routine structure (DNA) remains locked to institutional standards.
-              </p>
-            </div>
+          <div className="p-10 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-50 dark:border-slate-800 flex flex-col md:flex-row items-center justify-end gap-8">
+
 
             <button
               onClick={handleMappingSave}
-              disabled={slots.some(s => s.subjectId === '' || s.date === '')}
-              className={`flex items-center gap-3 px-14 py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:grayscale ${isMappingSaved ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'
+              disabled={loading || slots.length === 0 || !slots.some(s => s.date !== '')}
+              className={`flex items-center gap-3 px-14 py-5 rounded-[24px] font-black text-xs capitalize tracking-[0.2em] shadow-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:grayscale ${isMappingSaved ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-emerald-500 text-white shadow-emerald-500/20'
                 }`}
             >
               {isMappingSaved ? <CheckCircle2 size={20} /> : <Calendar size={20} />}
@@ -507,8 +503,8 @@ const SchedulingView = () => {
                   <Settings size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-none">Year Setup</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Configure Academic Cycles</p>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight capitalize leading-none">Year Setup</h3>
+                  <p className="text-[10px] font-bold text-slate-400 capitalize tracking-widest mt-1.5">Configure Academic Cycles</p>
                 </div>
               </div>
               <button
@@ -522,7 +518,7 @@ const SchedulingView = () => {
             <div className="p-10 space-y-8">
               {/* Terms Count */}
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">How many term exams in a calendar year?</label>
+                <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">How many term exams in a calendar year?</label>
                 <div className="relative group">
                   <select
                     value={yearSetup.termsCount}
@@ -537,7 +533,7 @@ const SchedulingView = () => {
 
               {/* Mid-Term Toggle */}
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Include Mid-Term Exam?</label>
+                <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">Include Mid-Term Exam?</label>
                 <div className="relative group">
                   <select
                     value={yearSetup.includeMidTerm ? "yes" : "no"}
@@ -550,7 +546,7 @@ const SchedulingView = () => {
                   <ChevronDown size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
                 </div>
                 {yearSetup.includeMidTerm && (
-                  <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider ml-1 animate-in fade-in slide-in-from-top-1">
+                  <p className="text-[10px] font-bold text-emerald-600 capitalize tracking-wider ml-1 animate-in fade-in slide-in-from-top-1">
                     Mid-Term exam configuration will be created in the year plan.
                   </p>
                 )}
@@ -560,13 +556,13 @@ const SchedulingView = () => {
               <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-50 dark:border-slate-800">
                 <button
                   onClick={() => setIsSetupModalOpen(false)}
-                  className="px-8 py-4 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  className="px-8 py-4 rounded-2xl text-[10px] font-black text-slate-400 capitalize tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => setIsConfirmOpen(true)}
-                  className="flex items-center gap-3 px-10 py-4 bg-emerald-600 text-white rounded-[20px] font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all"
+                  className="flex items-center gap-3 px-10 py-4 bg-emerald-600 text-white rounded-[20px] font-black text-xs capitalize tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all"
                 >
                   Save Year Setup
                 </button>

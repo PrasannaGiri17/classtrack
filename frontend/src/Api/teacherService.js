@@ -1,11 +1,9 @@
-import axios from "axios";
+import axios from "./axiosConfig";
 
 const API_URL = "http://localhost:7000/api/teachers";
 
-const getAllTeachers = async (schoolId) => {
-  const params = {};
-  if (schoolId) params.schoolId = schoolId;
-  const response = await axios.get(API_URL, { params });
+const getAllTeachers = async () => {
+  const response = await axios.get(API_URL);
   return response.data;
 };
 

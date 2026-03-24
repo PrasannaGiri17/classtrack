@@ -29,6 +29,7 @@ exports.upsertResult = async (req, res) => {
       await result.save();
     } else {
       result = new Result({
+        schoolId: req.schoolId,
         studentId,
         gradeId,
         sectionName,
@@ -55,7 +56,7 @@ exports.upsertResult = async (req, res) => {
 exports.getResults = async (req, res) => {
   try {
     const { gradeId, sectionName, term } = req.query;
-    const filter = {};
+    const filter = { schoolId: req.schoolId };
     if (gradeId) filter.gradeId = gradeId;
     if (sectionName) filter.sectionName = sectionName;
     if (term) filter.term = term;

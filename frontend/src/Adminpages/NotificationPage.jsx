@@ -40,6 +40,7 @@ const SECTIONS = ["A", "B", "C"];
 const NotificationPage = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [grades, setGrades] = useState([]);
+  const [subjects, setSubjects] = useState([]); // All unique subjects across all grades
   const [loading, setLoading] = useState(true);
   const [readIds, setReadIds] = useState(new Set());
 
@@ -105,6 +106,20 @@ const NotificationPage = () => {
     try {
       const data = await gradeService.getGrades();
       setGrades(data || []);
+
+      // Extract unique subjects across all grades for the department dropdown
+      const subjectMap = new Map();
+      (data || []).forEach(grade => {
+        (grade.subjects || []).forEach(({ subjectId }) => {
+          if (subjectId && subjectId._id) {
+            subjectMap.set(subjectId._id.toString(), {
+              _id: subjectId._id,
+              title: subjectId.title || subjectId.subjectName || 'Unknown'
+            });
+          }
+        });
+      });
+      setSubjects(Array.from(subjectMap.values()));
     } catch (error) {
       console.error("Error fetching grades:", error);
     }
@@ -140,7 +155,7 @@ const NotificationPage = () => {
     if (!newTitle || !newMessage) return;
 
     let finalTarget = targetCategory;
-    if (targetCategory === 'Department') finalTarget = `${targetDept} Department`;
+    if (targetCategory === 'Department') finalTarget = `Department: ${targetDept}`;
     if (targetCategory === 'Grade') {
       finalTarget = `Grade ${targetGrade}`;
       if (targetSection) finalTarget += ` - Section ${targetSection}`;
@@ -154,7 +169,6 @@ const NotificationPage = () => {
       sender: newSender,
       senderId: CURRENT_ADMIN_ID,
       senderType: newSenderType,
-      schoolId: parseInt(localStorage.getItem("schoolId")) || 1
     };
 
 
@@ -488,6 +502,7 @@ const NotificationPage = () => {
           newSender={newSender} setNewSender={setNewSender}
           newSenderType={newSenderType} setNewSenderType={setNewSenderType}
           dbGrades={grades}
+          dbSubjects={subjects}
         />
       </PortalPopup>
 

@@ -9,7 +9,7 @@ exports.getQuizDetails = async (req, res) => {
     const { id } = req.params;
     const { studentId } = req.query; // Expecting studentId to check for existing attempt
 
-    const quiz = await Quiz.findById(id);
+    const quiz = await Quiz.findOne({ _id: id, schoolId: req.schoolId });
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz not found' });
     }
@@ -68,9 +68,9 @@ exports.submitQuiz = async (req, res) => {
       return res.status(403).json({ message: 'You have already submitted this quiz' });
     }
 
-    const quiz = await Quiz.findById(quizId);
+    const quiz = await Quiz.findOne({ _id: quizId, schoolId: req.schoolId });
     if (!quiz) {
-      console.log('Quiz not found:', quizId);
+      console.log('Quiz not found or outside school scope:', quizId);
       return res.status(404).json({ message: 'Quiz not found' });
     }
 
@@ -93,6 +93,7 @@ exports.submitQuiz = async (req, res) => {
 
     // Save attempt
     const studentQuiz = new StudentQuiz({
+      schoolId: req.schoolId,
       studentId,
       quizId,
       answers: processedAnswers,

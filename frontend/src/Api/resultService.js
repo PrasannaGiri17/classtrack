@@ -7,8 +7,16 @@ const getStudentResults = async (studentId) => {
     return response.data;
 };
 
+const getResultsByGradeSectionTerm = async (gradeId, sectionName, term) => {
+    const params = { gradeId, sectionName, term };
+    const response = await axios.get(API_URL, { params });
+    return response.data;
+};
+
 const resultService = {
-    getStudentResults
+    getStudentResults,
+    getResultsByGradeSectionTerm
 };
 
 export default resultService;
+

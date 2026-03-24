@@ -37,12 +37,20 @@ const updateTeacherTopic = async (teacherId, data) => {
   return response.data;
 };
 
+const clearAllTeachers = async (schoolId) => {
+  const response = await axios.delete(`${API_URL}/clear-all-teachers`, {
+    params: { schoolId }
+  });
+  return response.data;
+};
+
 const timetableService = {
   getTimetable,
   getTimetableOptions,
   getTeacherRoutine,
   updateTeacherTopic,
-  updateTimetable
+  updateTimetable,
+  clearAllTeachers
 };
 
 export default timetableService;

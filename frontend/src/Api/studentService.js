@@ -1,18 +1,16 @@
-import axios from "axios";
+import axios from "./axiosConfig";
 
 const API_URL = "http://localhost:7000/api/students";
 
-const getStudents = async (grade, schoolId) => {
+const getStudents = async (grade) => {
   const params = {};
   if (grade) params.studentClass = grade;
-  if (schoolId) params.schoolId = schoolId;
   const response = await axios.get(API_URL, { params });
   return response.data;
 };
 
-const getStudentsBySection = async (grade, sectionId, schoolId) => {
-  const params = { studentClass: grade, sectionId };
-  if (schoolId) params.schoolId = schoolId;
+const getStudentsBySection = async (studentClass, sectionId) => {
+  const params = { studentClass, sectionId };
   const response = await axios.get(API_URL, { params });
   return response.data;
 };
@@ -65,3 +63,4 @@ const studentService = {
 };
 
 export default studentService;
+

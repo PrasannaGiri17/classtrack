@@ -6,7 +6,7 @@ import {
     Send
 } from 'lucide-react';
 
-const DEPARTMENTS = ["Science", "Math", "English", "Arts", "Sports", "Social Studies"];
+// DEPARTMENTS is now loaded from backend (dbSubjects prop)
 
 
 
@@ -23,7 +23,8 @@ const NotificationModal = ({
     targetSection, setTargetSection,
     newSender, setNewSender,
     newSenderType, setNewSenderType,
-    dbGrades = []
+    dbGrades = [],
+    dbSubjects = []
 }) => {
 
     const modalSections = React.useMemo(() => {
@@ -93,19 +94,34 @@ const NotificationModal = ({
                     </div>
 
                     {targetCategory === 'Department' && (
-                        <div className="space-y-3 animate-in slide-in-from-left-2 duration-300">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Department</label>
+                        <div className="space-y-3 animate-in slide-in-from-left-2 duration-300 col-span-1 sm:col-span-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Department (Subject)</label>
                             <div className="relative group">
                                 <select
                                     value={targetDept}
                                     onChange={(e) => setTargetDept(e.target.value)}
                                     className="appearance-none w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all dark:text-white cursor-pointer"
                                 >
-                                    <option value="">SELECT DEPT</option>
-                                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d.toUpperCase()}</option>)}
+                                    <option value="">SELECT SUBJECT / DEPT</option>
+                                    {dbSubjects.length > 0 ? (
+                                      dbSubjects.map(s => (
+                                        <option key={s._id} value={s.title}>{s.title.toUpperCase()}</option>
+                                      ))
+                                    ) : (
+                                      // Fallback if subjects not loaded yet
+                                      ['Science', 'Math', 'English', 'Arts', 'Social Studies'].map(d => (
+                                        <option key={d} value={d}>{d.toUpperCase()}</option>
+                                      ))
+                                    )}
                                 </select>
                                 <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
                             </div>
+                            {targetDept && (
+                              <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-1 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span>
+                                Only teachers assigned to <strong>{targetDept}</strong> will receive this notification.
+                              </p>
+                            )}
                         </div>
                     )}
 

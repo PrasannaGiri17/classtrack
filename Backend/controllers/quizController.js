@@ -5,10 +5,10 @@ const Quiz = require('../models/Quiz');
 // @access  Teacher
 exports.createQuiz = async (req, res) => {
   try {
-    const { title, subject, grade, section, startTime, endTime, questions } = req.body;
+    const { title, subject, grade, section, startTime, endTime, questions, timeLimitMinutes } = req.body;
 
     // Manual validation for backend-frontend consistency
-    if (!title || !subject || !grade || !section || !startTime || !endTime || !questions) {
+    if (!title || !subject || !grade || !section || !startTime || !endTime || !questions || !timeLimitMinutes) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
@@ -16,14 +16,28 @@ exports.createQuiz = async (req, res) => {
       return res.status(400).json({ message: 'Start time must be before end time' });
     }
 
+    // Extract schoolId from request (from protect middleware)
+    const schoolId = req.schoolId;
+    if (!schoolId) {
+      return res.status(401).json({ message: 'School identification missing. Please relogin.' });
+    }
+
+    // Add schoolId to each question as required by the Question model
+    const questionsWithSchool = questions.map(q => ({
+      ...q,
+      schoolId: schoolId
+    }));
+
     const quiz = new Quiz({
+      schoolId,
       title,
       subject,
       grade,
       section,
       startTime,
       endTime,
-      questions
+      timeLimitMinutes,
+      questions: questionsWithSchool
     });
 
     const savedQuiz = await quiz.save();
@@ -51,7 +65,7 @@ exports.getAllQuizzes = async (req, res) => {
 // @access  Public
 exports.getQuizById = async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id);
+    const quiz = await Quiz.findOne({ _id: req.params.id, schoolId: req.schoolId });
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz not found' });
     }
@@ -107,7 +121,7 @@ exports.addContestantResult = async (req, res) => {
       return res.status(400).json({ message: 'Contestant name and score are required' });
     }
 
-    const quiz = await Quiz.findById(quizId);
+    const quiz = await Quiz.findOne({ _id: quizId, schoolId: req.schoolId });
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz not found' });
     }

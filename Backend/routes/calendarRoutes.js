@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { createEvent, getEvents, deleteEvent } = require('../controllers/calendarController');
+const { protect } = require('../middleware/authMiddleware');
+
+// All calendar routes should be protected
+router.use(protect);
 
 // POST /api/calendar/events - Create a new event
 router.post('/events', createEvent);
@@ -12,3 +16,4 @@ router.get('/events', getEvents);
 router.delete('/events/:id', deleteEvent);
 
 module.exports = router;
+

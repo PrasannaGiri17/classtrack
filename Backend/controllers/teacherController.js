@@ -73,7 +73,7 @@ const syncAssignedClasses = async (schoolId, teacherId) => {
 
 const getAllTeachers = async (req, res) => {
   try {
-    const schoolId = req.query.schoolId ? Number(req.query.schoolId) : 1;
+    const schoolId = req.schoolId || (req.query.schoolId ? Number(req.query.schoolId) : 1);
     const filter = { schoolId };
 
     const teachers = await Teacher.find(filter)
@@ -264,7 +264,10 @@ const updateTeacher = async (req, res) => {
     const schoolId = exists.schoolId || 1;
     const updateData = { ...req.body };
 
-    if ("schoolId" in updateData) delete updateData.schoolId;
+    // ─── Immutable fields — never allow manual overwrite ───
+    delete updateData.schoolId;
+    delete updateData.teacherId;   // teacherId is auto-generated, not editable
+    delete updateData.teacherCode; // legacy code also immutable
 
     const { primarySubId, secondarySubId, resolvedGradeIds } = await resolveTeacherRelations(schoolId, updateData);
 

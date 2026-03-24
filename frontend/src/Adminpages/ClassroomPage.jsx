@@ -70,7 +70,12 @@ const ClassroomPage = () => {
         setTeachers(teachersData || []);
 
         if (gradesData && gradesData.length > 0) {
-          setSelectedGrade(gradesData[0].gradeNumber.toString());
+          // Restore last selected grade from localStorage, fallback to first grade
+          const savedGrade = localStorage.getItem('classroomLastGrade');
+          const validGrade = savedGrade && gradesData.some(g => g.gradeNumber.toString() === savedGrade)
+            ? savedGrade
+            : gradesData[0].gradeNumber.toString();
+          setSelectedGrade(validGrade);
         }
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -91,7 +96,12 @@ const ClassroomPage = () => {
     if (grade) {
       setAvailableSections(grade.sections || []);
       if (grade.sections?.length > 0) {
-        setSelectedSection(grade.sections[0].sectionName);
+        // Restore last selected section from localStorage, fallback to first section
+        const savedSection = localStorage.getItem('classroomLastSection');
+        const validSection = savedSection && grade.sections.some(s => s.sectionName === savedSection)
+          ? savedSection
+          : grade.sections[0].sectionName;
+        setSelectedSection(validSection);
       }
     }
 
@@ -120,7 +130,7 @@ const ClassroomPage = () => {
       const fetchEnrolledStudents = async () => {
         try {
           setIsLoading(true);
-          const data = await studentService.getStudentsBySection(selectedGrade, section._id, schoolId);
+          const data = await studentService.getStudentsBySection(selectedGrade, section._id);
           setEnrolledStudents(data || []);
         } catch (error) {
           console.error("Error fetching enrolled students:", error);
@@ -263,7 +273,10 @@ const ClassroomPage = () => {
           <div className="relative group">
             <select
               value={selectedGrade}
-              onChange={(e) => setSelectedGrade(e.target.value)}
+              onChange={(e) => {
+                setSelectedGrade(e.target.value);
+                localStorage.setItem('classroomLastGrade', e.target.value);
+              }}
               className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-600 dark:text-slate-300 outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-sm cursor-pointer"
             >
               <option value="" disabled>Select Grade</option>
@@ -275,7 +288,10 @@ const ClassroomPage = () => {
           <div className="relative group">
             <select
               value={selectedSection}
-              onChange={(e) => setSelectedSection(e.target.value)}
+              onChange={(e) => {
+                setSelectedSection(e.target.value);
+                localStorage.setItem('classroomLastSection', e.target.value);
+              }}
               className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-600 dark:text-slate-300 outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-sm cursor-pointer"
             >
               <option value="" disabled>Select Section</option>

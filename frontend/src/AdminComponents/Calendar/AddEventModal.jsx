@@ -4,6 +4,8 @@ import { X, Calendar, Check, AlertCircle, ChevronDown } from "lucide-react";
 import { toast } from "../../MainSystemComponents/Toast";
 import CustomNepaliHolidayCalendar from "../../MainSystemComponents/CustomNepaliHolidayCalendar";
 
+import calendarService from "../../Api/calendarService";
+
 const AddEventModal = ({ isOpen, onClose, onEventAdded, isStudentView, studentId }) => {
   const [isRange, setIsRange] = useState(false);
   const [formData, setFormData] = useState({
@@ -52,23 +54,10 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded, isStudentView, studentId
         endDate: isRange ? formData.endDate : formData.startDate,
         audience: formData.sendTo,
         description: formData.description,
-        school_id: 1,
         createdBy: isStudentView ? studentId : null
       };
 
-      const response = await fetch("http://localhost:7000/api/calendar/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create event");
-      }
-
-      const data = await response.json();
+      await calendarService.createEvent(payload);
 
       // Success Notification
       toast({
@@ -100,6 +89,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded, isStudentView, studentId
       setLoading(false);
     }
   };
+
 
   return createPortal(
     <div

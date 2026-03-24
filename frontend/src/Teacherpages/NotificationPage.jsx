@@ -42,6 +42,7 @@ const SECTIONS = ["A", "B", "C"];
 const NotificationPage = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [grades, setGrades] = useState([]);
+  const [teacherSubjects, setTeacherSubjects] = useState([]); // Teacher's own subject names
   const [loading, setLoading] = useState(true);
   const [readIds, setReadIds] = useState(new Set());
 
@@ -116,8 +117,16 @@ const NotificationPage = () => {
         }).filter(Boolean))].map(g => `Grade ${g}`);
 
         setTargetOptions([...extractedGrades, ...classes]);
-        setNewSender(teacher.teacherName || 'Teacher');
+        setNewSender(teacher.teacherName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || 'Teacher');
         setNewSenderType('teacher');
+
+        // Collect this teacher's subjects for department notification filtering
+        const subjects = [];
+        if (teacher.primarySubject?.subjectName) subjects.push(teacher.primarySubject.subjectName.toLowerCase());
+        else if (typeof teacher.primarySubject === 'string') subjects.push(teacher.primarySubject.toLowerCase());
+        if (teacher.secondarySubject?.subjectName) subjects.push(teacher.secondarySubject.subjectName.toLowerCase());
+        else if (typeof teacher.secondarySubject === 'string') subjects.push(teacher.secondarySubject.toLowerCase());
+        setTeacherSubjects(subjects);
       }
 
       const data = await gradeService.getGrades();
@@ -140,9 +149,21 @@ const NotificationPage = () => {
         matchesTarget = a.targetGroup.includes(filterTarget);
       }
 
-      return matchesPriority && matchesSearch && matchesMine && matchesTarget;
+      // Department filtering: if targetGroup is "Department: Science",
+      // only show to teachers who have Science as primary or secondary subject.
+      let matchesDept = true;
+      const deptMatch = a.targetGroup?.match(/^Department:\s*(.+)$/i);
+      if (deptMatch) {
+        const targetSubject = deptMatch[1].trim().toLowerCase();
+        // Show if teacher has that subject OR if targetSubjects not loaded yet (avoid hiding on load)
+        if (teacherSubjects.length > 0) {
+          matchesDept = teacherSubjects.some(s => s.includes(targetSubject) || targetSubject.includes(s));
+        }
+      }
+
+      return matchesPriority && matchesSearch && matchesMine && matchesTarget && matchesDept;
     });
-  }, [announcements, filterPriority, filterTarget, showOnlyMine, searchQuery]);
+  }, [announcements, filterPriority, filterTarget, showOnlyMine, searchQuery, teacherSubjects]);
 
   const handleSend = async (e) => {
     e.preventDefault();

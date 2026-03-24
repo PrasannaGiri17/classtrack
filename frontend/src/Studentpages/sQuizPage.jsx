@@ -31,7 +31,7 @@ import {
   Cell,
   ReferenceLine
 } from 'recharts';
-import axios from 'axios';
+import axios from '../Api/axiosConfig';
 import { toast } from '../MainSystemComponents/Toast';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import PortalPopup from '../MainSystemComponents/PortalPopup';

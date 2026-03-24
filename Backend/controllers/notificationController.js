@@ -3,7 +3,7 @@ const Notification = require("../models/Notification");
 // Create Notification
 exports.createNotification = async (req, res) => {
   try {
-    const { title, message, priority, targetGroup, sender, senderId, schoolId } = req.body;
+    const { title, message, priority, targetGroup, sender, senderId, senderType } = req.body;
     
     if (!title || !message || !targetGroup || !sender || !senderId) {
       return res.status(400).json({ message: "All fields are required" });
@@ -16,7 +16,8 @@ exports.createNotification = async (req, res) => {
       targetGroup,
       sender,
       senderId,
-      schoolId: schoolId || 1
+      senderType: senderType || 'admin',
+      schoolId: req.schoolId  // Always from JWT — never from body
     });
 
     await newNotification.save();

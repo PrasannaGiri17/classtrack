@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "./axiosConfig";
 
 // Base URL configuration
 const API_URL = "http://localhost:7000/api/grades";

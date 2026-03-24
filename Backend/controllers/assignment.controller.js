@@ -13,7 +13,17 @@ exports.createAssignment = async (req, res) => {
       return res.status(400).json({ message: "Please provide all required fields." });
     }
 
-    const assignment = await Assignment.create(req.body);
+    // Attach schoolId from token
+    const assignmentData = {
+      ...req.body,
+      schoolId: req.schoolId
+    };
+
+    if (!assignmentData.schoolId) {
+      return res.status(401).json({ message: "School identification missing. Please relogin." });
+    }
+
+    const assignment = await Assignment.create(assignmentData);
     res.status(201).json(assignment);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -40,7 +50,7 @@ exports.getAllAssignments = async (req, res) => {
  */
 exports.getAssignmentById = async (req, res) => {
   try {
-    const assignment = await Assignment.findById(req.params.id);
+    const assignment = await Assignment.findOne({ _id: req.params.id, schoolId: req.schoolId });
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
     }
@@ -91,7 +101,7 @@ exports.deleteAssignment = async (req, res) => {
  */
 exports.toggleLockAssignment = async (req, res) => {
   try {
-    const assignment = await Assignment.findById(req.params.id);
+    const assignment = await Assignment.findOne({ _id: req.params.id, schoolId: req.schoolId });
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
     }
@@ -111,7 +121,7 @@ exports.toggleLockAssignment = async (req, res) => {
  */
 exports.getAssignmentReport = async (req, res) => {
   try {
-    const assignment = await Assignment.findById(req.params.id);
+    const assignment = await Assignment.findOne({ _id: req.params.id, schoolId: req.schoolId });
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
     }
@@ -135,7 +145,7 @@ exports.gradeSubmission = async (req, res) => {
     }
 
     const assignment = await Assignment.findOneAndUpdate(
-      { _id: id, "submissions._id": submissionId },
+      { _id: id, schoolId: req.schoolId, "submissions._id": submissionId },
       { 
         $set: { "submissions.$.gradingStatus": gradingStatus } 
       },
@@ -162,7 +172,7 @@ exports.updateSubmissionRemark = async (req, res) => {
     const { remark } = req.body;
 
     const assignment = await Assignment.findOneAndUpdate(
-      { _id: id, "submissions._id": submissionId },
+      { _id: id, schoolId: req.schoolId, "submissions._id": submissionId },
       { 
         $set: { "submissions.$.remark": remark } 
       },
@@ -225,7 +235,7 @@ exports.submitAssignment = async (req, res) => {
     const { id } = req.params;
     const { studentId, studentName, fileName, fileUrl } = req.body;
 
-    const assignment = await Assignment.findById(id);
+    const assignment = await Assignment.findOne({ _id: id, schoolId: req.schoolId });
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
     }

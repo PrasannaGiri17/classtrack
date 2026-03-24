@@ -16,9 +16,9 @@ const buildTermNames = (termsCount, includeMidTerm) => {
 // @route   GET /api/exams
 exports.getExamData = async (req, res) => {
   try {
-    let exam = await Exam.findOne({ schoolId: 1 });
+    let exam = await Exam.findOne({ schoolId: req.schoolId });
     if (!exam) {
-      exam = new Exam({ schoolId: 1 });
+      exam = new Exam({ schoolId: req.schoolId });
       await exam.save();
     }
 
@@ -60,9 +60,9 @@ exports.saveExamConfig = async (req, res) => {
   try {
     const { termsCount, includeMidTerm, globalStartTime, globalDuration } = req.body;
 
-    let exam = await Exam.findOne({ schoolId: 1 });
+    let exam = await Exam.findOne({ schoolId: req.schoolId });
     if (!exam) {
-      exam = new Exam({ schoolId: 1 });
+      exam = new Exam({ schoolId: req.schoolId });
     }
 
     exam.config = {
@@ -85,9 +85,9 @@ exports.saveExamSchedule = async (req, res) => {
   try {
     const { gradeNumber, term, entries } = req.body;
 
-    let exam = await Exam.findOne({ schoolId: 1 });
+    let exam = await Exam.findOne({ schoolId: req.schoolId });
     if (!exam) {
-      exam = new Exam({ schoolId: 1 });
+      exam = new Exam({ schoolId: req.schoolId });
     }
 
     // Find if schedule exists for this grade and term
@@ -125,9 +125,9 @@ exports.updateTermStatus = async (req, res) => {
   try {
     const { term, isOpen } = req.body;
 
-    let exam = await Exam.findOne({ schoolId: 1 });
+    let exam = await Exam.findOne({ schoolId: req.schoolId });
     if (!exam) {
-      exam = new Exam({ schoolId: 1 });
+      exam = new Exam({ schoolId: req.schoolId });
     }
 
     const statusIndex = exam.termStatuses.findIndex(s => s.term === term);
@@ -151,9 +151,9 @@ exports.updatePublishStatus = async (req, res) => {
   try {
     const { term, isPublished } = req.body;
  
-    let exam = await Exam.findOne({ schoolId: 1 });
+    let exam = await Exam.findOne({ schoolId: req.schoolId });
     if (!exam) {
-      exam = new Exam({ schoolId: 1 });
+      exam = new Exam({ schoolId: req.schoolId });
     }
  
     const statusIndex = exam.termStatuses.findIndex(s => s.term === term);

@@ -109,25 +109,9 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
         endDate: isRange ? (formData.endDate ? formData.endDate.toISOString() : null) : (formData.startDate ? formData.startDate.toISOString() : null),
         audience: formData.sendTo,
         description: formData.description,
-        school_id: 1, // Default
-        // Optional: map category to color explicitly if needed, 
-        // but backend adds default based on type.
-        // color: ...
       };
 
-      const response = await fetch("http://localhost:7000/api/calendar/events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create event");
-      }
-
-      const data = await response.json();
+      await calendarService.createEvent(payload);
 
       // Success Notification
       toast({
@@ -159,6 +143,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
       setLoading(false);
     }
   };
+
 
   return createPortal(
     <div

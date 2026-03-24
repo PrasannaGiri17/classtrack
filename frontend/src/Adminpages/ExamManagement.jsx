@@ -6,6 +6,10 @@ import { toast } from '../MainSystemComponents/Toast';
 import ModuleCard from '../AdminComponents/Exam/ModuleCard';
 import SchedulingView from '../AdminComponents/Exam/SchedulingView'
 import ControlView from '../AdminComponents/Exam/ControlView';
+import examService from '../Api/examService';
+import gradeService from '../Api/gradeService';
+import studentService from '../Api/studentService';
+import resultService from '../Api/resultService';
 
 // --- Constants & Dummy Data ---
 const SECTIONS = ["A", "B", "C"];
@@ -41,14 +45,14 @@ const ExamManagement = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [examRes, gradesRes] = await Promise.all([
-          axios.get('http://localhost:7000/api/exams'),
-          axios.get('http://localhost:7000/api/grades')
+        const [examData, gradesData] = await Promise.all([
+          examService.getExamData(),
+          gradeService.getGrades()
         ]);
-        setExamData({ ...examRes.data, allGrades: gradesRes.data });
-        setGrades(gradesRes.data.map(g => g.gradeNumber.toString()));
-        if (gradesRes.data.length > 0) {
-          const firstGrade = gradesRes.data[0];
+        setExamData({ ...examData, allGrades: gradesData });
+        setGrades(gradesData.map(g => g.gradeNumber.toString()));
+        if (gradesData.length > 0) {
+          const firstGrade = gradesData[0];
           const firstGradeNum = firstGrade.gradeNumber.toString();
           setAnalyticsGrade(firstGradeNum);
           setResGrade(firstGradeNum);
@@ -57,7 +61,7 @@ const ExamManagement = () => {
           }
         }
         // Initialize resPhase from exam data config
-        const { termsCount, includeMidTerm } = examRes.data.config || { termsCount: 3, includeMidTerm: true };
+        const { termsCount, includeMidTerm } = examData.config || { termsCount: 3, includeMidTerm: true };
         const initialPhase = includeMidTerm ? 'First Mid Term' : 'First Term';
         setResPhase(initialPhase);
       } catch (error) {
@@ -112,12 +116,12 @@ const ExamManagement = () => {
       if (!gradeDoc || !sectionDoc) return;
 
       try {
-        const [studentsRes, resultsRes] = await Promise.all([
-          axios.get(`http://localhost:7000/api/students?studentClass=${resGrade}&sectionId=${sectionDoc._id}`),
-          axios.get(`http://localhost:7000/api/results?gradeId=${gradeDoc._id}&sectionName=${resSection}&term=${resPhase}`)
+        const [studentsData, resultsData] = await Promise.all([
+          studentService.getStudentsByClassAndSection(resGrade, sectionDoc._id),
+          resultService.getResultsByGradeSectionTerm(gradeDoc._id, resSection, resPhase)
         ]);
-        setRealStudents(studentsRes.data);
-        setRealResults(resultsRes.data);
+        setRealStudents(studentsData);
+        setRealResults(resultsData);
       } catch (error) {
         console.error("Failed to fetch students/results:", error);
       }
@@ -201,10 +205,8 @@ const ExamManagement = () => {
     const newStatus = !currentStatus;
 
     try {
-      await axios.patch('http://localhost:7000/api/exams/term-status', {
-        term: termName,
-        isOpen: newStatus
-      });
+      await examService.updateTermStatus(termName, newStatus);
+
 
       // Optimistically update local state: flip the matching termStatus entry
       setExamData(prev => {
@@ -237,10 +239,8 @@ const ExamManagement = () => {
     const newStatus = !currentStatus;
 
     try {
-      await axios.patch('http://localhost:7000/api/exams/publish-status', {
-        term: termName,
-        isPublished: newStatus
-      });
+      await examService.updatePublishStatus(termName, newStatus);
+
 
       setExamData(prev => {
         if (!prev) return prev;
