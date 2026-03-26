@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const routineController = require("../controllers/routineController");
+const { protect } = require("../middleware/authMiddleware");
+
+// All routes are protected
+router.use(protect);
 
 // Get Matrix (Hours + Routines)
 router.get("/", routineController.getRoutineMatrix);

@@ -8,6 +8,8 @@ const sendEmail = require("../utils/sendEmail");
 // temp password (8 chars)
 const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
+const mongoose = require("mongoose");
+
 const getAllStudents = async (req, res) => {
   try {
     const { studentClass, sectionId, classTeacherId } = req.query;
@@ -15,10 +17,9 @@ const getAllStudents = async (req, res) => {
     const filter = { schoolId };
 
     if (sectionId) {
-      filter.sectionId = sectionId;
+      filter.sectionId = new mongoose.Types.ObjectId(sectionId);
     } else if (classTeacherId) {
-      // Find which section this teacher belongs to as Class Teacher
-      const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections.classTeacherId": classTeacherId });
+      const grade = await Grade.findOne({ schoolId: req.schoolId, "sections.classTeacherId": classTeacherId });
       if (grade) {
         const section = grade.sections.find(s => s.classTeacherId?.toString() === classTeacherId);
         if (section) {
@@ -29,9 +30,9 @@ const getAllStudents = async (req, res) => {
       } else {
         return res.status(200).json([]);
       }
+    } else if (studentClass) {
+      filter.studentClass = Number(studentClass);
     }
-
-    if (studentClass) filter.studentClass = Number(studentClass);
 
     const students = await Student.find(filter);
     res.status(200).json(students);

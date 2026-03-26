@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const { getTimetable, updateTimetable, getTimetableOptions, getTeacherRoutine, updateTeacherTopic, clearAllTeachers } = require("../controllers/timetableController");
+const { protect } = require("../middleware/authMiddleware");
+
+router.use(protect);
 
 router.get("/", getTimetable);
 router.get("/options", getTimetableOptions);

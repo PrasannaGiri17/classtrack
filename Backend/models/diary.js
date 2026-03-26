@@ -35,7 +35,7 @@ const diarySchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Compound unique index: teacherId + periodId + date
-diarySchema.index({ teacherId: 1, periodId: 1, date: 1 }, { unique: true });
+// Compound unique index: schoolId + teacherId + periodId + date
+diarySchema.index({ schoolId: 1, teacherId: 1, periodId: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model('Diary', diarySchema);

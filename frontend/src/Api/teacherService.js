@@ -2,8 +2,9 @@ import axios from "./axiosConfig";
 
 const API_URL = "http://localhost:7000/api/teachers";
 
-const getAllTeachers = async () => {
-  const response = await axios.get(API_URL);
+const getAllTeachers = async (schoolId) => {
+  const url = schoolId ? `${API_URL}?schoolId=${schoolId}` : API_URL;
+  const response = await axios.get(url);
   return response.data;
 };
 

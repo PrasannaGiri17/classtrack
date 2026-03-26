@@ -276,12 +276,6 @@ const UserLoginbox = () => {
           </button>
         </form>
 
-        <div className="mt-8 text-center">
-          <Link to="/super-admin/login" className="text-xs font-medium text-slate-300 hover:text-emerald-600 transition-colors">
-            Super Admin Portal
-          </Link>
-        </div>
-
         <FailedPopup
           message={popupMessage}
           type={popupType}

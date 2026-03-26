@@ -16,8 +16,11 @@ exports.saveDiaryEntry = async (req, res) => {
     const entryDate = new Date(date);
     entryDate.setHours(0, 0, 0, 0);
 
-    const filter = { teacherId, periodId, date: entryDate };
+    const schoolId = req.schoolId; // From protect middleware
+
+    const filter = { schoolId, teacherId, periodId, date: entryDate };
     const update = { 
+      schoolId,
       className, 
       subject, 
       activity, 

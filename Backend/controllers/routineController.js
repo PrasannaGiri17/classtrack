@@ -4,9 +4,9 @@ const { School } = require("../models/School");
 // Get Routine Matrix (All Grade Routines + Operating Hours)
 const getRoutineMatrix = async (req, res) => {
   try {
-    const schoolId = req.query.schoolId || req.headers['x-school-id'];
+    const schoolId = req.schoolId; // From protect middleware
     if (!schoolId) {
-      return res.status(400).json({ message: "schoolId required" });
+      return res.status(400).json({ message: "schoolId required from token" });
     }
 
     // 1. Get School Hours from numeric schoolId
@@ -35,8 +35,9 @@ const getRoutineMatrix = async (req, res) => {
 // Update Operating Hours
 const updateOperatingHours = async (req, res) => {
     try {
-        const { start, end, schoolId } = req.body;
-        if (!schoolId) return res.status(400).json({ message: "schoolId required" });
+        const { start, end } = req.body;
+        const schoolId = req.schoolId; // From protect middleware
+        if (!schoolId) return res.status(400).json({ message: "schoolId required from token" });
         if (!start || !end) {
             return res.status(400).json({ message: "Start and End times are required" });
         }
@@ -57,9 +58,10 @@ const updateOperatingHours = async (req, res) => {
 const updateGradeRoutine = async (req, res) => {
     try {
         const { gradeNumber } = req.params;
-        const { slots, isLocked, schoolId } = req.body;
+        const { slots, isLocked } = req.body;
+        const schoolId = req.schoolId; // From protect middleware
 
-        if (!schoolId) return res.status(400).json({ message: "schoolId required" });
+        if (!schoolId) return res.status(400).json({ message: "schoolId required from token" });
 
         if (!slots || !Array.isArray(slots)) {
             return res.status(400).json({ message: "Invalid slots data" });

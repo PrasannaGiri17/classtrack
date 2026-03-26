@@ -217,7 +217,7 @@ const SStudentRecord = () => {
           <div className="bg-white dark:bg-slate-900 px-6 py-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center transition-colors">
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Assigned Class</p>
             <h3 className="text-lg font-black text-slate-900 dark:text-white leading-none flex items-center gap-2">
-              <GraduationCap size={16} className="text-emerald-500" /> {teacherInfo?.classTeacher || "Not Assigned"}
+              <GraduationCap size={16} className="text-emerald-500" /> {sectionInfo?.gradeNumber ? `Grade ${sectionInfo.gradeNumber}-${sectionInfo.sectionName}` : (teacherInfo?.classTeacher || "Not Assigned")}
             </h3>
           </div>
           <div className="bg-white dark:bg-slate-900 px-6 py-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-center transition-colors">

@@ -14,11 +14,19 @@ const createNotice = async (req, res) => {
             return res.status(403).json({ message: "You are not authorized to post in this section." });
         }
     } else if (authorType === 'teacher') {
-        // Find if this teacher is the class teacher of this section
-        const grade = await Grade.findOne({ schoolId: req.schoolId,  "sections._id": sectionId, "sections.classTeacherId": authorId });
-        if (!grade) {
-            return res.status(403).json({ message: "You are not authorized to post in this section." });
+      // Find if this teacher is the class teacher of this section
+      const grade = await Grade.findOne({
+        schoolId: req.schoolId,
+        "sections": {
+          $elemMatch: {
+            _id: sectionId,
+            classTeacherId: authorId
+          }
         }
+      });
+      if (!grade) {
+        return res.status(403).json({ message: "You are not authorized to post in this section." });
+      }
     }
 
     const notice = new ClassroomNotice({
@@ -27,6 +35,7 @@ const createNotice = async (req, res) => {
       authorName,
       authorType,
       sectionId,
+      schoolId: req.schoolId,
     });
 
     await notice.save();

@@ -15,6 +15,7 @@ import diaryService from "../Api/diaryService";
 import studentService from "../Api/studentService";
 import gradeService from "../Api/gradeService";
 import calendarService from "../Api/calendarService";
+import timetableService from "../Api/timetableService";
 import Loading from "../MainSystemComponents/Loading";
 import { toast } from '../MainSystemComponents/Toast';
 import routineService from "../Api/routineService";
@@ -23,18 +24,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getHolidayOnDate } from '../Utils/nepaliDateHelpers';
 
 const SDiaryCard = ({ entry, timeSlot }) => {
-  // teacherId is populated with { firstName, lastName, profilePhoto }
+  // teacherId is populated with { firstName, lastName, profilePhoto } or derived from timetable
   const teacher = entry.teacherId;
-  const teacherName = teacher ? `${teacher.firstName} ${teacher.lastName}` : "Unknown Teacher";
+  const teacherName = entry.teacherName || (teacher ? `${teacher.firstName} ${teacher.lastName}` : "Unknown Teacher");
+  const profilePhoto = teacher?.profilePhoto;
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm p-8 space-y-6 group hover:border-emerald-500/20 transition-all duration-300">
       {/* Card Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {teacher?.profilePhoto ? (
+          {profilePhoto ? (
             <img
-              src={teacher.profilePhoto}
+              src={profilePhoto}
               alt={teacherName}
               className="w-12 h-12 rounded-2xl object-cover border border-slate-100 dark:border-slate-700"
             />
@@ -60,7 +62,7 @@ const SDiaryCard = ({ entry, timeSlot }) => {
             </span>
           </div>
           <span className="text-[8px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mr-1">
-            Period {entry.periodId.split('-')[1] || entry.periodId}
+            {entry.periodLabel || "Session"}
           </span>
         </div>
       </div>
@@ -97,6 +99,7 @@ const SDiaryPage = () => {
   const [diaryEntries, setDiaryEntries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [className, setClassName] = useState("");
+  const [sectionName, setSectionName] = useState("");
   const [routineInfo, setRoutineInfo] = useState({ operatingHours: { start: "09:00" }, classRoutines: {} });
   const [gradeNum, setGradeNum] = useState("");
   const [holidays, setHolidays] = useState([]);
@@ -109,17 +112,25 @@ const SDiaryPage = () => {
   // 1. Fetch Student Class Name & Routine Settings & Holidays
   useEffect(() => {
     const getInitialData = async () => {
-      if (!studentId) return;
+      if (!studentId) {
+        setIsLoading(false);
+        return;
+      }
       try {
         const [profile, routineMatrix, events] = await Promise.all([
-          studentService.getStudentById(studentId),
-          routineService.getRoutineMatrix(),
-          calendarService.getEvents()
+          studentService.getStudentById(studentId).catch(() => null),
+          routineService.getRoutineMatrix().catch(() => ({ classRoutines: {} })),
+          calendarService.getEvents().catch(() => [])
         ]);
 
-        const gNum = String(profile.studentClass || profile.gradeId?.gradeNumber);
+        if (!profile) {
+          setIsLoading(false);
+          return;
+        }
+
+        const gNum = String(profile.studentClass || profile.gradeId?.gradeNumber || "");
         setGradeNum(gNum);
-        setRoutineInfo(routineMatrix);
+        setRoutineInfo(routineMatrix || { classRoutines: {} });
 
         // Filter holidays
         const holidayMapped = (events || []).filter(e =>
@@ -130,11 +141,20 @@ const SDiaryPage = () => {
         const sectionId = profile.sectionId?._id || profile.sectionId;
         if (sectionId) {
           const sectionRes = await gradeService.getSectionById(sectionId);
-          const fullClass = `${sectionRes.gradeName} Section ${sectionRes.sectionName}`;
-          setClassName(fullClass);
+          if (sectionRes) {
+            const fullClass = `${sectionRes.gradeName} Section ${sectionRes.sectionName}`;
+            setClassName(fullClass);
+            setSectionName(sectionRes.sectionName);
+          } else {
+            setIsLoading(false);
+          }
+        } else {
+          // If no sectionId, student doesn't have a diary to see (usually)
+          setIsLoading(false);
         }
       } catch (err) {
         console.error("Error fetching initial data:", err);
+        setIsLoading(false);
       }
     };
     getInitialData();
@@ -151,26 +171,51 @@ const SDiaryPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 2. Fetch Diary Entries
+  // 2. Fetch Diary Entries & Timetable
   const fetchDiary = useCallback(async () => {
-    if (!className) return;
+    if (!className || !gradeNum || !sectionName) return;
     setIsLoading(true);
     try {
-      const data = await diaryService.getDiariesByClass(className, selectedDate);
-      // Sort entries by period index
-      const sortedData = [...data].sort((a, b) => {
-        const aIdx = parseInt(a.periodId.split('-')[1]) || 0;
-        const bIdx = parseInt(b.periodId.split('-')[1]) || 0;
-        return aIdx - bIdx;
-      });
-      setDiaryEntries(sortedData);
+      const weekday = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+      
+      const [diaryRes, timetableRes] = await Promise.all([
+        diaryService.getDiariesByClass(className, selectedDate),
+        timetableService.getTimetable(gradeNum, sectionName, weekday).catch(() => null)
+      ]);
+
+      if (!timetableRes || !timetableRes.slots) {
+         setDiaryEntries([]);
+         return;
+      }
+
+      // Merge Timetable Slots with Diary Entries
+      const merged = timetableRes.slots.map(slot => {
+        const assignment = timetableRes.assignments[slot.id];
+        if (!assignment) return null; // No teacher/subject assigned to this slot
+
+        const diaryEntry = diaryRes.find(d => d.periodId.includes(slot.id));
+        
+        return {
+          periodId: `${weekday}-${gradeNum}-${sectionName}-${slot.id}`,
+          subject: assignment.subjectName,
+          teacherId: assignment.teacherId, // might be object or id
+          teacherName: assignment.teacherName,
+          activity: diaryEntry ? diaryEntry.activity : "",
+          homework: diaryEntry ? diaryEntry.homework : "",
+          time: slot.label, // In this system, slot.label is used for time if it's "9:00 - 9:45"
+          periodLabel: slot.label,
+          _id: diaryEntry?._id || `temp-${slot.id}`
+        };
+      }).filter(item => item !== null);
+
+      setDiaryEntries(merged);
     } catch (err) {
       console.error("Failed to fetch diary:", err);
       toast({ type: 'error', message: 'Failed to load diary entries.' });
     } finally {
       setIsLoading(false);
     }
-  }, [className, selectedDate]);
+  }, [className, gradeNum, sectionName, selectedDate]);
 
   useEffect(() => {
     fetchDiary();
@@ -182,27 +227,29 @@ const SDiaryPage = () => {
 
     const slots = routineInfo.classRoutines[gradeNum].slots;
     const startTime = routineInfo.operatingHours.start;
-    const periodIdxStr = periodId.split('-')[1];
-    if (!periodIdxStr) return null;
-    const targetIdx = parseInt(periodIdxStr) - 1;
+    const slotId = periodId.split('-').pop(); // e.g. "s1"
+    const targetSlotIdx = slots.findIndex(s => s.id === slotId);
+    
+    if (targetSlotIdx === -1) return null;
+
+    const formatTime = (totalMin) => {
+      let hours = Math.floor(totalMin / 60);
+      const mins = totalMin % 60;
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; // Handle 0 as 12
+      return `${hours}:${mins.toString().padStart(2, '0')} ${ampm}`;
+    };
 
     let currentMinutes = 0;
     const [h, m] = startTime.split(':').map(Number);
     const baseMinutes = h * 60 + m;
 
-    for (let i = 0; i <= targetIdx && i < slots.length; i++) {
+    for (let i = 0; i < slots.length; i++) {
       const duration = slots[i].durationMinutes || 45;
-      if (i === targetIdx) {
+      if (i === targetSlotIdx) {
         const start = baseMinutes + currentMinutes;
-        const end = start + duration;
-
-        const formatTime = (totalMin) => {
-          const hours = Math.floor(totalMin / 60);
-          const mins = totalMin % 60;
-          return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-        };
-
-        return `${formatTime(start)} - ${formatTime(end)}`;
+        return `${formatTime(start)} - ${formatTime(start + duration)}`;
       }
       currentMinutes += duration;
     }

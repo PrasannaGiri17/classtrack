@@ -7,8 +7,8 @@ const { syncTeacherAssignedClasses } = require("../utils/teacherSync");
 // Get Timetable for a specific grade and section
 const getTimetable = async (req, res) => {
   try {
-    const { gradeNumber, sectionName, weekday, gradeId, sectionId, schoolId } = req.query;
-    const activeSchoolId = schoolId ? Number(schoolId) : 1;
+    const { gradeNumber, sectionName, weekday, gradeId, sectionId } = req.query;
+    const activeSchoolId = req.schoolId; // From protect middleware
 
     const finalGradeNumber = gradeNumber || gradeId;
     const finalSectionName = sectionName || sectionId;
@@ -51,8 +51,8 @@ const getTimetable = async (req, res) => {
 
 const updateTimetable = async (req, res) => {
   try {
-    const { gradeNumber, sectionName, weekday, assignments, schoolId } = req.body;
-    const activeSchoolId = schoolId ? Number(schoolId) : 1;
+    const { gradeNumber, sectionName, weekday, assignments } = req.body;
+    const activeSchoolId = req.schoolId; // From protect middleware
 
     if (!gradeNumber || !sectionName || !weekday || !assignments) {
       return res.status(400).json({ message: "Grade, section, weekday, and assignments are required" });
@@ -183,8 +183,8 @@ const updateTimetable = async (req, res) => {
 
 const getTimetableOptions = async (req, res) => {
     try {
-      const { gradeNumber, weekday, sectionName, schoolId } = req.query;
-      const activeSchoolId = schoolId ? Number(schoolId) : 1;
+      const { gradeNumber, weekday, sectionName } = req.query;
+      const activeSchoolId = req.schoolId; // From protect middleware
   
       const grade = await Grade.findOne({ schoolId: activeSchoolId, gradeNumber }).populate('subjects.subjectId');
       if (!grade) return res.status(404).json({ message: "Grade not found" });
@@ -414,9 +414,8 @@ const updateTeacherTopic = async (req, res) => {
 // Clear all teacher assignments for every timetable in the school
 const clearAllTeachers = async (req, res) => {
   try {
-    const { schoolId } = req.query;
-    if (!schoolId) return res.status(400).json({ message: 'schoolId required' });
-    const activeSchoolId = Number(schoolId);
+    const activeSchoolId = req.schoolId; // From protect middleware
+    if (!activeSchoolId) return res.status(400).json({ message: 'schoolId required from token' });
 
     // Find all timetables and null out every teacherId
     const result = await Timetable.updateMany(
