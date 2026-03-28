@@ -29,6 +29,8 @@ const feeRoutes = require("./routes/feeRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const statsRoutes = require("./routes/statsRoutes");
 const superAdminAuthRoutes = require("./routes/superAdminAuthRoutes");
+const discussionRoutes = require("./routes/discussionRoutes");
+
 
 
 const app = express();
@@ -76,6 +78,8 @@ app.use("/api/fee-records", feeRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/superadmin", superAdminAuthRoutes);
+app.use("/api/discussions", discussionRoutes);
+
 
 app.listen(port, () => {
   console.log(`Backend server is running on http://localhost:${port}`);

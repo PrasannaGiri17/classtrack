@@ -257,6 +257,17 @@ const TeacherPage = () => {
 
     return (
         <div className="w-full max-w-7xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-6 duration-700">
+            {/* Back Button */}
+            <div className="flex items-center mb-8">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="group flex items-center gap-2.5 px-5 py-2.5 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                >
+                    <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Back to List</span>
+                </button>
+            </div>
+
             {/* 1. Slim Compact Header */}
             <div className="relative w-full bg-white dark:bg-[#0b1220] rounded-[40px] shadow-xl border border-slate-100 dark:border-slate-800/40 overflow-hidden transition-all group/card mb-8">
                 {/* Header Banner */}

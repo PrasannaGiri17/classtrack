@@ -23,6 +23,8 @@ import gradeService from '../Api/gradeService';
 
 const SExamManagement = () => {
   const [selectedTerm, setSelectedTerm] = useState('First Term');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isTermDropdownOpen, setIsTermDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
   const [results, setResults] = useState([]);
@@ -272,19 +274,48 @@ const SExamManagement = () => {
 
       {/* 2. Term Selector & Generate Button Row */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-        <div className="space-y-3 w-full max-w-xl relative group">
+        <div className="space-y-2.5 w-full max-w-[280px] relative">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Select Examination Term</label>
           <div className="relative">
-            <select
-              value={selectedTerm}
-              onChange={(e) => setSelectedTerm(e.target.value)}
-              className="appearance-none w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[20px] pl-6 pr-14 py-4 text-[11px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm group-hover:shadow-lg uppercase tracking-widest"
+            <button
+              onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
+              className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
             >
-              {termsList.map(term => (
-                <option key={term} value={term}>{term}</option>
-              ))}
-            </select>
-            <ChevronDown size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+              {selectedTerm}
+              <ChevronDown 
+                size={18} 
+                className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
+              />
+            </button>
+
+            {isTermDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-[60]" 
+                  onClick={() => setIsTermDropdownOpen(false)} 
+                />
+                <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                  <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
+                    {termsList.map(term => (
+                      <button
+                        key={term}
+                        onClick={() => {
+                          setSelectedTerm(term);
+                          setIsTermDropdownOpen(false);
+                        }}
+                        className={`w-full px-5 py-3 text-[10px] font-black text-left rounded-xl transition-all uppercase tracking-widest ${
+                          selectedTerm === term 
+                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
+                        }`}
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

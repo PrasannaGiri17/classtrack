@@ -39,9 +39,13 @@ import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import studentService from '../Api/studentService';
 import attendanceService from '../Api/attendanceService';
 import feeService from '../Api/feeService';
+import resultService from '../Api/resultService';
+import examService from '../Api/examService';
+import gradeService from '../Api/gradeService';
 import PhotoCropModal from '../MainSystemComponents/PhotoCropModal';
 import ForgotPasswordModal from '../TeacherComponents/Layout/ForgotPasswordModal';
-import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
+import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
+import calendarService from '../Api/calendarService';
 
 // --- Helpers ---
 
@@ -118,40 +122,90 @@ const AttendanceSummaryCard = ({ yearly, studentId }) => {
   const [monthlyData, setMonthlyData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const getBSMonthDateRange = (y, m) => {
+    const startStr = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    const startAD = new Date(convertBStoAD(startStr));
+    let lastAD = new Date(startAD);
+    let dayBS = 1;
+    while (dayBS < 33) {
+      const nextBS = `${y}-${String(m + 1).padStart(2, '0')}-${String(dayBS + 1).padStart(2, '0')}`;
+      try {
+        const nextAD = convertBStoAD(nextBS);
+        if (!nextAD) break;
+        lastAD = new Date(nextAD);
+        dayBS++;
+      } catch (e) {
+        break;
+      }
+    }
+    return { startAD, lastAD };
+  };
+
+  const getWorkingDaysCount = async (startAD, endAD) => {
+    try {
+      const start = new Date(startAD);
+      const end = new Date(endAD);
+      const holidaysList = await calendarService.getEvents(
+        start.toISOString().split('T')[0],
+        end.toISOString().split('T')[0]
+      );
+      const holidayDates = new Set(
+        holidaysList
+          .filter(e => e.type === 'HOLIDAY')
+          .map(e => new Date(e.startDate).toISOString().split('T')[0])
+      );
+
+      let count = 0;
+      let cur = new Date(start);
+      while (cur <= end) {
+        const dayOfWeek = cur.getDay();
+        const dateStr = cur.toISOString().split('T')[0];
+        if (dayOfWeek !== 6 && !holidayDates.has(dateStr)) {
+          count++;
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      return count;
+    } catch (err) {
+      console.warn("Failed to calculate working days from calendar", err);
+      return 0;
+    }
+  };
+
   const fetchMonthly = async () => {
     if (!studentId) return;
     setLoading(true);
     try {
-      const data = await attendanceService.getStudentMonthlyAttendance(studentId, selectedYear, selectedMonth);
+      const [data, range] = await Promise.all([
+        attendanceService.getStudentMonthlyAttendance(studentId, selectedYear, selectedMonth),
+        Promise.resolve(getBSMonthDateRange(selectedYear, NEPALI_MONTHS.indexOf(selectedMonth)))
+      ]);
+
+      const workingDays = await getWorkingDaysCount(range.startAD, range.lastAD);
+
       if (data && data.dailyStatus) {
         let present = 0;
-        let total = 0;
         let absents = [];
-
-        // Handle Map or Object
         const statusData = data.dailyStatus;
         Object.keys(statusData).forEach(day => {
-          total++;
           if (statusData[day] === 'P') present++;
           if (statusData[day] === 'A') {
-            // Suffix for dates
             let suffix = 'th';
             const dayNum = parseInt(day);
             if (dayNum % 10 === 1 && dayNum !== 11) suffix = 'st';
             else if (dayNum % 10 === 2 && dayNum !== 12) suffix = 'nd';
             else if (dayNum % 10 === 3 && dayNum !== 13) suffix = 'rd';
-
             absents.push(`${day}${suffix} ${selectedMonth}`);
           }
         });
 
         setMonthlyData({
           presentDays: present,
-          totalDays: total || 30,
+          totalDays: workingDays || 25,
           absentDates: absents
         });
       } else {
-        setMonthlyData({ presentDays: 0, totalDays: 30, absentDates: [] });
+        setMonthlyData({ presentDays: 0, totalDays: workingDays || 25, absentDates: [] });
       }
     } catch (err) {
       console.warn("No specific attendance found for this month.");
@@ -301,7 +355,7 @@ const AttendanceSummaryCard = ({ yearly, studentId }) => {
               <div className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
               <span className="text-[10px] font-bold text-slate-900 dark:text-white tracking-widest">Total School Days</span>
             </div>
-            <p className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight tabular-nums">{yearly.present + yearly.absent}</p>
+            <p className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight tabular-nums">{yearly.totalDays || (yearly.present + yearly.absent)}</p>
           </div>
         </div>
       </div>
@@ -494,6 +548,11 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
               <p className="text-[8px] font-black text-slate-400 capitalize tracking-widest mb-1.5">ROLL</p>
               <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none capitalize">{student.rollNo}</p>
             </div>
+            <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
+            <div className="flex-1 flex flex-col items-center text-center min-w-fit">
+              <p className="text-[8px] font-black text-slate-400 capitalize tracking-widest mb-1.5">ATTENDANCE</p>
+              <p className={`text-2xl font-black ${currentTheme.icon} tracking-tight leading-none capitalize transition-colors`}>{student.yearlyAttendance?.rate || 0}%</p>
+            </div>
           </div>
         </div>
 
@@ -506,7 +565,7 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
           </div>
           <div className="space-y-1.5">
             <p className="text-[9px] font-black text-slate-400 capitalize tracking-widest">GRADE LEVEL</p>
-            <p className="text-sm font-black text-slate-800 dark:text-white capitalize tracking-tight">Grade {student.grade} {student.section}</p>
+            <p className="text-sm font-black text-slate-800 dark:text-white capitalize tracking-tight">{student.grade} {student.section}</p>
           </div>
           <div className="space-y-1.5">
             <p className="text-[9px] font-black text-slate-400 capitalize tracking-widest">DATE OF BIRTH</p>
@@ -565,79 +624,84 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
 // --- Detailed Marksheet Components ---
 
 const SubjectResultCard = ({ s }) => {
-  const overallPercent = ((s.theory + (s.practical || 0)) / (s.maxTheory + (s.maxPractical || 0))) * 100;
-  const theoryPercent = (s.theory / s.maxTheory) * 100;
-  const practicalPercent = s.practical ? (s.practical / s.maxPractical) * 100 : 0;
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius; 
+  const totalFullMarks = 100; 
+  const overallPercent = ((s.theory + (s.practical || 0)) / totalFullMarks) * 100;
+  const theoryDash = (s.theory / totalFullMarks) * circumference;
+  const practicalDash = (s.practical / totalFullMarks) * circumference;
 
   return (
-    <div className="bg-slate-50 dark:bg-[#0b1220] rounded-[40px] p-8 lg:p-10 border border-slate-200 dark:border-slate-800/60 shadow-xl dark:shadow-2xl flex flex-col items-center gap-10 group hover:border-emerald-500/30 transition-all duration-500 relative overflow-hidden">
-      {/* Decorative background pulse */}
-      <div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none group-hover:bg-emerald-500/10 transition-colors" />
-
-      {/* Full Subject Name Badge */}
-      <div className="px-6 py-2 bg-slate-200 dark:bg-slate-900/80 rounded-2xl border border-slate-300 dark:border-slate-700/50 backdrop-blur-sm shadow-md dark:shadow-xl">
-        <span className="text-xs font-black text-slate-800 dark:text-white capitalize tracking-[0.25em]">{s.name}</span>
+    <div className="bg-slate-50 dark:bg-[#0b1220] rounded-[40px] p-8 border border-slate-200 dark:border-slate-800/60 shadow-xl flex flex-col items-center gap-8 group hover:border-emerald-500/30 transition-all duration-500 relative overflow-hidden">
+      {/* Subject Name Badge */}
+      <div className="px-5 py-2 bg-slate-200 dark:bg-slate-900/80 rounded-2xl border border-slate-300 dark:border-slate-700/50">
+        <span className="text-[10px] font-black text-slate-800 dark:text-white capitalize tracking-[0.2em]">{s.name}</span>
       </div>
 
-      <div className="flex flex-row items-center justify-center w-full gap-5 lg:gap-8 relative z-10">
-        {/* Theory Circle */}
-        <div className="flex flex-col items-center gap-4">
-          <span className="text-[10px] font-black text-emerald-500/80 capitalize tracking-widest">THEORY</span>
-          <div className="relative">
-            <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full flex flex-col items-center justify-center bg-slate-200 dark:bg-slate-900/50 shadow-[inset_0_0_15px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
-              <span className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tighter">{s.theory}</span>
-              <div className="h-[1px] w-8 bg-slate-300 dark:bg-slate-700/50 my-1.5" />
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{s.maxTheory}</span>
-            </div>
-            {/* Progress Overlay */}
-            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none overflow-visible">
-              <circle
-                cx="50%" cy="50%" r="48"
-                className="fill-none stroke-emerald-500 stroke-[5] lg:r-[56]"
-                strokeDasharray="301"
-                strokeDashoffset={301 - (301 * theoryPercent) / 100}
+      <div className="relative flex items-center justify-center w-full py-2">
+        <div className="relative w-32 h-32 flex items-center justify-center">
+          <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none overflow-visible" viewBox="0 0 110 110">
+            {/* Background track */}
+            <circle cx="55" cy="55" r={radius} className="fill-none stroke-slate-200 dark:stroke-slate-800/60 stroke-[5]" />
+
+            {/* Theory arc — green, 75% region */}
+            <circle
+              cx="55" cy="55" r={radius}
+              fill="none" stroke="#10b981" strokeWidth="5"
+              strokeDasharray={`${theoryDash} ${circumference}`}
+              strokeLinecap="round"
+              style={{ filter: 'drop-shadow(0 0 4px rgba(16,185,129,0.5))' }}
+            />
+
+            {/* Practical arc — indigo, 25% region, starts after theory zone */}
+            {s.maxPractical > 0 && (
+            <circle
+                cx="55" cy="55" r={radius}
+                fill="none" stroke="#818cf8" strokeWidth="5"
+                strokeDasharray={`${practicalDash} ${circumference}`}
+                strokeDashoffset={-theoryDash}
                 strokeLinecap="round"
-                style={{ filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.5))' }}
+                style={{ filter: 'drop-shadow(0 0 4px rgba(129,140,248,0.5))' }}
               />
-            </svg>
+            )}
+          </svg>
+
+          {/* Scores inside circle */}
+          <div className="flex flex-col items-center justify-center z-10">
+            {s.maxPractical > 0 ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xl font-black text-emerald-500 leading-none tabular-nums">{s.theory}</span>
+                <span className="text-base font-black text-slate-400 dark:text-slate-600 leading-none">|</span>
+                <span className="text-2xl font-black text-indigo-400 leading-none tabular-nums">{s.practical}</span>
+              </div>
+            ) : (
+              <span className="text-3xl font-black text-emerald-500 leading-none tabular-nums">{s.theory}</span>
+            )}
+            <div className="h-px w-8 bg-slate-300 dark:bg-slate-700/50 my-1.5" />
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+              100
+            </span>
           </div>
         </div>
-
-        {/* Practical Circle (If exists) */}
-        {s.maxPractical && (
-          <div className="flex flex-col items-center gap-4">
-            <span className="text-[10px] font-black text-indigo-400/80 capitalize tracking-widest">PRACTICAL</span>
-            <div className="relative">
-              <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full flex flex-col items-center justify-center bg-slate-200 dark:bg-slate-900/50 shadow-[inset_0_0_15px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
-                <span className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tighter">{s.practical}</span>
-                <div className="h-[1px] w-8 bg-slate-300 dark:bg-slate-700/50 my-1.5" />
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{s.maxPractical}</span>
-              </div>
-              <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none overflow-visible">
-                <circle
-                  cx="50%" cy="50%" r="48"
-                  className="fill-none stroke-indigo-400 stroke-[5] lg:r-[56]"
-                  strokeDasharray="301"
-                  strokeDashoffset={301 - (301 * practicalPercent) / 100}
-                  strokeLinecap="round"
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(129,140,248,0.5))' }}
-                />
-              </svg>
-            </div>
-          </div>
-        )}
       </div>
 
-      <div className="w-full space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800/40">
-        <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-widest">OVERALL PERFORMANCE</span>
+      {/* Footer Stats */}
+      <div className="w-full space-y-3 pt-5 border-t border-slate-200 dark:border-slate-800/40">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+            <span className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Theory</span>
+            {s.maxPractical > 0 && (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block ml-2" />
+                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-wider">Practical</span>
+              </>
+            )}
           </div>
-          <span className="text-sm font-black text-emerald-500 capitalize">{s.grade}</span>
+          <span className="text-xs font-black text-emerald-500">{s.grade}</span>
         </div>
         <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)] transition-all duration-1000" style={{ width: `${overallPercent}%` }} />
+          <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${overallPercent}%` }} />
         </div>
       </div>
     </div>
@@ -748,11 +812,14 @@ const StudentMePage = () => {
   const [student, setStudent] = useState(STUDENT_ME_INITIAL);
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState('First Term');
+  const [availableTerms, setAvailableTerms] = useState(['First Term', 'Second Term', 'Third Term']);
+  const [examConfig, setExamConfig] = useState(null);
+  const [isTermDropdownOpen, setIsTermDropdownOpen] = useState(false);
 
   const fetchStudentData = async () => {
     try {
       let studentId = localStorage.getItem("studentId");
-      
+
       // Deep sync: try to extract from JWT if missing
       if (!studentId || studentId === "undefined" || studentId === "null") {
         const token = localStorage.getItem("token");
@@ -818,7 +885,6 @@ const StudentMePage = () => {
         yearlyAttendance: yearlyStats
       };
 
-      // Fetch Fee Summary
       try {
         const feeData = await feeService.getFeeSummary(data._id);
         if (feeData) {
@@ -831,6 +897,41 @@ const StudentMePage = () => {
         }
       } catch (fe) {
         console.warn("Failed to fetch fee summary", fe);
+      }
+
+      // Calculate total working days in academic year so far
+      try {
+        const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+        const [curY] = todayBS.split('-').map(Number);
+        const startAD = convertBStoAD(`${curY}-01-01`);
+        const endAD = new Date().toISOString().split('T')[0];
+
+        const holidaysList = await calendarService.getEvents(startAD, endAD);
+        const holidayDates = new Set(
+          holidaysList
+            .filter(e => e.type === 'HOLIDAY')
+            .map(e => new Date(e.startDate).toISOString().split('T')[0])
+        );
+
+        let workingDaysCount = 0;
+        let cur = new Date(startAD);
+        const end = new Date(endAD);
+        while (cur <= end) {
+          const dayOfWeek = cur.getDay(); // 6 is Saturday
+          const dateStr = cur.toISOString().split('T')[0];
+          if (dayOfWeek !== 6 && !holidayDates.has(dateStr)) {
+            workingDaysCount++;
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+        studentData.yearlyAttendance.totalDays = workingDaysCount;
+
+        // Recalculate rate based on actual working days
+        if (workingDaysCount > 0) {
+          studentData.yearlyAttendance.rate = Math.round((studentData.yearlyAttendance.present / workingDaysCount) * 100);
+        }
+      } catch (e) {
+        console.warn("Failed to calculate yearly working days", e);
       }
 
       setStudent(studentData);
@@ -847,32 +948,147 @@ const StudentMePage = () => {
   };
 
   useEffect(() => {
-    if (passedStudent) {
-      const teacher = passedStudent.sectionId?.classTeacherId;
-      const teacherName = teacher ? (teacher.firstName + " " + (teacher.lastName || "")) : STUDENT_ME_INITIAL.classTeacher;
+    const initPassedStudent = async () => {
+      if (passedStudent) {
+        const teacher = passedStudent.sectionId?.classTeacherId;
+        const teacherName = teacher ? (teacher.firstName + " " + (teacher.lastName || "")) : STUDENT_ME_INITIAL.classTeacher;
 
-      setStudent({
-        ...STUDENT_ME_INITIAL,
-        ...passedStudent,
-        name: `${passedStudent.firstName} ${passedStudent.lastName}`,
-        studentId: passedStudent.studentId,
-        avatarUrl: passedStudent.profilePhoto || STUDENT_ME_INITIAL.avatarUrl,
-        grade: passedStudent.gradeId?.gradeName || passedStudent.studentClass || passedStudent.grade || STUDENT_ME_INITIAL.grade,
-        section: passedStudent.sectionId?.sectionName || passedStudent.section || STUDENT_ME_INITIAL.section,
-        classTeacher: teacherName,
-        address: passedStudent.Address || STUDENT_ME_INITIAL.address,
-        phone: passedStudent.phone || passedStudent.phoneNumber || STUDENT_ME_INITIAL.phone,
-        email: passedStudent.email || STUDENT_ME_INITIAL.email,
-        fatherName: passedStudent.fatherName || STUDENT_ME_INITIAL.fatherName,
-        fatherPhone: passedStudent.fatherPhone || STUDENT_ME_INITIAL.fatherPhone,
-        motherName: passedStudent.motherName || STUDENT_ME_INITIAL.motherName,
-        motherPhone: passedStudent.motherPhone || STUDENT_ME_INITIAL.motherPhone
-      });
-      setIsLoaded(true);
-    } else {
-      fetchStudentData();
-    }
+        let yearlyStats = STUDENT_ME_INITIAL.yearlyAttendance;
+        try {
+          const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+          const [currentBSYear] = todayBS.split('-').map(Number);
+          const yearlyData = await attendanceService.getStudentYearlyAttendance(passedStudent._id, currentBSYear || 2081);
+          if (yearlyData) {
+            yearlyStats = {
+              present: yearlyData.present,
+              absent: yearlyData.absent,
+              rate: yearlyData.rate
+            };
+          }
+        } catch (e) {
+          console.warn("Failed to fetch yearly attendance stats for passed student", e);
+        }
+
+        setStudent({
+          ...STUDENT_ME_INITIAL,
+          ...passedStudent,
+          name: `${passedStudent.firstName} ${passedStudent.lastName}`,
+          studentId: passedStudent.studentId,
+          avatarUrl: passedStudent.profilePhoto || STUDENT_ME_INITIAL.avatarUrl,
+          grade: passedStudent.gradeId?.gradeName || passedStudent.studentClass || passedStudent.grade || STUDENT_ME_INITIAL.grade,
+          section: passedStudent.sectionId?.sectionName || passedStudent.section || STUDENT_ME_INITIAL.section,
+          classTeacher: teacherName,
+          address: passedStudent.Address || STUDENT_ME_INITIAL.address,
+          phone: passedStudent.phone || passedStudent.phoneNumber || STUDENT_ME_INITIAL.phone,
+          email: passedStudent.email || STUDENT_ME_INITIAL.email,
+          fatherName: passedStudent.fatherName || STUDENT_ME_INITIAL.fatherName,
+          fatherPhone: passedStudent.fatherPhone || STUDENT_ME_INITIAL.fatherPhone,
+          motherName: passedStudent.motherName || STUDENT_ME_INITIAL.motherName,
+          motherPhone: passedStudent.motherPhone || STUDENT_ME_INITIAL.motherPhone,
+          yearlyAttendance: yearlyStats
+        });
+        setIsLoaded(true);
+      } else {
+        fetchStudentData();
+      }
+    };
+    initPassedStudent();
   }, [passedStudent]);
+
+  const fetchResults = async () => {
+    if (!student._id) return;
+    try {
+      const results = await resultService.getStudentResults(student._id);
+      const grades = await gradeService.getGrades();
+      const examConfigData = await examService.getExamData();
+      setExamConfig(examConfigData);
+
+      if (examConfigData && examConfigData.termStatuses) {
+        const terms = examConfigData.termStatuses.map(t => t.term);
+        setAvailableTerms(terms);
+        // If current selectedTerm is not in the new list, pick the first available
+        if (terms.length > 0 && !terms.includes(selectedTerm)) {
+          setSelectedTerm(terms[0]);
+        }
+      }
+
+      // Check published status
+      const termStatus = examConfigData?.termStatuses?.find(
+        t => t.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
+      );
+      const published = termStatus?.isPublished === true;
+
+      // Find current result for selected term (only if published)
+      const currentResult = published ? results.find(r =>
+        r.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
+      ) : null;
+
+      // Find grade config for the student's class
+      const studentGradeNum = student.studentClass || student.grade;
+      const currentGradeConfig = grades.find(g =>
+        g.gradeNumber.toString() === studentGradeNum?.toString()
+      );
+
+      const calculateSubjectGrade = (total) => {
+        if (total >= 90) return 'A+';
+        if (total >= 80) return 'A';
+        if (total >= 70) return 'B+';
+        if (total >= 60) return 'B';
+        if (total >= 50) return 'C+';
+        if (total >= 40) return 'C';
+        return 'D';
+      };
+
+      let marksData = [];
+      if (currentGradeConfig) {
+        marksData = (currentGradeConfig.subjects || []).map(gs => {
+          const subjectDoc = gs.subjectId;
+          const subName = subjectDoc?.subjectName || 'Unknown';
+          const subId = subjectDoc?._id?.toString();
+          const markEntry = currentResult?.marks?.find(m =>
+            (m.subjectId?._id || m.subjectId)?.toString() === subId
+          );
+          return {
+            code: subId,
+            name: subName,
+            theory: markEntry ? (markEntry.theoryMarks ?? 0) : 0,
+            maxTheory: gs.theoryFullMarks || gs.fullMarks || 100,
+            practical: markEntry ? (markEntry.practicalMarks ?? 0) : 0,
+            maxPractical: gs.practicalFullMarks || gs.practicalMarks || (markEntry?.practicalMarks > 0 ? markEntry.practicalMarks : 0),
+            grade: markEntry ? calculateSubjectGrade((markEntry.theoryMarks + (markEntry.practicalMarks || 0))) : '—'
+          };
+        });
+      }
+
+      const overallGrade = currentResult?.summary?.percentage
+        ? calculateSubjectGrade(currentResult.summary.percentage)
+        : '—';
+
+      const overallGpa = currentResult?.summary?.gpa
+        ? Number(currentResult.summary.gpa).toFixed(2)
+        : "0.00";
+
+      setStudent(prev => ({
+        ...prev,
+        lastTermGPA: overallGpa,
+        marksheet: {
+          ...prev.marksheet,
+          percentage: currentResult?.summary?.percentage ? `${currentResult.summary.percentage}%` : '0%',
+          gradePoint: overallGpa,
+          overallGrade: overallGrade,
+          subjects: marksData
+        }
+      }));
+    } catch (err) {
+      console.warn("Failed to fetch exam results", err);
+    }
+  };
+
+  useEffect(() => {
+    if (student._id && isLoaded) {
+      fetchResults();
+    }
+  }, [selectedTerm, student._id, isLoaded]);
 
   const handleUpdateStudent = (updatedFields) => {
     setStudent(prev => ({ ...prev, ...updatedFields }));
@@ -929,17 +1145,42 @@ const StudentMePage = () => {
                 <label className="absolute -top-2 left-4 px-1.5 bg-white dark:bg-slate-900 text-[8px] font-black text-slate-400 capitalize tracking-widest z-10 transition-colors group-focus-within/select:text-emerald-500">
                   Academic Term
                 </label>
-                <div className="flex items-center">
-                  <select
-                    value={selectedTerm}
-                    onChange={(e) => setSelectedTerm(e.target.value)}
-                    className="appearance-none bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 pr-12 text-sm font-black text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/30 transition-all cursor-pointer shadow-inner min-w-[200px] capitalize tracking-wider"
+                <div className="flex items-center relative">
+                  <button
+                    onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
+                    className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 text-sm font-black text-slate-700 dark:text-slate-200 outline-none transition-all cursor-pointer shadow-inner min-w-[200px] capitalize tracking-wider group relative pr-14"
                   >
-                    <option value="First Term">First Term</option>
-                    <option value="Second Term">Second Term</option>
-                    <option value="Third Term">Third Term</option>
-                  </select>
-                  <ChevronDown size={18} className="absolute right-5 text-slate-400 pointer-events-none group-hover/select:text-emerald-500 transition-colors" />
+                    {selectedTerm}
+                    <ChevronDown size={18} className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`} />
+                  </button>
+
+                  {isTermDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-[60]"
+                        onClick={() => setIsTermDropdownOpen(false)}
+                      />
+                      <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                        <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
+                          {availableTerms.map(term => (
+                            <button
+                              key={term}
+                              onClick={() => {
+                                setSelectedTerm(term);
+                                setIsTermDropdownOpen(false);
+                              }}
+                              className={`w-full px-5 py-3 text-[11px] font-black text-left rounded-2xl transition-all uppercase tracking-widest ${selectedTerm === term
+                                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
+                                }`}
+                            >
+                              {term}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -952,7 +1193,40 @@ const StudentMePage = () => {
               </button>
             </div>
           </div>
-          <MarksheetSection marksheet={student.marksheet} />
+          {(() => {
+            const termStatus = examConfig?.termStatuses?.find(
+              t => t.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
+            );
+            const isPublished = termStatus?.isPublished === true;
+
+            if (!isPublished) {
+              return (
+                <div className="flex flex-col items-center justify-center py-20 gap-8">
+                  <div className="w-20 h-20 rounded-[28px] bg-slate-100 dark:bg-slate-800/80 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                  <div className="text-center space-y-3">
+                    <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Results Not Available</h4>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest max-w-sm">
+                      Academic records for{' '}
+                      <span className="text-emerald-500 font-black">{selectedTerm}</span>{' '}
+                      have not been finalized or published by the examination board yet.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 px-5 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+                    </svg>
+                    <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">Pending Publication</span>
+                  </div>
+                </div>
+              );
+            }
+            return <MarksheetSection marksheet={student.marksheet} />;
+          })()}
         </div>
       </div>
     </div>
@@ -1090,7 +1364,7 @@ const FeeStatusCard = ({ feeStatus, readOnly, onNavigate }) => (
     </div>
 
     {!readOnly && (
-      <button 
+      <button
         onClick={onNavigate}
         className="w-full mt-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[24px] font-black text-[10px] capitalize tracking-[0.2em] shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
       >

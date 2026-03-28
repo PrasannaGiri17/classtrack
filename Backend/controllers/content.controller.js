@@ -182,18 +182,28 @@ exports.getStudentResources = async (req, res) => {
   try {
     const { grade, section } = req.params;
     
+    const gradeStr = String(grade).trim();
+    const sectionStr = String(section).trim();
+
     const query = {
-      schoolId: req.schoolId,
-      grade: grade,
+      schoolId: Number(req.schoolId),
       $or: [
-        { section: 'ALL' },
-        { section: section }
+        { grade: gradeStr },
+        { grade: `Grade ${gradeStr}` },
+        { grade: { $regex: new RegExp(`^(\\s*Grade\\s+|G)?${gradeStr}\\s*$`, 'i') } }
       ],
+      $and: [{
+        $or: [
+          { section: 'ALL' },
+          { section: sectionStr },
+          { section: { $regex: new RegExp(`^${sectionStr}$`, 'i') } }
+        ]
+      }],
       isArchived: false,
-      type: { $ne: 'folder' } // Usually students see resources directly or within folders, but for global fetch let's exclude folders unless they are root
+      type: { $ne: 'folder' } 
     };
 
-    const resources = await Content.find(query).sort({ sharedOn: -1 });
+    const resources = await Content.find(query).populate('teacherId', 'firstName lastName').sort({ sharedOn: -1 });
     res.status(200).json(resources);
   } catch (error) {
     res.status(500).json({ message: "Error fetching student resources", error: error.message });

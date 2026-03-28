@@ -33,7 +33,8 @@ const getTimetable = async (req, res) => {
           subjectId: a.subjectId?._id || a.subjectId,
           teacherId: a.teacherId?._id || a.teacherId,
           subjectName: a.subjectId?.subjectName,
-          teacherName: a.teacherId ? `${a.teacherId.firstName} ${a.teacherId.lastName}` : null
+          teacherName: a.teacherId ? `${a.teacherId.firstName} ${a.teacherId.lastName}` : null,
+          topic: a.topic || "Normal Class"
         };
       });
     }

@@ -29,6 +29,7 @@ const capitalize = (str) => {
 const ClassCard = ({ slot, assignment }) => {
   const subjectName = capitalize(assignment?.subjectName || '');
   const teacherName = assignment?.teacherName || null;
+  const topic = assignment?.topic || "Normal Class";
 
   return (
     <motion.div
@@ -37,42 +38,45 @@ const ClassCard = ({ slot, assignment }) => {
       transition={{ duration: 0.3 }}
       className="relative group overflow-hidden rounded-[24px] border border-slate-700/50 bg-gradient-to-br from-[#0f1c2e] to-[#0a1628] hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
     >
-      {/* Subtle background glow */}
       <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full pointer-events-none" />
 
-      <div className="relative flex flex-col sm:flex-row items-center gap-5 px-6 py-5">
+      <div className="relative flex items-center px-8 py-5 min-h-[80px]">
 
-        {/* Time block */}
-        <div className="flex items-center gap-3 min-w-[160px]">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <Clock size={15} className="text-emerald-400" />
+        {/* Time block — Fixed width left */}
+        <div className="flex items-center gap-4 min-w-[180px] shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <Clock size={16} className="text-emerald-400" />
           </div>
-          <span className="text-sm font-bold text-slate-300 tabular-nums">{slot.timeRange}</span>
+          <span className="text-sm font-black text-slate-300 tabular-nums uppercase tracking-widest">{slot.timeRange}</span>
         </div>
 
-        {/* Divider */}
-        <div className="hidden sm:block w-px h-10 bg-slate-700/60 shrink-0" />
-
-        {/* Subject */}
-        <div className="flex-1 flex items-center justify-center sm:justify-start gap-2">
-          <BookOpen size={13} className="text-emerald-400 shrink-0" />
-          <h4 className="text-lg font-black text-white tracking-tight leading-none">
-            {subjectName || 'Class Period'}
-          </h4>
+        {/* Subject & Topic — Centered globally in the card */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
+           <div className="flex items-center gap-3">
+              <BookOpen size={16} className="text-indigo-400 opacity-50" />
+              <h4 className="text-xl font-black text-white tracking-tight uppercase">
+                {subjectName || 'Normal Class'}
+              </h4>
+           </div>
+           {topic && topic !== "Normal Class" && (
+             <span className="px-3 py-1 bg-slate-800/80 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-emerald-500/20">
+               {topic}
+             </span>
+           )}
         </div>
 
-        {/* Teacher Name (right side) — fixed width keeps all names aligned */}
-        <div className="shrink-0 w-[200px] flex items-center gap-2">
+        {/* Teacher Name — Fixed width right */}
+        <div className="ml-auto min-w-[200px] flex justify-end items-center">
           {teacherName ? (
-            <>
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                <User2 size={13} className="text-emerald-400" />
-              </div>
-              <span className="text-sm font-semibold text-slate-300 tracking-tight truncate">{teacherName}</span>
-            </>
-          ) : null}
+            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.15em] hover:text-white transition-colors cursor-default">
+              {teacherName}
+            </span>
+          ) : (
+            <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest italic">Faculty unassigned</span>
+          )}
         </div>
+
       </div>
     </motion.div>
   );

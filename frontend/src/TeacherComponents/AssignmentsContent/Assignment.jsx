@@ -184,19 +184,22 @@ const Assignment = ({ activeTab, setActiveTab }) => {
             const questionFileUrls = await Promise.all(filePromises);
 
             let grade, section;
-            const classMatch = newAssignment.classRef.match(/(?:Grade\s+|G)(\d+)(?:\s*-\s*|\s*)([A-Za-z]+)/i);
+            const classRef = newAssignment.classRef.trim();
+            // Supports: "Grade 4 - A", "Grade 4-A", "Grade 4 A", "G4-A", "4-A", "4 - A"
+            const classMatch = classRef.match(/^(?:Grade\s+|G)?\s*(\d+)(?:\s*-\s*|\s+)([A-Za-z]+)$/i);
 
             if (classMatch) {
                 grade = classMatch[1];
-                section = classMatch[2].toUpperCase();
+                section = classMatch[2].trim().toUpperCase();
             } else {
-                const gradeOnlyMatch = newAssignment.classRef.match(/(?:Grade\s+|G)(\d+)/i);
+                // Supports: "Grade 4", "G4", "4"
+                const gradeOnlyMatch = classRef.match(/^(?:Grade\s+|G)?\s*(\d+)$/i);
                 if (gradeOnlyMatch) {
                     grade = gradeOnlyMatch[1];
                     section = 'ALL';
                 } else {
-                    grade = newAssignment.classRef;
-                    section = 'N/A';
+                    grade = classRef;
+                    section = 'ALL';
                 }
             }
 

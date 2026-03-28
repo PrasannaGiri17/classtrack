@@ -22,6 +22,12 @@ exports.createEvent = async (req, res) => {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
 
+    // Role-based audience restriction
+    const role = req.user?.role;
+    if (role !== 'admin' && audience !== 'Personal') {
+      return res.status(403).json({ message: 'Only administrators can broadcast events to broad audiences' });
+    }
+
     // Default color logic if not provided
     let eventColor = color;
     if (!eventColor) {
@@ -62,29 +68,41 @@ exports.createEvent = async (req, res) => {
 exports.getEvents = async (req, res) => {
   try {
     const { from, to, createdBy } = req.query;
+    const schoolId = req.schoolId;
+    const role = req.user?.role;
+
+    if (!schoolId) {
+      return res.status(401).json({ message: 'School identification missing. Please relogin.' });
+    }
 
     const query = {
-      schoolId: req.schoolId
+      schoolId: schoolId
     };
 
-    // Access Control: Students should see school events (no creator) OR their own events
-    if (createdBy) {
-      query.$or = [
-        { createdBy: { $exists: false } },
-        { createdBy: null },
-        { createdBy: createdBy }
-      ];
+    // Logic: Users see events targeted at them/whole school OR events they created
+    const visibilityFilters = [
+      { audience: 'Whole School' },
+      { createdBy: null },
+      { createdBy: { $exists: false } }
+    ];
+
+    if (role === 'student') visibilityFilters.push({ audience: 'Students' });
+    if (role === 'teacher') visibilityFilters.push({ audience: 'Teachers' });
+    
+    // Always show personal events created by the requester
+    const userId = req.user?._id || createdBy;
+    if (userId) {
+      visibilityFilters.push({ createdBy: userId });
     }
+
+    query.$or = visibilityFilters;
 
     // Date range filter for Events
     if (from && to) {
       const dateQuery = {
         $or: [
-          // Event starts within range
           { startDate: { $gte: new Date(from), $lte: new Date(to) } },
-          // Event ends within range
           { endDate: { $gte: new Date(from), $lte: new Date(to) } },
-          // Event spans the entire range (starts before and ends after)
           { 
             startDate: { $lte: new Date(from) },
             endDate: { $gte: new Date(to) }
@@ -92,16 +110,14 @@ exports.getEvents = async (req, res) => {
         ]
       };
 
-      // Combine with existing query if createdBy was present
-      if (query.$or) {
-        query.$and = [
-          { $or: query.$or },
-          dateQuery
-        ];
-        delete query.$or;
-      } else {
-        query.$or = dateQuery.$or;
-      }
+      // Wrap the previous $or query with the dateQuery in an $and
+      const existingOr = query.$or;
+      delete query.$or;
+      
+      query.$and = [
+        { $or: existingOr },
+        { $or: dateQuery.$or }
+      ];
     }
 
     // Fetch Events and Holidays concurrently
@@ -177,8 +193,15 @@ exports.deleteEvent = async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    // Optional: Check ownership or permissions here if needed
-    
+    // Permission check: only admin can delete school-wide events
+    // Others can only delete events they created themselves
+    const isAdmin = req.user?.role === 'admin';
+    const isCreator = event.createdBy && event.createdBy.toString() === req.user?._id.toString();
+
+    if (!isAdmin && !isCreator) {
+      return res.status(403).json({ message: 'You do not have permission to delete this event.' });
+    }
+
     await event.deleteOne();
 
     res.json({ message: 'Event removed' });

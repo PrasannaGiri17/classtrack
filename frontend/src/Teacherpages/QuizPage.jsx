@@ -149,7 +149,8 @@ const QuizPage = () => {
   const fetchQuizzes = async () => {
     try {
       setLoadingQuizzes(true);
-      const data = await quizService.getAllQuizzes();
+      const teacherId = localStorage.getItem('teacherId');
+      const data = await quizService.getAllQuizzes(teacherId);
       setQuizzes(data);
       if (data.length > 0 && !selectedAnalyticsQuizId) {
         setSelectedAnalyticsQuizId(data[0]._id);
@@ -242,6 +243,7 @@ const QuizPage = () => {
 
   const handleCreateQuiz = async (e) => {
     e.preventDefault();
+    const teacherId = localStorage.getItem('teacherId');
     if (!newQuiz.title.trim()) {
       toast({ type: 'warning', message: 'Evaluation identity (title) required.' });
       return;
@@ -278,6 +280,7 @@ const QuizPage = () => {
     else if (now > newQuiz.endDate) initialStatus = 'Completed';
 
     const entryData = {
+      teacherId,
       title: newQuiz.title,
       subject: newQuiz.subject,
       grade,

@@ -28,7 +28,11 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       notification: 'Notifications',
       fee: 'Fee Management',
       profile: 'My Profile',
-      messages: 'Messages'
+      messages: 'Messages',
+      discussions: 'Discussion',
+      diary: 'Diary',
+      quiz: 'Quiz Management',
+      assignments: 'Assignments'
     };
     return pageNames[activePage] || 'Dashboard';
   };

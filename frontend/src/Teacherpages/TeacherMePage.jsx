@@ -172,15 +172,7 @@ const TeacherMePage = () => {
         fetchData();
     }, [id]);
 
-    const classes = React.useMemo(() => {
-        if (!schoolConfig || !schoolConfig.gradeSpan) return [];
-        const { start, end } = schoolConfig.gradeSpan;
-        const list = [];
-        for (let i = start; i <= end; i++) {
-            list.push(String(i));
-        }
-        return list;
-    }, [schoolConfig]);
+
 
     const getInitials = (firstName, lastName) => {
         return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
@@ -551,22 +543,10 @@ const TeacherMePage = () => {
                                         </div>
                                     </div>
 
-                                    <div className="md:col-span-1 space-y-3">
+                                    <div className="md:col-span-1 space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-400 ml-1">Assigned Grades</label>
-                                        <div className="flex flex-wrap gap-3">
-                                            {classes.map((cls) => (
-                                                <button
-                                                    key={cls}
-                                                    type="button"
-                                                    className={`px-6 py-3 rounded-2xl text-[10px] font-black transition-all border cursor-default ${formData.class.includes(cls)
-                                                        ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20"
-                                                        : "bg-white dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-800"
-                                                        }`}
-                                                    disabled
-                                                >
-                                                    Grade {cls}
-                                                </button>
-                                            ))}
+                                        <div className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl text-sm font-black transition-all dark:text-white shadow-inner cursor-default">
+                                            {teacher.assignedGrades?.map(g => g.gradeNumber || g).join(", ") || "N/A"}
                                         </div>
                                     </div>
 

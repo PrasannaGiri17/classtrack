@@ -15,12 +15,16 @@ import {
   X,
   CreditCard as CardIcon,
   Search,
-  Wallet
+  Wallet,
+  Printer
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { toast } from '../MainSystemComponents/Toast';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
 import feeService from '../Api/feeService';
 import studentService from '../Api/studentService';
+import FeeModal from './FeeModal';
 import { getNepaliDateInfo } from '../Utils/nepaliDateHelpers';
 
 const NEPALI_MONTHS = [
@@ -39,6 +43,8 @@ const SFeeManagement = () => {
     name: localStorage.getItem("userName") || "Student",
     class: "Grade",
     studentId: localStorage.getItem("studentId") || "STU-000",
+    schoolId: localStorage.getItem("studentSchoolId") || "N/A",
+    schoolName: localStorage.getItem("schoolName") || "N/A",
     academicYear: "2081/82",
     avatarUrl: localStorage.getItem("userPhoto") || null
   });
@@ -67,6 +73,7 @@ const SFeeManagement = () => {
             name: `${sData.firstName} ${sData.lastName}`,
             class: sData.classId?.gradeName || `Grade ${sData.studentClass || ''}`,
             studentId: sData.studentId || prev.studentId,
+            schoolId: sData.schoolId || prev.schoolId,
             avatarUrl: sData.profilePhoto || prev.avatarUrl
           }));
         } catch (sErr) {
@@ -186,6 +193,74 @@ const SFeeManagement = () => {
     }, 1500);
   };
 
+  const generateFullStatement = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(16, 185, 129); // Emerald-500
+    doc.text(studentInfo.schoolName.toUpperCase() || "SCHOOL STATEMENT", pageWidth / 2, 20, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.setTextColor(100, 116, 139); // Slate-500
+    doc.text("Academic Fee Account Statement", pageWidth / 2, 30, { align: 'center' });
+    
+    // Horizontal Line
+    doc.setDrawColor(241, 245, 249);
+    doc.line(14, 38, pageWidth - 14, 48);
+    
+    // Student Info
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Student Name: ${studentInfo.name}`, 14, 50);
+    doc.text(`Student ID: ${studentInfo.studentId}`, 14, 57);
+    doc.text(`Class: ${studentInfo.class}`, 14, 64);
+    
+    doc.text(`Academic Year: ${studentInfo.academicYear}`, pageWidth - 14, 50, { align: 'right' });
+    doc.text(`Generated Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, 57, { align: 'right' });
+    doc.text(`Total Dues: Rs. ${totalDueSummary.toLocaleString()}`, pageWidth - 14, 64, { align: 'right' });
+    
+    // Table Rows
+    const tableRows = fees.map((f, i) => [
+      i + 1,
+      f.monthName,
+      f.status,
+      `Rs. ${f.totalAmount.toLocaleString()}`,
+      `Rs. ${f.dueAmount.toLocaleString()}`,
+      f.status === 'PAID' ? 'SETTLED' : 'OUTSTANDING'
+    ]);
+    
+    autoTable(doc, {
+      startY: 75,
+      head: [['S.N', 'Month', 'Status', 'Total Charge', 'Amount Due', 'Remarks']],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: {
+        0: { cellWidth: 15 },
+        1: { fontStyle: 'bold' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'center' }
+      }
+    });
+    
+    // Summary
+    const finalY = (doc).lastAutoTable.finalY + 15;
+    doc.setFontSize(12);
+    doc.text(`Summary Balance: Rs. ${totalDueSummary.toLocaleString()}`, pageWidth - 14, finalY, { align: 'right' });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text("This is an official computer-generated statement of the school and does not require a physical signature.", pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
+    
+    doc.save(`${studentInfo.name.replace(/\s+/g, '_')}_Statement.pdf`);
+    toast({ type: 'success', message: 'Account Statement Generated Successfully!' });
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-40">
@@ -196,8 +271,19 @@ const SFeeManagement = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-32 pt-2">
-
-
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter uppercase mb-2">School Fee Ledger</h1>
+          <p className="text-sm font-bold text-slate-400 tracking-widest uppercase">Digital Payment & Account Reconciliation</p>
+        </div>
+        <button 
+          onClick={generateFullStatement}
+          className="flex items-center gap-3 px-8 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-widest shadow-xl hover:translate-y-[-4px] active:scale-95 transition-all group"
+        >
+          <Printer size={18} className="text-emerald-500 group-hover:scale-110 transition-transform" />
+          Print Account Statement
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-12 items-start">
 
@@ -242,9 +328,11 @@ const SFeeManagement = () => {
                       </div>
 
                       <div>
-                        <p className={`text-[10px] font-black tracking-widest mb-1 ${isSelected ? 'text-emerald-100' : 'text-slate-400 dark:text-slate-500 capitalize'}`}>DUE AMOUNT</p>
+                        <p className={`text-[10px] font-black tracking-widest mb-1 ${isSelected ? 'text-emerald-100' : isPaid ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500 capitalize'}`}>
+                          {isPaid ? 'PAID AMOUNT' : 'DUE AMOUNT'}
+                        </p>
                         <p className={`text-2xl font-black tabular-nums ${isSelected ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-                          Rs. {fee.dueAmount.toLocaleString()}
+                          Rs. {(isPaid ? fee.totalAmount : fee.dueAmount).toLocaleString()}
                         </p>
                       </div>
 
@@ -438,37 +526,14 @@ const SFeeManagement = () => {
       </PortalPopup>
 
       {/* Payment Confirmation Modal */}
-      <PortalPopup isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)}>
-        <div className="bg-white dark:bg-slate-900 w-[95vw] max-w-xl rounded-[44px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden pointer-events-auto">
-          <div className="p-10 space-y-8 text-center">
-            <div className="w-20 h-20 bg-emerald-600 rounded-[30px] flex items-center justify-center text-white mx-auto shadow-2xl shadow-emerald-500/40 animate-bounce">
-              <ShieldCheck size={36} />
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">Confirm Transaction</h2>
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed px-10">
-                You are about to pay <span className="text-slate-900 dark:text-white font-black">Rs.{subTotal.toLocaleString()}</span> for <span className="text-emerald-500 font-black">{selectedIndexes.length} Months</span>.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <button
-                onClick={() => setIsConfirmModalOpen(false)}
-                className="py-5 text-[11px] font-black tracking-widest text-slate-400 hover:bg-slate-50 rounded-3xl transition-all capitalize"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmPayment}
-                className="py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-3xl font-black text-xs tracking-widest shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-3 capitalize"
-              >
-                Confirm & Pay
-              </button>
-            </div>
-          </div>
-        </div>
-      </PortalPopup>
+       <FeeModal 
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        studentInfo={studentInfo}
+        selectedFees={selectedFees}
+        totalAmount={subTotal}
+        onConfirm={confirmPayment}
+      />
     </div>
   );
 };

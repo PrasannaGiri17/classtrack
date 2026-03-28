@@ -29,11 +29,20 @@ import {
     Trophy,
     Target,
     Percent,
-    CalendarDays
+    CalendarDays,
+    ArrowLeft
 } from 'lucide-react';
 import { toast } from '../MainSystemComponents/Toast';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import { AddPopupStudent } from '../AdminComponents/Admin/AddPopupStudent';
+import studentService from '../Api/studentService';
+import attendanceService from '../Api/attendanceService';
+import resultService from '../Api/resultService';
+import gradeService from '../Api/gradeService';
+import examService from '../Api/examService';
+import feeService from '../Api/feeService';
+import calendarService from '../Api/calendarService';
+import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
 import Loading from '../MainSystemComponents/Loading';
 
 // --- Helpers ---
@@ -112,9 +121,95 @@ const STUDENT_ME_INITIAL = {
 
 // --- Sub-components ---
 
-const AttendanceSummaryCard = ({ monthly, yearly }) => {
-    const [selectedMonth, setSelectedMonth] = useState(monthly.month);
-    const presentPercent = Math.round((monthly.presentDays / monthly.totalDays) * 100);
+const AttendanceSummaryCard = ({ yearly, studentId }) => {
+    const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+    const [currentBSYear, currentBSMonth] = todayBS.split('-').map(Number);
+
+    const [selectedMonth, setSelectedMonth] = useState(NEPALI_MONTHS[currentBSMonth - 1] || "Falgun");
+    const [selectedYear, setSelectedYear] = useState(currentBSYear || 2081);
+    const [monthlyData, setMonthlyData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    const getBSMonthDateRange = (y, m) => {
+        const startStr = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+        const startAD = new Date(convertBStoAD(startStr));
+        let lastAD = new Date(startAD);
+        let dayBS = 1;
+        while (dayBS < 33) {
+            const nextBS = `${y}-${String(m + 1).padStart(2, '0')}-${String(dayBS + 1).padStart(2, '0')}`;
+            try {
+                const nextAD = convertBStoAD(nextBS);
+                if (!nextAD) break;
+                lastAD = new Date(nextAD);
+                dayBS++;
+            } catch (e) {
+                break;
+            }
+        }
+        return { startAD, lastAD };
+    };
+
+    const getWorkingDaysCount = async (startAD, endAD) => {
+        try {
+            const holidaysList = await calendarService.getEvents(
+                new Date(startAD).toISOString().split('T')[0],
+                new Date(endAD).toISOString().split('T')[0]
+            );
+            const holidayDates = new Set(
+                holidaysList
+                    .filter(e => e.type === 'HOLIDAY')
+                    .map(e => new Date(e.startDate).toISOString().split('T')[0])
+            );
+
+            let count = 0;
+            let cur = new Date(startAD);
+            const end = new Date(endAD);
+            while (cur <= end) {
+                if (cur.getDay() !== 6 && !holidayDates.has(cur.toISOString().split('T')[0])) {
+                    count++;
+                }
+                cur.setDate(cur.getDate() + 1);
+            }
+            return count;
+        } catch (err) { return 0; }
+    };
+
+    const fetchMonthly = async () => {
+        if (!studentId) return;
+        setLoading(true);
+        try {
+            const [data, range] = await Promise.all([
+                attendanceService.getStudentMonthlyAttendance(studentId, selectedYear, selectedMonth),
+                Promise.resolve(getBSMonthDateRange(selectedYear, NEPALI_MONTHS.indexOf(selectedMonth)))
+            ]);
+            const workingDays = await getWorkingDaysCount(range.startAD, range.lastAD);
+
+            if (data && data.dailyStatus) {
+                let present = 0, absents = [];
+                Object.keys(data.dailyStatus).forEach(day => {
+                    if (data.dailyStatus[day] === 'P') present++;
+                    if (data.dailyStatus[day] === 'A') {
+                        let suffix = 'th';
+                        const dNum = parseInt(day);
+                        if (dNum % 10 === 1 && dNum !== 11) suffix = 'st';
+                        else if (dNum % 10 === 2 && dNum !== 12) suffix = 'nd';
+                        else if (dNum % 10 === 3 && dNum !== 13) suffix = 'rd';
+                        absents.push(`${day}${suffix} ${selectedMonth}`);
+                    }
+                });
+                setMonthlyData({ presentDays: present, totalDays: workingDays || 25, absentDates: absents });
+            } else {
+                setMonthlyData({ presentDays: 0, totalDays: workingDays || 25, absentDates: [] });
+            }
+        } catch (err) {
+            setMonthlyData({ presentDays: 0, totalDays: 25, absentDates: [] });
+        } finally { setLoading(false); }
+    };
+
+    useEffect(() => { fetchMonthly(); }, [selectedMonth, selectedYear, studentId]);
+
+    const displayMonthly = monthlyData || { presentDays: 0, totalDays: 25, absentDates: [] };
+    const presentPercent = displayMonthly.totalDays > 0 ? Math.round((displayMonthly.presentDays / displayMonthly.totalDays) * 100) : 0;
 
     return (
         <div className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 p-7 lg:p-9">
@@ -155,14 +250,11 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
 
                     {/* Big ratio */}
                     <div>
-                        <div className="flex items-baseline gap-1.5">
-                            <span className="text-5xl font-black text-emerald-500 tracking-tighter leading-none tabular-nums">{monthly.presentDays}</span>
-                            <span className="text-2xl font-bold text-slate-300 dark:text-slate-600 leading-none">/</span>
-                            <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 leading-none tabular-nums">{monthly.totalDays}</span>
+                        <div className="flex items-baseline gap-1.5 pt-2">
+                            <span className="text-[11px] font-medium text-slate-400">
+                                Days present in <span className="font-bold text-emerald-500">{selectedMonth}</span>
+                            </span>
                         </div>
-                        <p className="text-[11px] font-medium text-slate-400 mt-2">
-                            Days present in <span className="font-bold text-emerald-500">{selectedMonth}</span>
-                        </p>
                         {/* Monthly progress bar */}
                         <div className="mt-3 h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
@@ -178,11 +270,11 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
                         <div className="flex items-center justify-between">
                             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wide">Absence Registry</p>
                             <span className="px-2.5 py-0.5 bg-red-50 dark:bg-red-500/10 text-red-500 text-[9px] font-black rounded-full border border-red-100 dark:border-red-500/20">
-                                {monthly.absentDates.length} Dates
+                                {displayMonthly.absentDates.length} Dates
                             </span>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                            {monthly.absentDates.map((date, idx) => (
+                            {displayMonthly.absentDates.map((date, idx) => (
                                 <span key={idx} className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 text-[9px] font-semibold text-slate-600 dark:text-slate-400">
                                     <span className="w-1 h-1 rounded-full bg-red-400 shrink-0" />
                                     {date}
@@ -194,7 +286,6 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
 
                 {/* RIGHT — Yearly */}
                 <div className="space-y-5 md:pl-6 md:border-l border-slate-100 dark:border-slate-800">
-
                     {/* Rate */}
                     <div>
                         <p className="text-[10px] font-bold text-slate-400 tracking-widest mb-3">Yearly Performance</p>
@@ -238,7 +329,7 @@ const AttendanceSummaryCard = ({ monthly, yearly }) => {
                                 <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
                                 <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">Total School Days</span>
                             </div>
-                            <p className="text-4xl font-black text-slate-900 dark:text-white leading-none tabular-nums">{yearly.present + yearly.absent}</p>
+                            <p className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight tabular-nums">{yearly.totalDays || (yearly.present + yearly.absent)}</p>
                         </div>
                     </div>
                 </div>
@@ -397,6 +488,11 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
                             <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1.5">Roll</p>
                             <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{student.rollNo}</p>
                         </div>
+                        <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-2" />
+                        <div className="flex-1 flex flex-col items-center text-center min-w-fit">
+                            <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1.5">Attendance</p>
+                            <p className={`text-2xl font-black ${currentTheme.icon} tracking-tight leading-none transition-colors`}>{student.yearlyAttendance?.rate || 0}%</p>
+                        </div>
                     </div>
                 </div>
 
@@ -450,79 +546,84 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
 // --- Detailed Marksheet Components ---
 
 const SubjectResultCard = ({ s }) => {
-    const overallPercent = ((s.theory + (s.practical || 0)) / (s.maxTheory + (s.maxPractical || 0))) * 100;
-    const theoryPercent = (s.theory / s.maxTheory) * 100;
-    const practicalPercent = s.practical ? (s.practical / s.maxPractical) * 100 : 0;
+    const radius = 45;
+    const circumference = 2 * Math.PI * radius;
+    const totalFullMarks = 100;
+    const overallPercent = ((s.theory + (s.practical || 0)) / totalFullMarks) * 100;
+    const theoryDash      = (s.theory    / totalFullMarks) * circumference;
+    const practicalDash   = (s.practical / totalFullMarks) * circumference;
 
     return (
-        <div className="bg-slate-50 dark:bg-[#0b1220] rounded-[40px] p-8 lg:p-10 border border-slate-200 dark:border-slate-800/60 shadow-xl dark:shadow-2xl flex flex-col items-center gap-10 group hover:border-emerald-500/30 transition-all duration-500 relative overflow-hidden">
-            {/* Decorative background pulse */}
-            <div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none group-hover:bg-emerald-500/10 transition-colors" />
-
-            {/* Full Subject Name Badge */}
-            <div className="px-6 py-2 bg-slate-200 dark:bg-slate-900/80 rounded-2xl border border-slate-300 dark:border-slate-700/50 backdrop-blur-sm shadow-md dark:shadow-xl">
-                <span className="text-xs font-black text-slate-800 dark:text-white tracking-[0.25em]">{s.name}</span>
+        <div className="bg-slate-50 dark:bg-[#0b1220] rounded-[40px] p-8 border border-slate-200 dark:border-slate-800/60 shadow-xl flex flex-col items-center gap-8 group hover:border-emerald-500/30 transition-all duration-500 relative overflow-hidden">
+            {/* Subject Name Badge */}
+            <div className="px-5 py-2 bg-slate-200 dark:bg-slate-900/80 rounded-2xl border border-slate-300 dark:border-slate-700/50">
+                <span className="text-[10px] font-black text-slate-800 dark:text-white capitalize tracking-[0.2em]">{s.name}</span>
             </div>
 
-            <div className="flex flex-row items-center justify-center w-full gap-5 lg:gap-8 relative z-10">
-                {/* Theory Circle */}
-                <div className="flex flex-col items-center gap-4">
-                    <span className="text-[10px] font-black text-emerald-500/80 tracking-widest">Theory</span>
-                    <div className="relative">
-                        <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full flex flex-col items-center justify-center bg-slate-200 dark:bg-slate-900/50 shadow-[inset_0_0_15px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
-                            <span className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tighter tabular-nums">{s.theory}</span>
-                            <div className="h-[1px] w-8 bg-slate-300 dark:bg-slate-700/50 my-1.5" />
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">{s.maxTheory}</span>
-                        </div>
-                        {/* Progress Overlay */}
-                        <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none overflow-visible">
+            <div className="relative flex items-center justify-center w-full py-2">
+                <div className="relative w-32 h-32 flex items-center justify-center">
+                    <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none overflow-visible" viewBox="0 0 110 110">
+                        {/* Background track */}
+                        <circle cx="55" cy="55" r={radius} className="fill-none stroke-slate-200 dark:stroke-slate-800/60 stroke-[5]" />
+
+                        {/* Theory arc — green */}
+                        <circle
+                            cx="55" cy="55" r={radius}
+                            fill="none" stroke="#10b981" strokeWidth="5"
+                            strokeDasharray={`${theoryDash} ${circumference}`}
+                            strokeLinecap="round"
+                            style={{ filter: 'drop-shadow(0 0 4px rgba(16,185,129,0.5))' }}
+                        />
+
+                        {/* Practical arc — indigo, starts after theory */}
+                        {s.maxPractical > 0 && (
                             <circle
-                                cx="50%" cy="50%" r="48"
-                                className="fill-none stroke-emerald-500 stroke-[5] lg:r-[56]"
-                                strokeDasharray="301"
-                                strokeDashoffset={301 - (301 * theoryPercent) / 100}
+                                cx="55" cy="55" r={radius}
+                                fill="none" stroke="#818cf8" strokeWidth="5"
+                                strokeDasharray={`${practicalDash} ${circumference}`}
+                                strokeDashoffset={-theoryDash}
                                 strokeLinecap="round"
-                                style={{ filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.5))' }}
+                                style={{ filter: 'drop-shadow(0 0 4px rgba(129,140,248,0.5))' }}
                             />
-                        </svg>
+                        )}
+                    </svg>
+
+                    {/* Scores inside circle */}
+                    <div className="flex flex-col items-center justify-center z-10">
+                        {s.maxPractical > 0 ? (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-2xl font-black text-emerald-500 leading-none tabular-nums">{s.theory}</span>
+                                <span className="text-base font-black text-slate-400 dark:text-slate-600 leading-none">|</span>
+                                <span className="text-2xl font-black text-indigo-400 leading-none tabular-nums">{s.practical}</span>
+                            </div>
+                        ) : (
+                            <span className="text-3xl font-black text-emerald-500 leading-none tabular-nums">{s.theory}</span>
+                        )}
+                        <div className="h-px w-8 bg-slate-300 dark:bg-slate-700/50 my-1.5" />
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+                            100
+                        </span>
                     </div>
                 </div>
-
-                {/* Practical Circle (If exists) */}
-                {s.maxPractical && (
-                    <div className="flex flex-col items-center gap-4">
-                        <span className="text-[10px] font-black text-indigo-400/80 tracking-widest">Practical</span>
-                        <div className="relative">
-                            <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-full flex flex-col items-center justify-center bg-slate-200 dark:bg-slate-900/50 shadow-[inset_0_0_15px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
-                                <span className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tighter">{s.practical}</span>
-                                <div className="h-[1px] w-8 bg-slate-300 dark:bg-slate-700/50 my-1.5" />
-                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{s.maxPractical}</span>
-                            </div>
-                            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none overflow-visible">
-                                <circle
-                                    cx="50%" cy="50%" r="48"
-                                    className="fill-none stroke-indigo-400 stroke-[5] lg:r-[56]"
-                                    strokeDasharray="301"
-                                    strokeDashoffset={301 - (301 * practicalPercent) / 100}
-                                    strokeLinecap="round"
-                                    style={{ filter: 'drop-shadow(0 0 8px rgba(129,140,248,0.5))' }}
-                                />
-                            </svg>
-                        </div>
-                    </div>
-                )}
             </div>
 
-            <div className="w-full space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800/40">
-                <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-widest">Overall Performance</span>
+            {/* Footer Stats */}
+            <div className="w-full space-y-3 pt-5 border-t border-slate-200 dark:border-slate-800/40">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                        <span className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Theory</span>
+                        {s.maxPractical > 0 && (
+                            <>
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block ml-2" />
+                                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-wider">Practical</span>
+                            </>
+                        )}
                     </div>
-                    <span className="text-sm font-black text-emerald-500">{s.grade}</span>
+                    <span className="text-xs font-black text-emerald-500">{s.grade}</span>
                 </div>
                 <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)] transition-all duration-1000" style={{ width: `${overallPercent}%` }} />
+                    <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${overallPercent}%` }} />
                 </div>
             </div>
         </div>
@@ -629,37 +730,129 @@ const StudentPage = () => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [student, setStudent] = useState(STUDENT_ME_INITIAL);
     const [selectedTerm, setSelectedTerm] = useState('First Term');
+    const [availableTerms, setAvailableTerms] = useState(['First Term', 'Second Term', 'Third Term']);
     const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [examConfig, setExamConfig] = useState(null);
+    const [isTermDropdownOpen, setIsTermDropdownOpen] = useState(false);
+
+    const fetchResults = async (studentId, currentClass) => {
+        try {
+            const [results, grades, examConfig] = await Promise.all([
+                resultService.getStudentResults(studentId),
+                gradeService.getGrades(),
+                examService.getExamData()
+            ]);
+
+            if (examConfig?.termStatuses) {
+                setExamConfig(examConfig);
+                setAvailableTerms(examConfig.termStatuses.map(t => t.term));
+            }
+
+            const currentResult = results.find(r => r.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim());
+            const currentGradeConfig = grades.find(g => g.gradeNumber.toString() === currentClass?.toString());
+
+            const calculateGrade = (total) => {
+                if (total >= 90) return 'A+';
+                if (total >= 80) return 'A';
+                if (total >= 70) return 'B+';
+                if (total >= 60) return 'B';
+                if (total >= 50) return 'C+';
+                if (total >= 40) return 'C';
+                return 'D';
+            };
+
+            let marksData = [];
+            if (currentGradeConfig) {
+                marksData = (currentGradeConfig.subjects || []).map(gs => {
+                    const subId = gs.subjectId?._id?.toString();
+                    const markEntry = currentResult?.marks?.find(m => (m.subjectId?._id || m.subjectId)?.toString() === subId);
+                    return {
+                        code: subId,
+                        name: gs.subjectId?.subjectName || 'Unknown',
+                        theory: markEntry ? (markEntry.theoryMarks ?? 0) : 0,
+                        maxTheory: gs.theoryFullMarks || gs.fullMarks || 100,
+                        practical: markEntry ? (markEntry.practicalMarks ?? 0) : 0,
+                        maxPractical: gs.practicalFullMarks || gs.practicalMarks || (markEntry?.practicalMarks > 0 ? markEntry.practicalMarks : 0),
+                        grade: markEntry ? calculateGrade(markEntry.theoryMarks + (markEntry.practicalMarks || 0)) : '—'
+                    };
+                });
+            }
+
+            const overallGpa = currentResult?.summary?.gpa ? Number(currentResult.summary.gpa).toFixed(2) : "0.00";
+
+            setStudent(prev => ({
+                ...prev,
+                lastTermGPA: overallGpa,
+                marksheet: {
+                    ...prev.marksheet,
+                    percentage: currentResult?.summary?.percentage ? `${currentResult.summary.percentage}%` : '0%',
+                    gradePoint: overallGpa,
+                    overallGrade: currentResult?.summary?.percentage ? calculateGrade(currentResult.summary.percentage) : '—',
+                    subjects: marksData
+                }
+            }));
+        } catch (e) { console.warn("Results fetch error", e); }
+    };
 
     const fetchStudent = async () => {
         try {
             if (id) {
-                const response = await axios.get(`http://localhost:7000/api/students/${id}`);
-                const data = response.data;
+                const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+                const [curY] = todayBS.split('-').map(Number);
+                const startAD = convertBStoAD(`${curY}-01-01`);
+                const endAD = new Date().toISOString().split('T')[0];
 
-                // Map backend data to frontend structure
+                const [studentRes, yearlyRes, holidaysList] = await Promise.all([
+                    studentService.getStudentById(id),
+                    attendanceService.getStudentYearlyAttendance(id, curY || 2081),
+                    calendarService.getEvents(startAD, endAD)
+                ]);
+
+                const data = studentRes;
+                const yearlyData = yearlyRes;
+                const holidayDates = new Set(holidaysList.filter(e => e.type === 'HOLIDAY').map(e => new Date(e.startDate).toISOString().split('T')[0]));
+
+                let workingDaysCount = 0;
+                let cur = new Date(startAD);
+                const end = new Date(endAD);
+                while (cur <= end) {
+                    if (cur.getDay() !== 6 && !holidayDates.has(cur.toISOString().split('T')[0])) workingDaysCount++;
+                    cur.setDate(cur.getDate() + 1);
+                }
+
+                const finalYearly = yearlyData ? {
+                    present: yearlyData.present,
+                    absent: yearlyData.absent,
+                    totalDays: workingDaysCount,
+                    rate: workingDaysCount > 0 ? Math.round((yearlyData.present / workingDaysCount) * 100) : 0
+                } : STUDENT_ME_INITIAL.yearlyAttendance;
+
                 setStudent(prev => ({
                     ...prev,
                     ...data,
                     name: `${data.firstName} ${data.lastName}`,
                     grade: data.studentClass,
+                    section: data.sectionId?.sectionName || "",
+                    classTeacher: data.sectionId?.classTeacherId ? `${data.sectionId.classTeacherId.firstName} ${data.sectionId.classTeacherId.lastName || ""}` : "Unassigned",
                     permanentAddress: data.Address,
                     dateOfBirth: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0].split('-').reverse().join('/') : null,
-                    // Maintain original mock data for fields not yet in backend
+                    yearlyAttendance: finalYearly
                 }));
+
+                await fetchResults(id, data.studentClass);
             }
             setIsLoaded(true);
         } catch (err) {
-            console.error("Failed to fetch student:", err);
-            toast({ type: 'error', message: 'Failed to load student profile' });
+            console.error(err);
+            toast({ type: 'error', message: 'Failed to load profile' });
             setIsLoaded(true);
         }
     };
 
     useEffect(() => {
-        fetchStudent();
-    }, [id, refreshTrigger]);
+        if (id) fetchStudent();
+    }, [id, refreshTrigger, selectedTerm]);
 
     const handleUpdateStudent = async (updatedFields) => {
         try {
@@ -683,7 +876,16 @@ const StudentPage = () => {
 
     return (
         <div className="w-full space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">
-
+            {/* Back Button */}
+            <div className="flex items-center">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="group flex items-center gap-2.5 px-5 py-2.5 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95"
+                >
+                    <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Back to List</span>
+                </button>
+            </div>
 
             <div className="flex flex-col gap-8">
                 <StudentProfileHeader
@@ -697,7 +899,7 @@ const StudentPage = () => {
                     <FeeStatusCard feeStatus={student.feeStatus} />
                 </div>
 
-                <AttendanceSummaryCard monthly={student.attendance} yearly={student.yearlyAttendance} />
+                <AttendanceSummaryCard yearly={student.yearlyAttendance} studentId={id} />
 
                 <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm p-8 lg:p-12 transition-all">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
@@ -716,22 +918,81 @@ const StudentPage = () => {
                                 <label className="absolute -top-2 left-4 px-1.5 bg-white dark:bg-slate-900 text-[8px] font-black text-slate-400 tracking-widest z-10 transition-colors group-focus-within/select:text-emerald-500">
                                     Academic Term
                                 </label>
-                                <div className="flex items-center">
-                                    <select
-                                        value={selectedTerm}
-                                        onChange={(e) => setSelectedTerm(e.target.value)}
-                                        className="appearance-none bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 pr-12 text-sm font-black text-slate-700 dark:text-slate-200 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/30 transition-all cursor-pointer shadow-inner min-w-[200px] tracking-wider"
-                                    >
-                                        <option value="First Term">First Term</option>
-                                        <option value="Second Term">Second Term</option>
-                                        <option value="Third Term">Third Term</option>
-                                    </select>
-                                    <ChevronDown size={18} className="absolute right-5 text-slate-400 pointer-events-none group-hover/select:text-emerald-500 transition-colors" />
-                                </div>
+                            <div className="flex items-center relative">
+                                <button
+                                    onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
+                                    className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 text-sm font-black text-slate-700 dark:text-slate-200 outline-none transition-all cursor-pointer shadow-inner min-w-[200px] tracking-wider group"
+                                >
+                                    {selectedTerm}
+                                    <ChevronDown size={18} className={`text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`} />
+                                </button>
+
+                                {isTermDropdownOpen && (
+                                    <>
+                                        <div 
+                                            className="fixed inset-0 z-[60]" 
+                                            onClick={() => setIsTermDropdownOpen(false)} 
+                                        />
+                                        <div className="absolute top-full left-0 w-full mt-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                                            <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
+                                                {availableTerms.map(term => (
+                                                    <button
+                                                        key={term}
+                                                        onClick={() => {
+                                                            setSelectedTerm(term);
+                                                            setIsTermDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full px-5 py-3 text-[11px] font-black text-left rounded-2xl transition-all uppercase tracking-widest ${
+                                                            selectedTerm === term 
+                                                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
+                                                        }`}
+                                                    >
+                                                        {term}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                             </div>
                         </div>
                     </div>
-                    <MarksheetSection marksheet={student.marksheet} />
+                    {(() => {
+                        const termStatus = examConfig?.termStatuses?.find(
+                            t => t.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
+                        );
+                        const isPublished = termStatus?.isPublished === true;
+
+                        if (!isPublished) {
+                            return (
+                                <div className="flex flex-col items-center justify-center py-20 gap-8">
+                                    <div className="w-20 h-20 rounded-[28px] bg-slate-100 dark:bg-slate-800/80 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                        </svg>
+                                    </div>
+                                    <div className="text-center space-y-3">
+                                        <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Results Not Available</h4>
+                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest max-w-sm mx-auto">
+                                            Academic records for{' '}
+                                            <span className="text-emerald-500 font-black">{selectedTerm}</span>{' '}
+                                            have not been finalized or published by the examination board yet.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 px-5 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+                                            <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+                                        </svg>
+                                        <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">Pending Publication</span>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return <MarksheetSection marksheet={student.marksheet} />;
+                    })()}
                 </div>
             </div>
 

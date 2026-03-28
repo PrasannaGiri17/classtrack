@@ -139,14 +139,38 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
 
     try {
       const schoolId = Number(localStorage.getItem("adminSchoolId") || localStorage.getItem("schoolId") || 1);
+      const newClassNum = Number(formData.class);
+      
       const payload = {
         firstName, lastName,
         fatherName: formData.fatherName, fatherPhone: formData.fatherPhone,
         motherName: formData.motherName, motherPhone: formData.motherPhone,
         email: formData.loginEmail, Address: formData.currentAddress,
-        studentClass: Number(formData.class), birthdate: formData.birthdate,
+        studentClass: newClassNum, birthdate: formData.birthdate,
         gender: formData.gender, schoolId
       };
+
+      // AUTOMATIC ACADEMIC PLACEMENT SYNC ON EDIT
+      if (isEditMode && studentData) {
+        // Find the full grade object for the selected class number
+        const newGradeObj = grades.find(g => Number(g.gradeNumber) === newClassNum);
+        
+        // If the grade number has changed from the original record
+        if (newClassNum !== Number(studentData.studentClass)) {
+          console.log(`Grade changed from ${studentData.studentClass} to ${newClassNum}. Updating classId and resetting section.`);
+          payload.classId = newGradeObj ? newGradeObj._id : null;
+          payload.sectionId = null; // Remove from existing section as it belongs to old grade
+        } else {
+          // Grade is same, preserve existing IDs if not specifically changed elsewhere
+          payload.classId = studentData.classId || (newGradeObj ? newGradeObj._id : null);
+          payload.sectionId = studentData.sectionId || null;
+        }
+      } else {
+        // NEW STUDENT ENROLLMENT
+        const matchingGrade = grades.find(g => Number(g.gradeNumber) === newClassNum);
+        payload.classId = matchingGrade ? matchingGrade._id : null;
+        payload.sectionId = null; // New students start with no section
+      }
 
       if (isEditMode && studentData) {
         await axios.put(`http://localhost:7000/api/students/${studentData._id}`, payload);

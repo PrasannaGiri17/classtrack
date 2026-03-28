@@ -44,6 +44,7 @@ exports.generateYearlyFees = async (req, res) => {
         // Build fee record
         const feeData = {
           student: student._id,
+          schoolId: req.schoolId,
           school: school._id,
           grade: grade._id,
           academicYear,
@@ -107,8 +108,8 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // 1. Build Student Query - no schoolId filter since this is single-school
-    const studentQuery = {};
+    // 1. Build Student Query - isolated by tenant
+    const studentQuery = { schoolId: req.schoolId };
     if (gradeId) studentQuery.classId = new mongoose.Types.ObjectId(gradeId);
     
     if (search) {
@@ -140,16 +141,29 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
             
         const totalDue = fees.reduce((acc, f) => acc + (f.dueAmount || 0), 0);
         const totalPaid = fees.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
-        const unpaidMonthsCount = fees.filter(f => f.status !== 'PAID').length;
-        
         // Priority: OVERDUE > UNPAID > PARTIAL > PAID > NO_RECORD
         const statusPriority = { OVERDUE: 0, UNPAID: 1, PARTIAL: 2, PAID: 3 };
         const relevantFee = fees.length > 0
           ? fees.sort((a, b) => (statusPriority[a.status] ?? 9) - (statusPriority[b.status] ?? 9))[0]
           : null;
 
+        const currentMonthIndex = NEPALI_MONTHS.indexOf('Falgun');
+        const legacyUnpaidMonths = fees.filter(f => f.status !== "PAID" && f.monthIndex < currentMonthIndex).length;
+        const totalUnpaidRaw = fees.filter(r => r.status !== "PAID").length;
+
         return {
           _id: student._id,
+          // Legacy Compatibility for Fee.jsx Admin Panel
+          studentName: `${student.firstName} ${student.lastName}`,
+          studentId: student.studentId,
+          profilePhoto: student.profilePhoto,
+          className: student.classId?.gradeName || (student.studentClass ? `Grade ${student.studentClass}` : "N/A"),
+          unpaidMonths: legacyUnpaidMonths,
+          totalDueAmount: totalDue,
+          totalPaidAmount: totalPaid,
+          feeStatus: fees.length === 0 ? "NO_RECORD" : (totalUnpaidRaw > 0 ? "UNPAID" : "PAID"),
+          
+          // Modern Payload Structure
           student: {
             _id: student._id,
             firstName: student.firstName,
@@ -164,7 +178,7 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
           dueAmount: totalDue,
           paidAmount: totalPaid,
           status: relevantFee ? relevantFee.status : "NO_RECORD",
-          unpaidCount: unpaidMonthsCount,
+          unpaidCount: totalUnpaidRaw,
           totalMonths: fees.length,
           recordId: relevantFee ? relevantFee._id : null
         };
@@ -346,6 +360,7 @@ exports.getMyFees = async (req, res) => {
                     for (let i = 0; i < 12; i++) {
                         const newFee = new StudentFee({
                             student: student._id,
+                            schoolId: req.schoolId,
                             school: school._id,
                             grade: grade._id,
                             academicYear: ay,
@@ -430,12 +445,14 @@ exports.bulkGenerateFees = async (req, res) => {
 
             for (let i = 0; i < 12; i++) {
                 const query = {
+                    schoolId: req.schoolId,
                     student: student._id,
                     monthIndex: i,
                     academicYear: ay
                 };
 
                 const updateData = {
+                    schoolId: req.schoolId,
                     school: school._id,
                     grade: studentGrade._id,
                     monthName: NEPALI_MONTHS[i],

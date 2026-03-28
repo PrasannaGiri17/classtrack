@@ -2,8 +2,9 @@ import axios from "./axiosConfig";
 
 const API_URL = "http://localhost:7000/api/quizzes";
 
-const getAllQuizzes = async () => {
-  const response = await axios.get(API_URL);
+const getAllQuizzes = async (teacherId = null) => {
+  const url = teacherId ? `${API_URL}?teacherId=${teacherId}` : API_URL;
+  const response = await axios.get(url);
   return response.data;
 };
 

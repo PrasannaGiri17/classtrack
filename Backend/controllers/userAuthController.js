@@ -66,7 +66,7 @@ exports.login = async (req, res) => {
 
     // Fetch profile to prevent crossover
     let profileData = null;
-    if (user.role === "student" && user.studentId) profileData = await Student.findById(user.studentId).select("firstName lastName profilePhoto");
+    if (user.role === "student" && user.studentId) profileData = await Student.findById(user.studentId).select("firstName lastName profilePhoto sectionId classId");
     else if (user.role === "teacher" && user.teacherId) profileData = await Teacher.findById(user.teacherId).select("firstName lastName profilePhoto");
     else if (user.role === "admin" && user.adminId) profileData = await Admin.findById(user.adminId).select("firstName lastName profilePhoto");
 
@@ -77,8 +77,10 @@ exports.login = async (req, res) => {
       email: user.email,
       userId: user._id,
       studentId: user.studentId,
+      gradeId: profileData?.classId || null,
+      sectionId: profileData?.sectionId || null,
       teacherId: user.teacherId,
-      adminId: user.adminId,
+      adminId: user.adminId, 
       schoolId: user.schoolId,
       profilePhoto: profileData?.profilePhoto || null,
       firstName: profileData?.firstName || null,
@@ -110,7 +112,7 @@ exports.googleLogin = async (req, res) => {
 
     // Fetch profile to prevent crossover
     let profileData = null;
-    if (user.role === "student" && user.studentId) profileData = await Student.findById(user.studentId).select("firstName lastName profilePhoto");
+    if (user.role === "student" && user.studentId) profileData = await Student.findById(user.studentId).select("firstName lastName profilePhoto sectionId classId");
     else if (user.role === "teacher" && user.teacherId) profileData = await Teacher.findById(user.teacherId).select("firstName lastName profilePhoto");
     else if (user.role === "admin" && user.adminId) profileData = await Admin.findById(user.adminId).select("firstName lastName profilePhoto");
 
@@ -121,12 +123,14 @@ exports.googleLogin = async (req, res) => {
       email: user.email,
       userId: user._id,
       studentId: user.studentId,
+      gradeId: profileData?.classId || null,
+      sectionId: profileData?.sectionId || null,
       teacherId: user.teacherId,
       adminId: user.adminId,
       schoolId: user.schoolId,
-      profilePhoto: null, // to be updated below
-      firstName: null,
-      lastName: null,
+      profilePhoto: profileData?.profilePhoto || null,
+      firstName: profileData?.firstName || null,
+      lastName: profileData?.lastName || null,
     });
   } catch (err) {
     console.error("GOOGLE LOGIN ERROR:", err);

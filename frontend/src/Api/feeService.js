@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:7000/api/fee-records";
+const API_URL = "http://localhost:7000/api/fees";
 
 // Helper to get auth header
 const getAuthHeaders = () => {
@@ -13,23 +13,23 @@ const getAuthHeaders = () => {
 };
 
 const generateYearlyFees = async (studentId, academicYear) => {
-    const response = await axios.post(`${API_URL}/generate/${studentId}`, { academicYear }, getAuthHeaders());
+    const response = await axios.post(`${API_URL}/generate`, { studentId, academicYear }, getAuthHeaders());
     return response.data;
 };
 
-const bulkGenerateFees = async (academicYear) => {
-    const response = await axios.post(`${API_URL}/bulk-generate`, { academicYear }, getAuthHeaders());
+const bulkGenerateFees = async (academicYear, schoolId) => {
+    const response = await axios.post(`${API_URL}/admin/bulk-generate`, { academicYear, schoolId }, getAuthHeaders());
     return response.data;
 };
 
-const getAdminFeeStatus = async () => {
-    const response = await axios.get(`${API_URL}/admin-status`, getAuthHeaders());
+const getAdminFeeStatus = async (schoolId) => {
+    const response = await axios.get(`${API_URL}/admin/status`, { ...getAuthHeaders(), params: { schoolId, limit: 1000 } });
     return response.data;
 };
 
 // Note: Pagination handled on front-end for now in the new module
 const getAdminFeeStatusWithSearch = async (params) => {
-    const response = await axios.get(`${API_URL}/admin-status`, { ...getAuthHeaders(), params });
+    const response = await axios.get(`${API_URL}/admin/status`, { ...getAuthHeaders(), params });
     return response.data;
 };
 
@@ -50,7 +50,7 @@ const getFeeById = async (id) => {
 };
 
 const markAsPaid = async (recordId, paymentData) => {
-    const response = await axios.post(`${API_URL}/pay/${recordId}`, paymentData, getAuthHeaders());
+    const response = await axios.patch(`${API_URL}/pay/${recordId}`, paymentData, getAuthHeaders());
     return response.data;
 };
 

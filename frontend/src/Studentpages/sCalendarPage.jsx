@@ -33,7 +33,8 @@ const SCalendarPage = () => {
       const from = start.toISOString().split('T')[0];
       const to = end.toISOString().split('T')[0];
 
-      const data = await calendarService.getEvents(from, to, localStorage.getItem('studentId'));
+      // Backend now identifies schoolId and user from token
+      const data = await calendarService.getEvents(from, to);
       setEvents(data);
     } catch (error) {
       console.error("Failed to fetch events", error);
@@ -141,13 +142,7 @@ const SCalendarPage = () => {
             </button>
           </div>
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center justify-center gap-3 px-10 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
-          >
-            <Plus size={20} />
-            Add Event
-          </button>
+          {/* Removed Add Event button for Students */}
         </div>
       </div>
 
@@ -238,12 +233,7 @@ const SCalendarPage = () => {
                         {event.description}
                       </p>
 
-                      <button
-                        onClick={(e) => handleDeleteClick(e, event._id)}
-                        className="p-2 -mr-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all"
-                      >
-                        <Trash size={18} />
-                      </button>
+                      {/* Removed Delete button for Students */}
                     </div>
                   </div>
                 );

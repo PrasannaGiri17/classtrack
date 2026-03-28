@@ -5,7 +5,16 @@ const Quiz = require('../models/Quiz');
 // @access  Teacher
 exports.createQuiz = async (req, res) => {
   try {
-    const { title, subject, grade, section, startTime, endTime, questions, timeLimitMinutes } = req.body;
+    const { title, subject, grade, section, startTime, endTime, status, questions, timeLimitMinutes, teacherId } = req.body;
+    const schoolId = req.schoolId;
+
+    if (!schoolId) {
+      return res.status(401).json({ message: 'School identification missing. Please relogin.' });
+    }
+
+    if (!teacherId) {
+      return res.status(400).json({ message: 'Teacher identification required.' });
+    }
 
     // Manual validation for backend-frontend consistency
     if (!title || !subject || !grade || !section || !startTime || !endTime || !questions || !timeLimitMinutes) {
@@ -16,12 +25,6 @@ exports.createQuiz = async (req, res) => {
       return res.status(400).json({ message: 'Start time must be before end time' });
     }
 
-    // Extract schoolId from request (from protect middleware)
-    const schoolId = req.schoolId;
-    if (!schoolId) {
-      return res.status(401).json({ message: 'School identification missing. Please relogin.' });
-    }
-
     // Add schoolId to each question as required by the Question model
     const questionsWithSchool = questions.map(q => ({
       ...q,
@@ -30,12 +33,14 @@ exports.createQuiz = async (req, res) => {
 
     const quiz = new Quiz({
       schoolId,
+      teacherId,
       title,
       subject,
       grade,
       section,
       startTime,
       endTime,
+      status: status || 'Upcoming',
       timeLimitMinutes,
       questions: questionsWithSchool
     });
@@ -53,7 +58,14 @@ exports.createQuiz = async (req, res) => {
 // @access  Public
 exports.getAllQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find({ schoolId: req.schoolId }).sort({ createdAt: -1 });
+    const query = { schoolId: req.schoolId };
+    
+    // Filter by teacher if requested (important for teacher portal vs student portal)
+    if (req.query.teacherId) {
+      query.teacherId = req.query.teacherId;
+    }
+
+    const quizzes = await Quiz.find(query).sort({ createdAt: -1 });
     res.status(200).json(quizzes);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -80,8 +92,25 @@ exports.getQuizById = async (req, res) => {
 // @access  Teacher
 exports.updateQuiz = async (req, res) => {
   try {
-    const quiz = await Quiz.findOneAndUpdate({ _id: req.params.id, schoolId: req.schoolId },
-      req.body,
+    const { questions } = req.body;
+    const schoolId = req.schoolId;
+
+    if (!schoolId) {
+      return res.status(401).json({ message: 'School identification missing. Please relogin.' });
+    }
+
+    // Process questions to ensure schoolId is present if questions are being updated
+    let updateData = { ...req.body };
+    if (questions && Array.isArray(questions)) {
+      updateData.questions = questions.map(q => ({
+        ...q,
+        schoolId: schoolId
+      }));
+    }
+
+    const quiz = await Quiz.findOneAndUpdate(
+      { _id: req.params.id, schoolId: schoolId },
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -90,6 +119,7 @@ exports.updateQuiz = async (req, res) => {
     }
     res.status(200).json(quiz);
   } catch (error) {
+    console.error('Update quiz error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

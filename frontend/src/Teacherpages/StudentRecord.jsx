@@ -21,7 +21,8 @@ import {
   ChevronDown,
   ArrowLeft,
   Filter,
-  MoreVertical
+  MoreVertical,
+  ShieldAlert
 } from "lucide-react";
 import { AddPopupStudent } from "../TeacherComponents/Admin/AddPopupStudent";
 import Loading from "../MainSystemComponents/Loading";
@@ -202,6 +203,22 @@ const SStudentRecord = () => {
   // Notice Pagination Logic
   const totalNoticePages = Math.ceil(sortedNotices.length / noticesPerPage) || 1;
   const currentNotices = sortedNotices.slice((noticePage - 1) * noticesPerPage, noticePage * noticesPerPage);
+
+  if (isLoading) return <Loading fullScreen={true} text="Syncing classroom data..." />;
+
+  if (!isLoading && !sectionInfo?.sectionId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-40 animate-in fade-in zoom-in-95 duration-500">
+        <div className="w-24 h-24 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 mb-8 border border-red-500/20 shadow-2xl shadow-red-500/10">
+          <ShieldAlert size={48} />
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter mb-4 text-center uppercase">Access Denied</h2>
+        <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center max-w-md leading-relaxed bg-slate-50 dark:bg-slate-800/40 px-8 py-4 rounded-[24px] border border-slate-100 dark:border-slate-800/50">
+          This portal is reserved exclusively for <span className="text-red-500">Class Teachers</span>. You are not currently assigned to any classroom management profile.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-0 space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-24">

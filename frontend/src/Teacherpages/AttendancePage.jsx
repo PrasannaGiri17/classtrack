@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Check,
   Circle,
+  ShieldAlert,
   Save,
   Users,
   Info,
@@ -134,7 +135,10 @@ const AttendancePage = () => {
         }
       } catch (error) {
         console.error("Error fetching attendance data:", error);
-        toast({ type: 'error', message: 'Failed to load attendance records.' });
+        // Only show generic error if it wasn't a 404/empty state handled by the view guard
+        if (error.response?.status !== 404) {
+          toast({ type: 'error', message: 'Failed to load attendance records.' });
+        }
       } finally {
         setIsLoading(false);
       }
@@ -242,6 +246,20 @@ const AttendancePage = () => {
   };
 
   if (isLoading) return <Loading fullScreen={true} text="Initializing monthly registry..." />;
+
+  if (!isLoading && !sectionInfo?.sectionId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-40 animate-in fade-in zoom-in-95 duration-500">
+        <div className="w-24 h-24 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 mb-8 border border-red-500/20 shadow-2xl shadow-red-500/10">
+          <ShieldAlert size={48} />
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter mb-4 text-center uppercase">Access Denied</h2>
+        <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center max-w-md leading-relaxed bg-slate-50 dark:bg-slate-800/40 px-8 py-4 rounded-[24px] border border-slate-100 dark:border-slate-800/50">
+          This registry is exclusively for <span className="text-red-500">Class Teachers</span>. You are not currently assigned to any classroom management profile.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">

@@ -162,6 +162,7 @@ function App() {
           <Route path="diary" element={<DiaryPage />} />
           <Route path="assignments" element={<AssignmentsContent />} />
           <Route path="notification" element={<TeacherNotificationPage />} />
+          <Route path="discussions" element={<SDiscussionsPage />} />
           <Route path="profile" element={<TeacherMePage />} />
           <Route path="student-profile" element={<StudentMePage />} />
           <Route path="messages" element={<MessagesPage />} />

@@ -26,6 +26,7 @@ const questionSchema = new mongoose.Schema({
 
 const quizSchema = new mongoose.Schema({
   schoolId: { type: Number, required: true, index: true },
+  teacherId: { type: String, required: true, index: true },
   title: { 
     type: String, 
     required: [true, 'Quiz title is required'],
@@ -53,7 +54,7 @@ const quizSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['Upcoming', 'Active', 'Closed'],
+    enum: ['Upcoming', 'Active', 'Completed', 'Closed'],
     default: 'Upcoming'
   },
   timeLimitMinutes: {

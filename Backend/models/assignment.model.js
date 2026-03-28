@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const submissionSchema = new mongoose.Schema({
   studentId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User' 
+    ref: 'Student' 
   },
   studentName: { 
     type: String 
@@ -77,7 +77,7 @@ const assignmentSchema = new mongoose.Schema({
   },
   teacherId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
+    ref: 'Teacher', 
     required: [true, 'Teacher ID is required'] 
   },
   submissions: [submissionSchema]

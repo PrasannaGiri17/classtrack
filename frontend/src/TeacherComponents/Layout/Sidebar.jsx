@@ -13,6 +13,7 @@ import {
   Calendar,
   FileText,
   Bell,
+  MessageSquare,
   LogOut
 } from 'lucide-react';
 
@@ -49,6 +50,7 @@ const Sidebar = ({ activePage }) => {
     { key: 'quiz', icon: FileText, label: 'Quiz', path: '/teacher/quiz' },
     { key: 'diary', icon: FileText, label: 'Diary', path: '/teacher/diary' },
     { key: 'assignments', icon: FileText, label: 'Assignments', path: '/teacher/assignments' },
+    { key: 'discussions', icon: MessageSquare, label: 'Discussions', path: '/teacher/discussions' },
     { key: 'notification', icon: Bell, label: 'Announcements', path: '/teacher/notification' },
   ];
   return (

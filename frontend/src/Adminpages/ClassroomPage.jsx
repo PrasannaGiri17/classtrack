@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import gradeService from '../Api/gradeService';
 import teacherService from '../Api/teacherService';
 import studentService from '../Api/studentService';
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 
 const ClassroomPage = () => {
+  const navigate = useNavigate();
   const [grades, setGrades] = useState([]);
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
@@ -361,7 +363,11 @@ const ClassroomPage = () => {
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800/30">
                 {filteredStudents.length > 0 ? (
                   filteredStudents.map((s) => (
-                    <tr key={s._id} className="group hover:bg-emerald-50/20 dark:hover:bg-emerald-900/5 transition-colors">
+                    <tr 
+                      key={s._id} 
+                      onClick={() => navigate(`/admin/student/${s._id}`)}
+                      className="group hover:bg-emerald-50/20 dark:hover:bg-emerald-900/5 transition-colors cursor-pointer"
+                    >
                       <td className="pl-10 pr-4 py-5 text-xs font-bold text-slate-400">{s.studentId}</td>
                       <td className="px-4 py-5">
                         <div className="flex items-center gap-3">
@@ -378,7 +384,10 @@ const ClassroomPage = () => {
                       <td className="px-6 py-5">
                         <div className="flex items-center justify-center">
                           <button
-                            onClick={() => handleRemoveStudent(s)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveStudent(s);
+                            }}
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
                           >
                             <Trash2 size={16} />

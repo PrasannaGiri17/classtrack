@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../MainSystemComponents/Toast';
+import { useAuth } from '../context/AuthContext';
 import schoolService from '../Api/schoolService';
 import gradeService from '../Api/gradeService';
 import feeService from '../Api/feeService';
@@ -54,6 +55,19 @@ const Fee = () => {
   const itemsPerPage = 8;
   const currentAcademicYear = "2081/82"; // Should be dynamic in real app
 
+  const { schoolId: authSchoolId } = useAuth();
+
+  const getSchoolId = () => {
+    const adminId = localStorage.getItem("adminSchoolId");
+    const regularId = localStorage.getItem("schoolId");
+    
+    // Protect against stringified null/undefined
+    if (adminId && adminId !== "undefined" && adminId !== "null") return adminId;
+    if (regularId && regularId !== "undefined" && regularId !== "null") return regularId;
+    if (authSchoolId && authSchoolId !== "undefined" && authSchoolId !== "null") return authSchoolId;
+    return null;
+  };
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -65,13 +79,14 @@ const Fee = () => {
   const fetchInitialData = async () => {
     try {
       setIsLoading(true);
+      const adminSchoolId = getSchoolId();
       const [schoolData, gradesData] = await Promise.all([
         schoolService.getSchool(),
-        gradeService.getGrades()
+        gradeService.getGrades(adminSchoolId)
       ]);
 
-      setAdmissionFee(String(schoolData.admissionFee || 0));
-      setGrades(gradesData);
+      setAdmissionFee(String(schoolData?.admissionFee || 0));
+      setGrades(gradesData || []);
 
       const config = {};
       gradesData.forEach(grade => {
@@ -89,7 +104,8 @@ const Fee = () => {
   const fetchFeeStatus = async () => {
     try {
       setIsTableLoading(true);
-      const data = await feeService.getAdminFeeStatus();
+      const adminSchoolId = getSchoolId();
+      const data = await feeService.getAdminFeeStatus(adminSchoolId);
       console.log("FEE_DEBUG: API Response:", data);
 
       // Handle both old and new response structures
@@ -145,16 +161,21 @@ const Fee = () => {
   const handleSaveFees = async () => {
     try {
       setIsLoading(true);
-      await schoolService.updateSchool({ admissionFee: parseFloat(admissionFee) || 0 });
+      const adminSchoolId = getSchoolId();
+      await schoolService.updateSchool(adminSchoolId, { 
+        admissionFee: parseFloat(admissionFee) || 0
+      });
       const updatePromises = grades.map(grade => {
         const fee = parseFloat(feeConfig[`Grade ${grade.gradeNumber}`]) || 0;
-        return gradeService.updateGradeFee(grade.gradeNumber, fee);
+        return gradeService.updateGradeFee(grade.gradeNumber, fee, adminSchoolId);
       });
       await Promise.all(updatePromises);
-      toast({ type: 'success', message: 'Fee structure updated successfully.' });
+      await handleGenerateFees(); // Automatically trickle down changes to unpaid student ledger records
+      toast({ type: 'success', message: 'Fee structure configured and ledger dynamically resynced.' });
       fetchInitialData();
     } catch (error) {
-      toast({ type: 'error', message: 'Failed to update fee structure.' });
+      console.error(error);
+      toast({ type: 'error', message: error.response?.data?.message || 'Failed to update fee structure.' });
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +184,8 @@ const Fee = () => {
   const handleGenerateFees = async () => {
     try {
       setIsSyncing(true);
-      const response = await feeService.bulkGenerateFees(currentAcademicYear);
+      const adminSchoolId = getSchoolId();
+      const response = await feeService.bulkGenerateFees(currentAcademicYear, adminSchoolId);
       toast({
         type: 'success',
         message: `Ledger Synced: ${response.results.created} created, ${response.results.updated} updated.`
@@ -270,7 +292,14 @@ const Fee = () => {
             </div>
           </div>
 
-
+          <button
+              onClick={handleGenerateFees}
+              disabled={isSyncing}
+              className="flex items-center gap-3 px-8 py-3.5 bg-indigo-600 dark:bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
+            >
+              <RefreshCcw size={16} className={isSyncing ? "animate-spin" : ""} />
+              {isSyncing ? "Syncing..." : "Generate Ledger"}
+          </button>
         </div>
 
         <div className="p-10 space-y-10">

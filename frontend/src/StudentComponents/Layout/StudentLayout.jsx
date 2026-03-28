@@ -2,9 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import NotAssignedPopup from '../Popups/NotAssignedPopup';
+import { useAuth } from '../../context/AuthContext';
 
 const StudentLayout = () => {
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const [isNotAssigned, setIsNotAssigned] = useState(false);
+
+  useEffect(() => {
+    // Check if the current user is a student and has NO sectionId
+    if (user && user.role === 'student' && !user.sectionId) {
+      setIsNotAssigned(true);
+    }
+  }, [user]);
+
+  const handleUnassignedExit = () => {
+    logout();
+    window.location.href = '/login';
+  };
   const [activePage, setActivePage] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -68,6 +84,11 @@ const StudentLayout = () => {
           </div>
         </main>
       </div>
+      {/* Not Assigned Access Restriction */}
+      <NotAssignedPopup 
+        isOpen={isNotAssigned} 
+        onConfirm={handleUnassignedExit} 
+      />
     </div>
   );
 };
