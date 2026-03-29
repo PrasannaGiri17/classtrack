@@ -24,54 +24,27 @@ import { toast } from '../MainSystemComponents/Toast';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
 
-// Static Data
-const STATIC_USERS = [
-    { uid: 'admin1', name: 'Principal Skinner', email: 'admin@school.com', role: 'admin', photoURL: 'https://picsum.photos/seed/admin1/200/200' },
-    { uid: 't1', name: 'Mr. Smith', email: 'smith@school.com', role: 'teacher', classIds: ['1-A'], photoURL: 'https://picsum.photos/seed/t1/200/200' },
-    { uid: 't2', name: 'Ms. Johnson', email: 'johnson@school.com', role: 'teacher', classIds: ['1-A', '2-B'], photoURL: 'https://picsum.photos/seed/t2/200/200' },
-    { uid: 's1', name: 'Bart Simpson', email: 'bart@school.com', role: 'student', classId: '1-A', photoURL: 'https://picsum.photos/seed/s1/200/200' },
-    { uid: 's2', name: 'Lisa Simpson', email: 'lisa@school.com', role: 'student', classId: '1-A', photoURL: 'https://picsum.photos/seed/s2/200/200' },
-    { uid: 's3', name: 'Milhouse Van Houten', email: 'milhouse@school.com', role: 'student', classId: '2-B', photoURL: 'https://picsum.photos/seed/s3/200/200' },
-    { uid: 's4', name: 'Nelson Muntz', email: 'nelson@school.com', role: 'student', classId: '2-B', photoURL: 'https://picsum.photos/seed/s4/200/200' },
-];
-
-const INITIAL_MESSAGES = [
-    {
-        id: 'm1',
-        senderId: 't1',
-        receiverId: 'admin1',
-        text: 'Hello Principal, I have a question about the upcoming field trip.',
-        timestamp: new Date(Date.now() - 3600000 * 2),
-        read: true,
-        conversationId: 'admin1_t1'
-    },
-    {
-        id: 'm2',
-        senderId: 'admin1',
-        receiverId: 't1',
-        text: 'Sure Mr. Smith, what is it?',
-        timestamp: new Date(Date.now() - 3600000),
-        read: true,
-        conversationId: 'admin1_t1'
-    }
-];
+import messageService from '../Api/messageService';
 
 const MessagesPage = () => {
     const location = useLocation();
 
-    // Get current user dynamically based on role from URL
+    // Get current user from localStorage (synced with backend auth)
     const [currentUser] = useState(() => {
-        const path = location.pathname;
-        let defaultRole = "admin";
-        if (path.includes("/teacher")) defaultRole = "teacher";
-        if (path.includes("/student")) defaultRole = "student";
-        return STATIC_USERS.find(u => u.role === defaultRole) || STATIC_USERS[0];
+        const user = JSON.parse(localStorage.getItem('user'));
+        return {
+            uid: user?.userId || user?.id || user?._id,
+            name: user?.name,
+            role: user?.role,
+            photoURL: user?.profilePhoto,
+            ...user
+        };
     });
 
     const [contacts, setContacts] = useState([]);
     const [conversations, setConversations] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [messages, setMessages] = useState(INITIAL_MESSAGES);
+    const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('all');
@@ -100,48 +73,75 @@ const MessagesPage = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Initialize Contacts
-    useEffect(() => {
-        const otherUsers = STATIC_USERS.filter(u => u.uid !== currentUser.uid);
-        setContacts(otherUsers);
-    }, [currentUser]);
-
-    // Update Conversations List
-    useEffect(() => {
-        const convos = contacts.map(contact => {
-            const conversationId = [currentUser.uid, contact.uid].sort().join('_');
-            const relevantMsgs = messages.filter(m => m.conversationId === conversationId);
-            const lastMessage = relevantMsgs.length > 0 ? relevantMsgs[relevantMsgs.length - 1] : undefined;
-            const unreadCount = relevantMsgs.filter(m => m.receiverId === currentUser.uid && !m.read).length;
-
-            return {
-                otherUser: contact,
-                lastMessage,
-                unreadCount
-            };
-        });
-
-        // Sort by last message timestamp
-        convos.sort((a, b) => {
-            const timeA = a.lastMessage?.timestamp.getTime() || 0;
-            const timeB = b.lastMessage?.timestamp.getTime() || 0;
-            return timeB - timeA;
-        });
-
-        setConversations(convos);
-    }, [currentUser, contacts, messages]);
-
-    // Mark as read when selecting user
-    useEffect(() => {
-        if (selectedUser) {
-            setMessages(prev => prev.map(m => {
-                if (m.senderId === selectedUser.uid && m.receiverId === currentUser.uid && !m.read) {
-                    return { ...m, read: true };
-                }
-                return m;
-            }));
+    // Initialize Contacts from Backend
+    const fetchContacts = async () => {
+        try {
+            const data = await messageService.getContacts(searchQuery);
+            setContacts(data);
+        } catch (error) {
+            console.error('Error fetching contacts:', error);
         }
-    }, [selectedUser, currentUser]);
+    };
+
+    useEffect(() => {
+        fetchContacts();
+    }, [searchQuery]);
+
+    // Fetch Conversations list (latest messages)
+    const fetchConversations = async () => {
+        try {
+            const data = await messageService.getConversations();
+            // Process backend conversation format to frontend state
+            const formatted = data.map(conv => ({
+                otherUser: {
+                    ...conv.otherUser,
+                    uid: conv.otherUser._id, // Map for UI consistency
+                    photoURL: conv.otherUser.profilePhoto // Map for profile photo rendering
+                },
+                lastMessage: {
+                    ...conv.lastMessage,
+                    timestamp: new Date(conv.lastMessage.createdAt)
+                },
+                unreadCount: conv.unreadCount
+            }));
+            setConversations(formatted);
+        } catch (error) {
+            console.error('Error fetching conversations:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchConversations();
+        const interval = setInterval(fetchConversations, 10000); // Poll every 10s for new messages
+        return () => clearInterval(interval);
+    }, []);
+
+    // Fetch full messages when a user is selected
+    useEffect(() => {
+        if (!selectedUser) return;
+
+        const fetchMessages = async () => {
+            try {
+                const data = await messageService.getMessages(selectedUser.uid);
+                const formatted = data.map(m => ({
+                    ...m,
+                    id: m._id,
+                    timestamp: new Date(m.createdAt)
+                }));
+                setMessages(formatted);
+
+                // Mark as read
+                if (formatted.some(m => !m.read && m.receiverId === currentUser.uid)) {
+                    await messageService.markAsRead(formatted[0].conversationId);
+                    fetchConversations(); // Update unread count in sidebar
+                }
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+            }
+        };
+
+        fetchMessages();
+    }, [selectedUser, currentUser.uid]);
 
     // Scroll to bottom
     useEffect(() => {
@@ -164,27 +164,46 @@ const MessagesPage = () => {
         setSelectedImages(prev => prev.filter(img => img.id !== id));
     };
 
-    const handleSendMessage = (e) => {
+    const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!selectedUser || (!newMessage.trim() && selectedImages.length === 0)) return;
 
-        const conversationId = [currentUser.uid, selectedUser.uid].sort().join('_');
-        const msg = {
-            id: `m-${Date.now()}`,
-            senderId: currentUser.uid,
-            receiverId: selectedUser.uid,
-            text: newMessage,
-            images: selectedImages.map(img => img.id),
-            timestamp: new Date(),
-            read: false,
-            conversationId,
-            replyToId: replyTo?.id
-        };
+        try {
+            // Convert images to base64 strings before sending to backend
+            const filePromises = selectedImages.map(img => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(img.file);
+                });
+            });
 
-        setMessages(prev => [...prev, msg]);
-        setNewMessage('');
-        setReplyTo(null);
-        setSelectedImages([]);
+            const base64Images = await Promise.all(filePromises);
+
+            const msgData = {
+                receiverId: selectedUser.uid,
+                text: newMessage,
+                images: base64Images,
+                replyToId: replyTo?.id
+            };
+
+            const savedMsg = await messageService.sendMessage(msgData);
+
+            // Add to local state
+            setMessages(prev => [...prev, {
+                ...savedMsg,
+                id: savedMsg._id,
+                timestamp: new Date(savedMsg.createdAt)
+            }]);
+
+            setNewMessage('');
+            setReplyTo(null);
+            setSelectedImages([]);
+            fetchConversations(); // refresh sidebar
+        } catch (error) {
+            toast({ type: 'error', message: error.message || 'Failed to send message' });
+        }
     };
 
     const handleClearAll = () => {
@@ -194,8 +213,7 @@ const MessagesPage = () => {
 
     const confirmClearAll = () => {
         if (!selectedUser) return;
-        const conversationId = [currentUser.uid, selectedUser.uid].sort().join('_');
-        setMessages(prev => prev.filter(m => m.conversationId !== conversationId));
+        setMessages([]);
         setShowClearConfirm(false);
         toast({
             type: 'success',
@@ -223,19 +241,19 @@ const MessagesPage = () => {
         setShowDeleteConfirm(true);
     };
 
-    const confirmDeleteMessage = () => {
+    const confirmDeleteMessage = async () => {
         if (!messageToDelete) return;
-        
-        const isMe = messageToDelete.senderId === currentUser.uid;
-        
-        setMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
-        setShowDeleteConfirm(false);
-        setMessageToDelete(null);
 
-        toast({
-            type: 'success',
-            message: isMe ? 'Message deleted for everyone' : 'Message deleted for you'
-        });
+        try {
+            await messageService.deleteMessage(messageToDelete.id);
+            setMessages(prev => prev.filter(m => m.id !== messageToDelete.id));
+            setShowDeleteConfirm(false);
+            setMessageToDelete(null);
+            toast({ type: 'success', message: 'Message deleted' });
+            fetchConversations();
+        } catch (error) {
+            toast({ type: 'error', message: 'Failed to delete message' });
+        }
     };
 
     const handleUnblock = () => {
@@ -255,23 +273,44 @@ const MessagesPage = () => {
         return ['all'];
     })();
 
-    const filteredConversations = conversations.filter(c => {
-        const matchesSearch = c.otherUser.name.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        let matchesTab = false;
-        if (activeTab === 'all') matchesTab = true;
-        else if (activeTab === 'admin') matchesTab = (c.otherUser.role === 'admin');
-        else if (activeTab === 'teachers') matchesTab = (c.otherUser.role === 'teacher');
-        else if (activeTab === 'students' || activeTab === 'classmates') matchesTab = (c.otherUser.role === 'student');
+    const filteredConversations = (() => {
+        // We want to show people from conversations OR all contacts if a search/tab is active
+        // Let's create a combined list: Conversations first, then contacts who aren't in convos
+        const convoUserIds = new Set(conversations.map(c => c.otherUser.uid));
 
-        return matchesSearch && matchesTab;
-    });
+        let displayList = [...conversations];
+
+        // Add contacts who aren't in conversations yet
+        contacts.forEach(contact => {
+            if (!convoUserIds.has(contact._id)) {
+                displayList.push({
+                    otherUser: { 
+                        ...contact, 
+                        uid: contact._id,
+                        photoURL: contact.profilePhoto // Map for profile photo rendering
+                    },
+                    lastMessage: null,
+                    unreadCount: 0
+                });
+            }
+        });
+
+        return displayList.filter(c => {
+            const matchesSearch = c.otherUser.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+            let matchesTab = false;
+            if (activeTab === 'all') matchesTab = true;
+            else if (activeTab === 'admin') matchesTab = (c.otherUser.role === 'admin');
+            else if (activeTab === 'teachers') matchesTab = (c.otherUser.role === 'teacher');
+            else if (activeTab === 'students' || activeTab === 'classmates') matchesTab = (c.otherUser.role === 'student');
+
+            return matchesSearch && matchesTab;
+        });
+    })();
 
     const isSelectedUserBlocked = selectedUser ? blockedUserIds.includes(selectedUser.uid) : false;
 
-    const selectedMessages = selectedUser
-        ? messages.filter(m => m.conversationId === [currentUser.uid, selectedUser.uid].sort().join('_'))
-        : [];
+    const selectedMessages = selectedUser ? messages : [];
 
     return (
         <div className="flex h-[calc(100vh-140px)] bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
@@ -489,19 +528,19 @@ const MessagesPage = () => {
                                                 </div>
                                             )}
                                             <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full`}>
-                                                
+
                                                 <div className={`relative max-w-[70%] flex ${isMe ? 'items-end flex-col' : 'items-start flex-col'}`}>
-                                                    
+
                                                     {/* Action Buttons (Hover) */}
                                                     <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all ${isMe ? '-left-20' : '-right-20'}`}>
-                                                        <button 
+                                                        <button
                                                             onClick={() => setReplyTo(msg)}
                                                             className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 shadow-sm transition-all"
                                                             title="Reply to message"
                                                         >
                                                             <Reply size={14} />
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleDeleteMessage(msg)}
                                                             className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 shadow-sm transition-all"
                                                             title="Delete message"
@@ -523,12 +562,12 @@ const MessagesPage = () => {
                                                         {msg.images?.length > 0 && (
                                                             <div className={`grid gap-2 ${msg.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2 shadow-inner'}`}>
                                                                 {msg.images.map((img, i) => (
-                                                                    <img 
-                                                                        key={i} 
-                                                                        src={img} 
-                                                                        alt="sent" 
+                                                                    <img
+                                                                        key={i}
+                                                                        src={img}
+                                                                        alt="sent"
                                                                         onClick={() => setPreviewImage(img)}
-                                                                        className="rounded-xl object-cover w-full h-auto max-h-64 border border-white/10 cursor-pointer hover:opacity-90 transition-opacity" 
+                                                                        className="rounded-xl object-cover w-full h-auto max-h-64 border border-white/10 cursor-pointer hover:opacity-90 transition-opacity"
                                                                     />
                                                                 ))}
                                                             </div>
@@ -556,7 +595,7 @@ const MessagesPage = () => {
                             {/* Reply Context Bar */}
                             <AnimatePresence>
                                 {replyTo && (
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: 'auto', opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
@@ -564,13 +603,13 @@ const MessagesPage = () => {
                                     >
                                         <div className="flex-1 min-w-0 pr-4">
                                             <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-0.5 flex items-center gap-1">
-                                                <Reply size={10} /> Replying to {replyTo.senderId === currentUser.uid ? 'Yourself' : STATIC_USERS.find(u => u.uid === replyTo.senderId)?.name}
+                                                <Reply size={10} /> Replying to {replyTo.senderId === currentUser.uid ? 'Yourself' : selectedUser?.name}
                                             </p>
                                             <p className="text-xs text-slate-600 dark:text-slate-300 truncate">
                                                 {replyTo.text}
                                             </p>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={() => setReplyTo(null)}
                                             className="p-1.5 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-800/50 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all"
                                         >
@@ -581,77 +620,77 @@ const MessagesPage = () => {
                             </AnimatePresence>
 
                             <div className="p-6">
-                            {isSelectedUserBlocked ? (
-                                <div className="flex flex-col items-center justify-center py-2 text-center">
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">You have blocked this user</p>
-                                    <button
-                                        onClick={handleUnblock}
-                                        className="text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-600 transition-all"
-                                    >
-                                        Unblock to send messages
-                                    </button>
-                                </div>
-                            ) : (
-                                <>
-                                    {/* Image Preview Bar */}
-                                    <AnimatePresence>
-                                        {selectedImages.length > 0 && (
-                                            <motion.div 
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: 'auto', opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                className="px-0 py-4 bg-transparent flex gap-3 overflow-x-auto scrollbar-hide border-b border-slate-100 dark:border-slate-800 mb-4"
-                                            >
-                                                {selectedImages.map((img) => (
-                                                    <div key={img.id} className="relative flex-shrink-0">
-                                                        <img src={img.id} alt="preview" className="w-20 h-20 object-cover rounded-xl border-2 border-white dark:border-slate-700 shadow-sm" />
-                                                        <button 
-                                                            onClick={() => removeImage(img.id)}
-                                                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all scale-90"
-                                                        >
-                                                            <X size={14} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                {isSelectedUserBlocked ? (
+                                    <div className="flex flex-col items-center justify-center py-2 text-center">
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">You have blocked this user</p>
+                                        <button
+                                            onClick={handleUnblock}
+                                            className="text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-600 transition-all"
+                                        >
+                                            Unblock to send messages
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Image Preview Bar */}
+                                        <AnimatePresence>
+                                            {selectedImages.length > 0 && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    className="px-0 py-4 bg-transparent flex gap-3 overflow-x-auto scrollbar-hide border-b border-slate-100 dark:border-slate-800 mb-4"
+                                                >
+                                                    {selectedImages.map((img) => (
+                                                        <div key={img.id} className="relative flex-shrink-0">
+                                                            <img src={img.id} alt="preview" className="w-20 h-20 object-cover rounded-xl border-2 border-white dark:border-slate-700 shadow-sm" />
+                                                            <button
+                                                                onClick={() => removeImage(img.id)}
+                                                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all scale-90"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
 
-                                    <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                                        <input 
-                                            type="file" 
-                                            multiple 
-                                            accept="image/*" 
-                                            className="hidden" 
-                                            ref={fileInputRef}
-                                            onChange={handleImageSelect}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => fileInputRef.current.click()}
-                                            className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-500 transition-all"
-                                        >
-                                            <ImageIcon size={22} />
-                                        </button>
-                                        <div className="flex-1 relative group">
+                                        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                                             <input
-                                                type="text"
-                                                placeholder="Type a message..."
-                                                value={newMessage}
-                                                onChange={(e) => setNewMessage(e.target.value)}
-                                                className="w-full h-12 bg-slate-50 dark:bg-slate-800 border border-transparent rounded-2xl px-6 text-sm font-medium text-slate-600 dark:text-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-300/30 transition-all outline-none"
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                className="hidden"
+                                                ref={fileInputRef}
+                                                onChange={handleImageSelect}
                                             />
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            disabled={!newMessage.trim() && selectedImages.length === 0}
-                                            className="w-12 h-12 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100 dark:shadow-none transition-all active:scale-95"
-                                        >
-                                            <Send size={20} />
-                                        </button>
-                                    </form>
-                                </>
-                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current.click()}
+                                                className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-500 transition-all"
+                                            >
+                                                <ImageIcon size={22} />
+                                            </button>
+                                            <div className="flex-1 relative group">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Type a message..."
+                                                    value={newMessage}
+                                                    onChange={(e) => setNewMessage(e.target.value)}
+                                                    className="w-full h-12 bg-slate-50 dark:bg-slate-800 border border-transparent rounded-2xl px-6 text-sm font-medium text-slate-600 dark:text-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-300/30 transition-all outline-none"
+                                                />
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={!newMessage.trim() && selectedImages.length === 0}
+                                                className="w-12 h-12 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100 dark:shadow-none transition-all active:scale-95"
+                                            >
+                                                <Send size={20} />
+                                            </button>
+                                        </form>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </>
@@ -688,17 +727,17 @@ const MessagesPage = () => {
             </div>
 
             {/* Photo Preview Modal */}
-            <PortalPopup 
-                isOpen={!!previewImage} 
+            <PortalPopup
+                isOpen={!!previewImage}
                 onClose={() => setPreviewImage(null)}
             >
                 <div className="relative max-w-4xl max-h-[90vh] flex items-center justify-center p-2">
-                    <img 
-                        src={previewImage} 
-                        alt="Preview" 
+                    <img
+                        src={previewImage}
+                        alt="Preview"
                         className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border-4 border-white dark:border-slate-800"
                     />
-                    <button 
+                    <button
                         onClick={() => setPreviewImage(null)}
                         className="absolute -top-4 -right-4 w-10 h-10 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full flex items-center justify-center shadow-xl hover:text-red-500 transition-colors pointer-events-auto"
                     >
@@ -716,8 +755,8 @@ const MessagesPage = () => {
                 }}
                 onConfirm={confirmDeleteMessage}
                 title="Delete Message"
-                message={messageToDelete?.senderId === currentUser.uid 
-                    ? "Are you sure you want to delete this message? It will be removed for everyone." 
+                message={messageToDelete?.senderId === currentUser.uid
+                    ? "Are you sure you want to delete this message? It will be removed for everyone."
                     : "Are you sure you want to delete this message for yourself?"}
                 confirmText="Delete"
                 type="danger"

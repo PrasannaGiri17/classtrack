@@ -30,6 +30,8 @@ const adminRoutes = require("./routes/adminRoutes");
 const statsRoutes = require("./routes/statsRoutes");
 const superAdminAuthRoutes = require("./routes/superAdminAuthRoutes");
 const discussionRoutes = require("./routes/discussionRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 
 
@@ -79,6 +81,8 @@ app.use("/api/admins", adminRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/superadmin", superAdminAuthRoutes);
 app.use("/api/discussions", discussionRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/users", userRoutes);
 
 
 app.listen(port, () => {

@@ -1,34 +1,171 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
-
   TrendingUp,
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
   Bell,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import GMainC from '../AdminComponents/Dashboard/GMainC';
-const stats = [
-  { title: 'Your Students', value: '1,248', icon: Users, color: 'bg-emerald-500', trend: '+12.5%', trendUp: true },
-
-  { title: 'Pass Rate', value: '94.2%', icon: TrendingUp, color: 'bg-emerald-500', trend: '+0.8%', trendUp: true },
-  { title: 'Fail Rate', value: '5.8%', icon: AlertCircle, color: 'bg-red-500', trend: '-0.2%', trendUp: false },
-];
-
-const attendanceData = [
-  { name: 'Mon', students: 1100 },
-  { name: 'Tue', students: 1200 },
-  { name: 'Wed', students: 1150 },
-  { name: 'Thu', students: 1180 },
-  { name: 'Fri', students: 1050 },
+import attendanceService from '../Api/attendanceService';
+import gradeService from '../Api/gradeService';
+import studentService from '../Api/studentService';
+import calendarService from '../Api/calendarService';
+import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
+import Loading from '../MainSystemComponents/Loading';
+import { Cell } from 'recharts';
+const NEPALI_MONTHS = [
+  "Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashwin",
+  "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
 ];
 
 const TDashboard = () => {
-  const [selectedClass, setSelectedClass] = useState('All Classes');
+  const [isLoading, setIsLoading] = useState(true);
+  const [sectionInfo, setSectionInfo] = useState(null);
+  const [statsData, setStatsData] = useState({
+    totalStudents: 0,
+    attendanceRate: 0,
+    passRate: '94.2%', // Keeping mocked as it's not implemented yet
+    failRate: '5.8%'
+  });
+  const [weeklyAttendanceData, setWeeklyAttendanceData] = useState([]);
+
+  const teacherId = localStorage.getItem("teacherId");
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!teacherId) return;
+      setIsLoading(true);
+      try {
+        // 1. Get Teacher's Section Info
+        const secData = await gradeService.getSectionByTeacherId(teacherId);
+        setSectionInfo(secData);
+
+        if (secData?.sectionId) {
+          // 2. Get Students for this section
+          const students = await studentService.getStudentsByClassTeacher(teacherId);
+          const totalStudents = students?.length || 0;
+
+          // 3. Get Current BS Date
+          const todayAD = new Date().toISOString().split('T')[0];
+          const todayBS = convertADtoBS(todayAD);
+          const [currentYear, currentMonthNum] = todayBS.split('-').map(Number);
+          const currentMonthName = NEPALI_MONTHS[currentMonthNum - 1];
+
+          // 4. Get Attendance Records
+          const attData = await attendanceService.getAttendance(secData.sectionId, currentYear, currentMonthName);
+
+          // 5. Get Holidays
+          const events = await calendarService.getEvents();
+          const holidays = (events || [])
+            .filter(e => e.type?.toUpperCase() === 'HOLIDAY' || e.isPublicHoliday);
+
+          // 6. Calculate Weekly Attendance
+          const currentWeekData = calculateWeeklySummary(attData?.attendanceData || [], students, holidays);
+          setWeeklyAttendanceData(currentWeekData);
+
+          // 6. Calculate Average Attendance Rate for the week
+          const totalPresents = currentWeekData.reduce((acc, day) => acc + day.students, 0);
+          const totalPossible = totalStudents * currentWeekData.filter(d => d.students > 0).length;
+          const attRate = totalPossible > 0 ? (totalPresents / totalPossible * 100).toFixed(1) : 0;
+
+          setStatsData(prev => ({
+            ...prev,
+            totalStudents,
+            attendanceRate: attRate
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [teacherId]);
+
+  const calculateWeeklySummary = (attendanceRecords, students, holidays = []) => {
+    const today = new Date();
+
+    // We fetch the last 7 working days to ensure a full working week (Sun-Fri) is always visible
+    // even at the transition between weeks.
+    const recentDays = [];
+    let checkDate = new Date(today);
+
+    // Look back up to 12 days to find 7 working days (skipping Saturdays)
+    for (let i = 0; i < 12 && recentDays.length < 7; i++) {
+      const dayOfWeek = checkDate.getDay();
+      if (dayOfWeek !== 6) { // Skip Saturday
+        recentDays.push(new Date(checkDate));
+      }
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    // Sort them chronologically (oldest to newest)
+    recentDays.sort((a, b) => a - b);
+
+    const summary = recentDays.map((date) => {
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+      const dateStr = date.toISOString().split('T')[0];
+
+      try {
+        const bsDate = convertADtoBS(dateStr);
+        const [year, monthNum, dayNum] = bsDate.split('-').map(Number);
+
+        // Label with day name and number for clarity (e.g., "Sun 8")
+        const label = `${dayName} ${dayNum}`;
+
+        // Check if this date is a holiday
+        const isHoliday = holidays.some(h => {
+          let hDate = h.nepali_date;
+          if (!hDate && h.startDate) {
+            try {
+              hDate = convertADtoBS(new Date(h.startDate).toISOString().split('T')[0]).replace(/-/g, '/');
+            } catch (err) { return false; }
+          }
+          if (!hDate) return false;
+          const parts = hDate.includes('/') ? hDate.split('/') : hDate.split('-');
+          return parseInt(parts[0]) === year && parseInt(parts[1]) === monthNum && parseInt(parts[2]) === dayNum;
+        });
+
+        let presentCount = 0;
+        attendanceRecords.forEach(record => {
+          const status = record.dailyStatus?.[String(dayNum)] || record.dailyStatus?.[dayNum];
+          if (status === 'P') {
+            presentCount++;
+          }
+        });
+
+        return {
+          name: label,
+          students: presentCount,
+          date: dateStr,
+          isToday: dateStr === today.toISOString().split('T')[0],
+          isHoliday
+        };
+      } catch (e) {
+        return { name: dayName, students: 0 };
+      }
+    });
+
+    return summary;
+  };
+
+  const stats = [
+    { title: 'Your Students', value: statsData.totalStudents.toLocaleString(), icon: Users, color: 'bg-emerald-500', trend: '+0%', trendUp: true },
+    { title: 'Attendance Rate', value: `${statsData.attendanceRate}%`, icon: Clock, color: 'bg-emerald-500', trend: 'Current Week', trendUp: true },
+    { title: 'Pass Rate', value: statsData.passRate, icon: TrendingUp, color: 'bg-emerald-500', trend: '+0.8%', trendUp: true },
+    { title: 'Fail Rate', value: statsData.failRate, icon: AlertCircle, color: 'bg-red-500', trend: '-0.2%', trendUp: false },
+  ];
+
+  if (isLoading) return <Loading fullScreen={true} text="Updating your dashboard..." />;
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -60,87 +197,95 @@ const TDashboard = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Attendance Overview</h3>
-              <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">Weekly student turnout analysis</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">
+                {sectionInfo ? `Grade ${sectionInfo.gradeNumber} - ${sectionInfo.sectionName}` : 'No Class Assigned'} • Weekly Turnout
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Enhanced Class/Section Filter */}
-              <div className="relative group min-w-[180px]">
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:border-emerald-500/20 text-xs font-black text-slate-600 dark:text-slate-300 rounded-xl pl-4 pr-10 py-3 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm"
-                >
-                  <option value="All Classes">All Classes</option>
-                  <optgroup label="Class 5">
-                    <option value="Class 5 (All)">Class 5 (All Sections)</option>
-                    <option value="Class 5 - Section A">Class 5 - Section A</option>
-                    <option value="Class 5 - Section B">Class 5 - Section B</option>
-                    <option value="Class 5 - Section C">Class 5 - Section C</option>
-                  </optgroup>
-                  <optgroup label="Class 6">
-                    <option value="Class 6 (All)">Class 6 (All Sections)</option>
-                    <option value="Class 6 - Section A">Class 6 - Section A</option>
-                    <option value="Class 6 - Section B">Class 6 - Section B</option>
-                  </optgroup>
-                  <optgroup label="Class 7">
-                    <option value="Class 7 (All)">Class 7 (All Sections)</option>
-                    <option value="Class 7 - Section A">Class 7 - Section A</option>
-                  </optgroup>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
-              </div>
-
-              {/* Time Filter */}
-              <div className="relative group">
-                <select className="appearance-none bg-slate-50 dark:bg-slate-800 border border-transparent focus:border-emerald-500/20 text-xs font-black text-slate-600 dark:text-slate-300 rounded-xl pl-4 pr-10 py-3 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm">
-                  <option>This Week</option>
-                  <option>Last Week</option>
-                  <option>Monthly</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+              <div className="px-5 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-500" />
+                <span className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                  This Week
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="h-[300px] w-full">
+          <div className="h-[380px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={attendanceData}>
+              <BarChart data={weeklyAttendanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" opacity={0.1} />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }}
-                  dy={10}
+                  tick={{ fill: '#64748b', fontSize: 12, fontWeight: 900 }}
+                  dy={15}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }}
+                  tick={{ fill: '#64748b', fontSize: 12, fontWeight: 900 }}
                 />
                 <Tooltip
                   cursor={{ fill: 'rgba(148, 163, 184, 0.05)' }}
-                  contentStyle={{
-                    borderRadius: '24px',
-                    border: 'none',
-                    boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-                    padding: '20px'
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200">
+                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">{label}</p>
+                          <div className="flex items-center gap-2">
+                            {data.isHoliday ? (
+                              <>
+                                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                                <span className="text-sm font-black text-red-500 uppercase">School Holiday</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                                <span className="text-sm font-black text-emerald-500">
+                                  {data.students} out of {statsData.totalStudents} Students Present
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          {data.isToday && (
+                            <p className="mt-2 text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md inline-block uppercase">Today</p>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
-                  itemStyle={{ fontSize: '12px', fontWeight: '900', color: '#10b981' }}
-                  labelStyle={{ marginBottom: '10px', color: '#64748b', fontWeight: '800', fontSize: '12px', textTransform: 'uppercase' }}
                 />
-                <Bar dataKey="students" name="Students" fill="#10b981" radius={[10, 10, 0, 0]} barSize={40} />
+                <Bar
+                  dataKey="students"
+                  name="Students"
+                  radius={[10, 10, 0, 0]}
+                  barSize={60}
+                  minPointSize={10} // Ensure holiday bars with 0 attendance are visible
+                >
+                  {weeklyAttendanceData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.isHoliday ? '#ef4444' : '#10b981'}
+                      fillOpacity={entry.isHoliday ? 1 : 1}
+                      stroke={entry.isHoliday ? '#ef4444' : 'none'}
+                      strokeWidth={entry.isHoliday ? 2 : 0}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-10 mt-8 justify-center border-t border-slate-50 dark:border-slate-800 pt-6">
+          <div className="flex items-center gap-10 mt-4 justify-center border-t border-slate-50 dark:border-slate-800 pt-6">
             <div className="flex items-center gap-3">
               <div className="w-4 h-4 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/20" />
-              <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Student Attendance</span>
+              <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{sectionInfo ? `Grade ${sectionInfo.gradeNumber} - ${sectionInfo.sectionName}` : 'Class'} Attendance</span>
             </div>
           </div>
         </div>

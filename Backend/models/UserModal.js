@@ -33,6 +33,12 @@ const userSchema = new mongoose.Schema(
     resetPasswordOtp: { type: String, default: null },
     resetPasswordOtpExpires: { type: Date, default: null },
     resetPasswordOtpAttempts: { type: Number, default: 0 },
+    
+    // Messaging related
+    name: { type: String, trim: true }, // Cached name for quick lookup
+    classId: { type: String, default: null }, // Section name or ID for students
+    classIds: [{ type: String }], // Section names or IDs for teachers
+    isBlockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }
 );
