@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import {
   Search,
@@ -25,6 +25,15 @@ const TeacherRecord = () => {
   const itemsPerPage = 8;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
+  const location = useLocation();
+
+  // Listen for search state from Navbar
+  useEffect(() => {
+    if (location.state?.searchName) {
+      setSearchTerm(location.state.searchName);
+      setCurrentPage(1);
+    }
+  }, [location.state]);
 
   const fetchTeachers = async () => {
     try {

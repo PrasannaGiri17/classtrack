@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import api from '../Utils/axiosInstance';
 import { useSchoolFetch } from '../Utils/useSchoolFetch';
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Users, Search, Trash2, Plus, ChevronLeft, ChevronRight, Loader2, AlertCircle, Pencil } from "lucide-react";
 import { AddPopupStudent } from "../AdminComponents/Admin/AddPopupStudent";
 import ConfirmDialog from "../MainSystemComponents/ConfirmDialog";
@@ -20,6 +20,15 @@ const StudentRecord = () => {
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, studentId: null, studentName: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const location = useLocation();
+
+  // Listen for search state from Navbar
+  React.useEffect(() => {
+    if (location.state?.searchName) {
+      setSearchQuery(location.state.searchName);
+      setCurrentPage(1);
+    }
+  }, [location.state]);
 
   const setStudents = (action) => {
     if (typeof action === 'function') {

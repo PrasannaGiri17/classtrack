@@ -156,15 +156,20 @@ exports.getContactableUsers = async (req, res) => {
         }
 
         if (search) {
-            filter.name = { $regex: search, $options: 'i' };
+            // Match search query at the beginning of the name or at the beginning of any word in the name
+            filter.name = { $regex: `(^|\\s)${search}`, $options: 'i' };
         }
 
         console.log(`[Messaging] Filter:`, JSON.stringify(filter));
 
         const users = await User.find(filter)
             .select('name role email isBlockedUsers teacherId studentId adminId')
-            .populate('teacherId', 'firstName lastName profilePhoto')
-            .populate('studentId', 'firstName lastName profilePhoto')
+            .populate({
+                path: 'teacherId',
+                select: 'firstName lastName profilePhoto teacherCode primarySubject',
+                populate: { path: 'primarySubject', select: 'subjectName' }
+            })
+            .populate('studentId', 'firstName lastName profilePhoto studentId studentClass')
             .populate('adminId', 'firstName lastName profilePhoto')
             .lean();
 
@@ -187,13 +192,27 @@ exports.getContactableUsers = async (req, res) => {
             else if (u.role === 'teacher' && u.teacherId) photo = u.teacherId.profilePhoto;
             else if (u.role === 'student' && u.studentId) photo = u.studentId.profilePhoto;
 
+            let extraInfo = {};
+            if (u.role === 'student' && u.studentId) {
+                extraInfo = {
+                    studentIdStr: u.studentId.studentId,
+                    studentClass: u.studentId.studentClass
+                };
+            } else if (u.role === 'teacher' && u.teacherId) {
+                extraInfo = {
+                    teacherCode: u.teacherId.teacherCode,
+                    facultySubject: u.teacherId.primarySubject?.subjectName || 'Faculty'
+                };
+            }
+
             return {
                 _id: u._id,
                 role: u.role,
                 email: u.email,
                 name: displayName,
                 profilePhoto: photo || null,
-                isBlockedByMe: myBlockedIds.includes(u._id.toString())
+                isBlockedByMe: myBlockedIds.includes(u._id.toString()),
+                ...extraInfo
             };
         });
 

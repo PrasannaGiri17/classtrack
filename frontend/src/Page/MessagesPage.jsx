@@ -23,6 +23,7 @@ import { useLocation } from 'react-router-dom';
 import { toast } from '../MainSystemComponents/Toast';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
+import Loading from '../MainSystemComponents/Loading';
 
 import messageService from '../Api/messageService';
 
@@ -57,10 +58,22 @@ const MessagesPage = () => {
     const [replyTo, setReplyTo] = useState(null);
     const [selectedImages, setSelectedImages] = useState([]);
     const [previewImage, setPreviewImage] = useState(null);
+    const [clearedTimestamps, setClearedTimestamps] = useState(() => {
+        const saved = localStorage.getItem(`cleared_convos_${currentUser.uid}`);
+        return saved ? JSON.parse(saved) : {};
+    });
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
     const fileInputRef = useRef(null);
 
     const messagesEndRef = useRef(null);
     const moreMenuRef = useRef(null);
+
+    // Update localStorage when cleared timestamps change
+    useEffect(() => {
+        if (currentUser.uid) {
+            localStorage.setItem(`cleared_convos_${currentUser.uid}`, JSON.stringify(clearedTimestamps));
+        }
+    }, [clearedTimestamps, currentUser.uid]);
 
     // Handle click outside more menu
     useEffect(() => {
@@ -121,6 +134,7 @@ const MessagesPage = () => {
         if (!selectedUser) return;
 
         const fetchMessages = async () => {
+            setIsLoadingMessages(true);
             try {
                 const data = await messageService.getMessages(selectedUser.uid);
                 const formatted = data.map(m => ({
@@ -128,15 +142,24 @@ const MessagesPage = () => {
                     id: m._id,
                     timestamp: new Date(m.createdAt)
                 }));
-                setMessages(formatted);
 
-                // Mark as read
+                // Filter out messages that were cleared on frontend
+                const clearedAt = clearedTimestamps[selectedUser.uid];
+                const filtered = clearedAt 
+                    ? formatted.filter(m => new Date(m.createdAt) > new Date(clearedAt))
+                    : formatted;
+
+                setMessages(filtered);
+
+                // Mark as read (use original formatted to ensure we don't skip marking unread messages as read even if they're hidden)
                 if (formatted.some(m => !m.read && m.receiverId === currentUser.uid)) {
                     await messageService.markAsRead(formatted[0].conversationId);
                     fetchConversations(); // Update unread count in sidebar
                 }
             } catch (error) {
                 console.error('Error fetching messages:', error);
+            } finally {
+                setIsLoadingMessages(false);
             }
         };
 
@@ -213,6 +236,13 @@ const MessagesPage = () => {
 
     const confirmClearAll = () => {
         if (!selectedUser) return;
+        
+        const now = new Date().toISOString();
+        setClearedTimestamps(prev => ({
+            ...prev,
+            [selectedUser.uid]: now
+        }));
+        
         setMessages([]);
         setShowClearConfirm(false);
         toast({
@@ -304,7 +334,24 @@ const MessagesPage = () => {
             else if (activeTab === 'teachers') matchesTab = (c.otherUser.role === 'teacher');
             else if (activeTab === 'students' || activeTab === 'classmates') matchesTab = (c.otherUser.role === 'student');
 
+            // If message was cleared, don't show last message in sidebar
+            const clearedAt = clearedTimestamps[c.otherUser.uid];
+            if (clearedAt && c.lastMessage && new Date(c.lastMessage.timestamp) <= new Date(clearedAt)) {
+                return matchesSearch && matchesTab;
+            }
+
             return matchesSearch && matchesTab;
+        }).map(c => {
+            // Effectively hide last message and unread count if conversation was cleared
+            const clearedAt = clearedTimestamps[c.otherUser.uid];
+            if (clearedAt && c.lastMessage && new Date(c.lastMessage.timestamp) <= new Date(clearedAt)) {
+                return {
+                    ...c,
+                    lastMessage: null,
+                    unreadCount: 0
+                };
+            }
+            return c;
         });
     })();
 
@@ -507,9 +554,14 @@ const MessagesPage = () => {
                         </div>
 
                         {/* Messages Area */}
-                        <div className="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-hide">
-                            <AnimatePresence initial={false}>
-                                {selectedMessages.map((msg, idx) => {
+                        <div className="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-hide relative">
+                            {isLoadingMessages ? (
+                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-[2px]">
+                                    <Loading fullScreen={false} text="Retrieving messages" />
+                                </div>
+                            ) : (
+                                <AnimatePresence initial={false}>
+                                    {selectedMessages.map((msg, idx) => {
                                     const isMe = msg.senderId === currentUser.uid;
                                     const showDate = idx === 0 || format(selectedMessages[idx - 1].timestamp, 'yyyy-MM-dd') !== format(msg.timestamp, 'yyyy-MM-dd');
 
@@ -587,6 +639,7 @@ const MessagesPage = () => {
                                     );
                                 })}
                             </AnimatePresence>
+                            )}
                             <div ref={messagesEndRef} />
                         </div>
 

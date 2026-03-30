@@ -1,9 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Bell, Sun, Moon, Check, ArrowRight } from "lucide-react";
+import { Search, Bell, Sun, Moon, Check, ArrowRight, User, Loader2, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import messageService from "../../../Api/messageService";
 
 const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   const notificationRef = useRef(null);
+  const searchRef = useRef(null);
 
   const getPageDisplayName = () => {
     const pageNames = {
@@ -29,11 +38,57 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       ) {
         setShowNotifications(false);
       }
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target)
+      ) {
+        setShowSearchResults(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Debounced Search using useEffect
+  useEffect(() => {
+    if (searchQuery.trim().length < 4) {
+      setSearchResults([]);
+      setIsSearching(false);
+      if (searchQuery.trim().length === 0) setShowSearchResults(false);
+      return;
+    }
+
+    // Immediately show dropdown when threshold is hit
+    setShowSearchResults(true);
+    setIsSearching(true);
+
+    const handler = setTimeout(async () => {
+      try {
+        const data = await messageService.getContacts(searchQuery);
+        setSearchResults(data);
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const handleResultClick = (result) => {
+    setShowSearchResults(false);
+    setSearchQuery("");
+    if (result.role === 'teacher') {
+      navigate('/admin/teacher', { state: { selectedTeacherId: result._id, searchName: result.name } });
+    } else if (result.role === 'student') {
+      navigate('/admin/student', { state: { selectedStudentId: result._id, searchName: result.name } });
+    }
+  };
+
+  const studentMatches = searchResults.filter(r => r.role === 'student');
+  const teacherMatches = searchResults.filter(r => r.role === 'teacher');
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString("en-US", {
@@ -68,7 +123,16 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   ];
 
   return (
-    <div className="w-full flex items-center justify-between transition-colors">
+    <div className="w-full flex items-center justify-between transition-colors z-[100] relative">
+      <style>{`
+        @keyframes bounce-dots {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        .dot-pulse {
+          animation: bounce-dots 0.6s infinite ease-in-out;
+        }
+      `}</style>
       <div className="flex flex-col">
         <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight transition-colors">
           {getPageDisplayName()}
@@ -78,15 +142,149 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         </p>
       </div>
 
-      <div className="flex-1 max-w-md mx-8">
+      <div className="flex-1 max-w-md mx-8 relative" ref={searchRef}>
         <div className="relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
           <input
             type="text"
             placeholder="Search for students, teachers..."
-            className="w-full h-11 bg-slate-100 dark:bg-slate-800 border-none rounded-2xl pl-11 pr-4 text-sm focus:ring-2 focus:ring-emerald-500/20 dark:focus:ring-emerald-500/10 focus:bg-white dark:focus:bg-slate-700 transition-all outline-none dark:text-slate-200 dark:placeholder-slate-500"
+            value={searchQuery}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSearchQuery(val);
+              if (val.trim().length >= 4) setShowSearchResults(true);
+            }}
+            onFocus={() => searchQuery.trim().length >= 4 && setShowSearchResults(true)}
+            className="w-full h-11 bg-slate-100 dark:bg-slate-800 border-none rounded-2xl pl-11 pr-16 text-sm focus:ring-2 focus:ring-emerald-500/20 dark:focus:ring-emerald-500/10 focus:bg-white dark:focus:bg-slate-700 transition-all outline-none dark:text-slate-200 dark:placeholder-slate-500"
           />
+          
+          {/* SEARCHING INDICATOR (3 Dots) */}
+          {isSearching && (
+            <div className="absolute right-12 top-1/2 -translate-y-1/2 flex gap-1 items-center z-10">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 bg-emerald-500 rounded-full dot-pulse"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+          )}
+
+          {searchQuery && (
+            <button 
+              onClick={() => {setSearchQuery(""); setSearchResults([]); setShowSearchResults(false);}}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors z-10"
+            >
+              <X className="w-3 h-3 text-slate-400" />
+            </button>
+          )}
         </div>
+
+        {/* Search Results Dropdown */}
+        {showSearchResults && (
+          <div className="absolute top-full left-0 right-0 mt-3 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl z-[9999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 min-h-[100px]">
+            <div className="max-h-[350px] overflow-y-auto">
+              {isSearching ? (
+                <div className="p-8 flex flex-col items-center justify-center gap-3">
+                  <div className="flex gap-2">
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        className="w-2 h-2 bg-emerald-500 rounded-full dot-pulse"
+                        style={{ animationDelay: `${i * 0.2}s` }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Searching database...</p>
+                </div>
+              ) : searchResults.length > 0 ? (
+                <div className="p-2">
+                  {/* Student Matches Section */}
+                  {studentMatches.length > 0 && (
+                    <div className="mb-2 last:mb-0">
+                      <div className="px-4 py-2">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Matches</p>
+                      </div>
+                      {studentMatches.map((result) => (
+                        <button
+                          key={result._id}
+                          onClick={() => handleResultClick(result)}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all text-left group"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                            {result.profilePhoto ? (
+                              <img src={result.profilePhoto} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-emerald-500 font-bold text-xs">{result.name?.[0]}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                              {result.name}
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                              ID: {result.studentIdStr || 'N/A'} • GRADE {result.studentClass || 'N/A'}
+                            </p>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Teacher Matches Section */}
+                  {teacherMatches.length > 0 && (
+                    <div className="mb-2 last:mb-0 pt-2 border-t border-slate-50 dark:border-slate-700/50">
+                      <div className="px-4 py-2">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Teacher Matches</p>
+                      </div>
+                      {teacherMatches.map((result) => (
+                        <button
+                          key={result._id}
+                          onClick={() => handleResultClick(result)}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all text-left group"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                            {result.profilePhoto ? (
+                              <img src={result.profilePhoto} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-blue-500 font-bold text-xs">{result.name?.[0]}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                              {result.name}
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                              {result.teacherCode || 'FACULTY'} • {result.facultySubject || 'Teacher'}
+                            </p>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-8 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-slate-50 dark:bg-slate-700/50 rounded-2xl flex items-center justify-center mb-3">
+                    <Search className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No matches found</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Try a different name or ID</p>
+                </div>
+              )}
+              
+              {/* Optional: Global Registry link based on screenshot */}
+              <div className="p-3 border-t border-slate-50 dark:border-slate-700/50 bg-slate-50/30 dark:bg-slate-900/30">
+                 <button className="w-full py-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:underline transition-all">
+                    View Global Registry
+                 </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 relative" ref={notificationRef}>
