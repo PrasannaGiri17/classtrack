@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Bell, Sun, Moon, Check, ArrowRight, User, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import messageService from '../../Api/messageService';
 
 const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const notificationRef = useRef(null);
   const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
   const [userPhoto, setUserPhoto] = useState(localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200");
+  const [unreadConversations, setUnreadConversations] = useState(0);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -73,6 +75,23 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Messages Unread Count Polling
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const data = await messageService.getConversations();
+        const count = data.filter(conv => conv.unreadCount > 0).length;
+        setUnreadConversations(count);
+      } catch (err) {
+        console.error("Unread count fetch error:", err);
+      }
+    };
+
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -82,9 +101,12 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   });
 
   const notifications = [
-    { id: 1, title: 'Fee Payment Success', msg: 'Student ID #1024 paid fees.', time: '5m ago', unread: true },
-    { id: 2, title: 'New Faculty Request', msg: 'Dr. Sarah applied for Maths dept.', time: '1h ago', unread: true },
-    { id: 3, title: 'Exam Date Reminder', msg: 'Mid-term schedule published.', time: '3h ago', unread: false },
+    { id: 1, title: 'Exam Schedule', msg: 'Mid-term exam schedule for Grade 10 is out.', time: '10m ago', unread: true },
+    { id: 2, title: 'Assignment Graded', msg: 'Your Science assignment has been graded.', time: '2h ago', unread: true },
+    { id: 3, title: 'Library Reminder', msg: 'Please return "Physics Vol 1" by tomorrow.', time: '4h ago', unread: false },
+    { id: 4, title: 'Holiday Notice', msg: 'School will be closed this Friday.', time: '6h ago', unread: false },
+    { id: 5, title: 'New Achievement', msg: 'You earned a "Perfectionist" badge!', time: '1d ago', unread: true },
+    { id: 6, title: 'Fee Payment Success', msg: 'Monthly fee payment received for March.', time: '3d ago', unread: false },
   ];
 
   return (
@@ -117,7 +139,11 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           title="Messages"
         >
           <MessageSquare className="w-5 h-5" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-emerald-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
+          {unreadConversations > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-emerald-500 border-2 border-white dark:border-slate-800 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-1 shadow-sm">
+              {unreadConversations}
+            </span>
+          )}
         </button>
 
         {/* Notifications */}
@@ -134,14 +160,15 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
         {/* Notifications Dropdown */}
         {showNotifications && (
-          <div className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-none z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute top-full right-[4rem] mt-3 w-96 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-none z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Notifications</h3>
               <button className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1">
                 <Check className="w-3 h-3" /> Mark all read
               </button>
             </div>
-            <div className="max-h-[350px] overflow-y-auto scrollbar-hide">
+            {/* Scrollable Notifications List */}
+            <div className="max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
               {notifications.map((notif) => (
                 <div key={notif.id} className="p-4 border-b border-slate-50 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer group">
                   <div className="flex justify-between items-start mb-1">

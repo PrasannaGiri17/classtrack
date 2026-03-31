@@ -78,12 +78,17 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   }, [searchQuery]);
 
   const handleResultClick = (result) => {
-    setShowSearchResults(false);
-    setSearchQuery("");
+    let path = "";
     if (result.role === 'teacher') {
-      navigate('/admin/teacher', { state: { selectedTeacherId: result._id, searchName: result.name } });
+      path = `/admin/teacher/${result.teacherId || result._id}`;
     } else if (result.role === 'student') {
-      navigate('/admin/student', { state: { selectedStudentId: result._id, searchName: result.name } });
+      path = `/admin/student/${result.studentId || result._id}`;
+    }
+
+    if (path) {
+      navigate(path);
+      setShowSearchResults(false);
+      setSearchQuery("");
     }
   };
 
@@ -99,27 +104,12 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   });
 
   const notifications = [
-    {
-      id: 1,
-      title: "Fee Payment Success",
-      msg: "Student ID #1024 paid fees.",
-      time: "5m ago",
-      unread: true,
-    },
-    {
-      id: 2,
-      title: "New Faculty Request",
-      msg: "Dr. Sarah applied for Maths dept.",
-      time: "1h ago",
-      unread: true,
-    },
-    {
-      id: 3,
-      title: "Exam Date Reminder",
-      msg: "Mid-term schedule published.",
-      time: "3h ago",
-      unread: false,
-    },
+    { id: 1, title: 'Fee Payment Success', msg: 'Student ID #1024 paid fees for Grade 9.', time: '5m ago', unread: true },
+    { id: 2, title: 'New Faculty Request', msg: 'Dr. Sarah applied for the Mathematics department.', time: '1h ago', unread: true },
+    { id: 3, title: 'Exam Date Reminder', msg: 'Mid-term schedule published for all classes.', time: '3h ago', unread: false },
+    { id: 4, title: 'Maintenance Alert', msg: 'System maintenance scheduled for 10 PM.', time: '5h ago', unread: false },
+    { id: 5, title: 'New Message', msg: 'You have a new message from School Board.', time: '1d ago', unread: true },
+    { id: 6, title: 'Attendance Alert', msg: 'Teacher attendance report is ready.', time: '2d ago', unread: false },
   ];
 
   return (
@@ -209,7 +199,10 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
                       {studentMatches.map((result) => (
                         <button
                           key={result._id}
-                          onClick={() => handleResultClick(result)}
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // Prevent blur
+                            handleResultClick(result);
+                          }}
                           className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all text-left group"
                         >
                           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center overflow-hidden">
@@ -242,7 +235,10 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
                       {teacherMatches.map((result) => (
                         <button
                           key={result._id}
-                          onClick={() => handleResultClick(result)}
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // Prevent blur
+                            handleResultClick(result);
+                          }}
                           className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all text-left group"
                         >
                           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center overflow-hidden">
@@ -311,8 +307,9 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full" />
         </button>
 
+        {/* Notifications Dropdown */}
         {showNotifications && (
-          <div className="absolute top-full right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-none z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute top-full right-[4rem] mt-3 w-96 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-none z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 Notifications

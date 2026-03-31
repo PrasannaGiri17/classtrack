@@ -13,8 +13,6 @@ exports.getContactableUsers = async (req, res) => {
         const { role, schoolId } = req.user;
         const sId = parseInt(schoolId);
 
-        console.log(`[Messaging] User: ${id}, Role: ${role}, School: ${sId}`);
-
         // Always fetch fresh current user
         let currentUser = await User.findById(id).lean();
 
@@ -47,8 +45,6 @@ exports.getContactableUsers = async (req, res) => {
             try { await userDoc.save(); } catch(e) { console.error("Auto sync save failed", e); }
             currentUser = userDoc.toObject();
         }
-
-        console.log(`[Messaging] Context: name=${currentUser.name}, classId=${currentUser.classId}, classIds=${JSON.stringify(currentUser.classIds)}`);
 
         const { search } = req.query;
         let filter = {};
@@ -86,7 +82,7 @@ exports.getContactableUsers = async (req, res) => {
                     }
                 }
             } catch (err) {
-                console.error("[Messaging] Error fetching routine for teacher:", err);
+                console.error("Error fetching routine for teacher:", err);
             }
 
             filter = {
@@ -138,7 +134,7 @@ exports.getContactableUsers = async (req, res) => {
                     }
                 }
             } catch (err) {
-                console.error("[Messaging] Error fetching routine for student:", err);
+                console.error("Error fetching routine for student:", err);
             }
 
             filter = {
@@ -160,8 +156,6 @@ exports.getContactableUsers = async (req, res) => {
             filter.name = { $regex: `(^|\\s)${search}`, $options: 'i' };
         }
 
-        console.log(`[Messaging] Filter:`, JSON.stringify(filter));
-
         const users = await User.find(filter)
             .select('name role email isBlockedUsers teacherId studentId adminId')
             .populate({
@@ -172,8 +166,6 @@ exports.getContactableUsers = async (req, res) => {
             .populate('studentId', 'firstName lastName profilePhoto studentId studentClass')
             .populate('adminId', 'firstName lastName profilePhoto')
             .lean();
-
-        console.log(`[Messaging] Found ${users.length} contacts`);
 
         const myBlockedIds = (currentUser.isBlockedUsers || []).map(b => b.toString());
 
@@ -212,6 +204,8 @@ exports.getContactableUsers = async (req, res) => {
                 name: displayName,
                 profilePhoto: photo || null,
                 isBlockedByMe: myBlockedIds.includes(u._id.toString()),
+                studentId: u.role === 'student' ? u.studentId?._id : null,
+                teacherId: u.role === 'teacher' ? u.teacherId?._id : null,
                 ...extraInfo
             };
         });

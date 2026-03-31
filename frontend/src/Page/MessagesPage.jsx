@@ -125,9 +125,66 @@ const MessagesPage = () => {
 
     useEffect(() => {
         fetchConversations();
-        const interval = setInterval(fetchConversations, 10000); // Poll every 10s for new messages
+        const interval = setInterval(fetchConversations, 10000); // Poll every 10s for sidebar updates
         return () => clearInterval(interval);
     }, []);
+
+    // New Message Notification Polling (every 30s)
+    const lastMessageIdRef = useRef(null);
+    useEffect(() => {
+        const checkNewMessages = async () => {
+            try {
+                const data = await messageService.getConversations();
+                
+                // Find the latest message that is NOT from the current user
+                const latestMsg = data.reduce((latest, conv) => {
+                    const msg = conv.lastMessage;
+                    if (!msg || msg.senderId === currentUser.uid) return latest;
+                    if (!latest || new Date(msg.createdAt) > new Date(latest.createdAt)) return msg;
+                    return latest;
+                }, null);
+
+                if (latestMsg) {
+                    lastMessageIdRef.current = latestMsg._id;
+                } else if (lastMessageIdRef.current === null) {
+                    lastMessageIdRef.current = "initialized";
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        };
+
+        const intervalId = setInterval(checkNewMessages, 30000);
+        return () => clearInterval(intervalId);
+    }, [currentUser.uid]);
+
+    // Active Chat Polling (every 10s if a user is selected)
+    useEffect(() => {
+        if (!selectedUser) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const data = await messageService.getMessages(selectedUser.uid);
+                const formatted = data.map(m => ({
+                    ...m,
+                    id: m._id,
+                    timestamp: new Date(m.createdAt)
+                }));
+                
+                // Filter out messages that were cleared on frontend
+                const clearedAt = clearedTimestamps[selectedUser.uid];
+                const filtered = clearedAt 
+                    ? formatted.filter(m => new Date(m.createdAt) > new Date(clearedAt))
+                    : formatted;
+
+                setMessages(filtered);
+            } catch (err) {
+                console.error("Active chat polling error:", err);
+            }
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [selectedUser, clearedTimestamps]);
 
     // Fetch full messages when a user is selected
     useEffect(() => {
