@@ -83,6 +83,12 @@ const studentFeeSchema = new mongoose.Schema(
     remarks: {
       type: String,
     },
+    khaltiPidx: {
+      type: String,
+    },
+    transactionId: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

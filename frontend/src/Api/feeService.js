@@ -1,6 +1,8 @@
 import axios from "axios";
 
 const API_URL = "http://localhost:7000/api/fees";
+const PAYMENT_URL = "http://localhost:7000/api/payment/khalti";
+const ESEWA_PAYMENT_URL = "http://localhost:7000/api/payment/esewa";
 
 // Helper to get auth header
 const getAuthHeaders = () => {
@@ -70,6 +72,16 @@ const getFeeSummary = async (studentId, academicYear) => {
     return response.data;
 };
 
+const initiateKhaltiPayment = async (paymentData) => {
+    const response = await axios.post(`${PAYMENT_URL}/initiate`, paymentData, getAuthHeaders());
+    return response.data;
+};
+
+const initiateEsewaPayment = async (paymentData) => {
+    const response = await axios.post(`${ESEWA_PAYMENT_URL}/initiate`, paymentData, getAuthHeaders());
+    return response.data;
+};
+
 const feeService = {
     generateYearlyFees,
     bulkGenerateFees,
@@ -81,7 +93,9 @@ const feeService = {
     markAsPaid,
     addExtraFee,
     deleteExtraFee,
-    getFeeSummary
+    getFeeSummary,
+    initiateKhaltiPayment,
+    initiateEsewaPayment
 };
 
 export default feeService;

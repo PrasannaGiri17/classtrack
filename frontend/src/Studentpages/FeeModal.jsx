@@ -12,9 +12,10 @@ import {
     School,
     Calendar,
     Layers,
-    ChevronRight,
-    Wallet
+    ChevronRight
 } from 'lucide-react';
+import esewaLogo from '../Assests/esewa.jpg';
+import khaltiLogo from '../Assests/khalti.jpg';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
 
 const FeeModal = ({
@@ -23,7 +24,9 @@ const FeeModal = ({
     studentInfo,
     selectedFees,
     totalAmount,
-    onConfirm
+    onConfirm,
+    paymentGateway,
+    setPaymentGateway
 }) => {
     return (
         <PortalPopup isOpen={isOpen} onClose={onClose}>
@@ -169,12 +172,26 @@ const FeeModal = ({
 
                         <div className="mt-auto pt-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-8">
                             <div className="flex items-center gap-6">
-                                <div className="text-center group cursor-pointer">
-                                    <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-none flex items-center justify-center text-slate-300 group-hover:text-purple-500 transition-all shadow-inner hover:-translate-y-1 duration-300 relative overflow-hidden">
-                                        <Wallet size={20} />
-                                        <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div 
+                                    onClick={() => setPaymentGateway && setPaymentGateway('khalti')}
+                                    className={`text-center group cursor-pointer transition-all duration-300 ${paymentGateway === 'khalti' ? 'scale-105' : ''}`}
+                                >
+                                    <div className={`w-16 h-16 rounded-2xl border-none flex items-center justify-center transition-all duration-500 relative overflow-hidden 
+                                        ${paymentGateway === 'khalti' ? 'shadow-[0_0_20px_rgba(168,85,247,0.4)] ring-2 ring-purple-500' : 'bg-slate-50 dark:bg-slate-800/50 grayscale opacity-60 hover:grayscale-0 hover:opacity-100'}`}>
+                                        <img src={khaltiLogo} alt="Khalti" className="w-full h-full object-cover p-1" />
                                     </div>
-                                    <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 capitalize tracking-widest mt-1.5 group-hover:text-purple-500 transition-colors">Khalti</p>
+                                    <p className={`text-[10px] font-bold capitalize tracking-widest mt-2 transition-colors ${paymentGateway === 'khalti' ? 'text-purple-600' : 'text-slate-500 dark:text-slate-400'}`}>Khalti</p>
+                                </div>
+
+                                <div 
+                                    onClick={() => setPaymentGateway && setPaymentGateway('esewa')}
+                                    className={`text-center group cursor-pointer transition-all duration-300 ${paymentGateway === 'esewa' ? 'scale-105' : ''}`}
+                                >
+                                    <div className={`w-16 h-16 rounded-2xl border-none flex items-center justify-center transition-all duration-500 relative overflow-hidden 
+                                        ${paymentGateway === 'esewa' ? 'shadow-[0_0_20px_rgba(16,185,129,0.4)] ring-2 ring-emerald-500' : 'bg-slate-50 dark:bg-slate-800/50 grayscale opacity-60 hover:grayscale-0 hover:opacity-100'}`}>
+                                        <img src={esewaLogo} alt="eSewa" className="w-full h-full object-cover p-1" />
+                                    </div>
+                                    <p className={`text-[10px] font-bold capitalize tracking-widest mt-2 transition-colors ${paymentGateway === 'esewa' ? 'text-emerald-600' : 'text-slate-500 dark:text-slate-400'}`}>eSewa</p>
                                 </div>
                             </div>
 

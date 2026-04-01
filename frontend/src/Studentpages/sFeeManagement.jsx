@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CreditCard,
   Lock,
@@ -33,9 +34,13 @@ const NEPALI_MONTHS = [
 ];
 
 const SFeeManagement = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const toastShownRef = useRef(false);
   const [fees, setFees] = useState([]);
   const [selectedIndexes, setSelectedIndexes] = useState([]);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [paymentGateway, setPaymentGateway] = useState('khalti');
   const [detailFee, setDetailFee] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(10); // Default Falgun
@@ -50,7 +55,27 @@ const SFeeManagement = () => {
   });
 
   useEffect(() => {
-    fetchMyFees();
+    // Check for payment status in URL
+    const queryParams = new URLSearchParams(location.search);
+    const paymentStatus = queryParams.get('payment');
+    
+    if (paymentStatus && !toastShownRef.current) {
+      toastShownRef.current = true;
+      
+      if (paymentStatus === 'success') {
+        toast({ type: 'success', message: 'Payment completed successfully! Your digital receipt is downloading...' });
+        fetchMyFees(true); // Fetch and download PDF
+      } else if (paymentStatus === 'failed') {
+        toast({ type: 'error', message: 'Payment failed or was cancelled. Please try again.' });
+        fetchMyFees(false);
+      }
+      
+      // Clear URL params without triggering a full page state reset
+      navigate(location.pathname, { replace: true });
+    } else {
+      fetchMyFees(false);
+    }
+
     try {
       const today = new Date();
       const { month } = getNepaliDateInfo(today);
@@ -58,9 +83,9 @@ const SFeeManagement = () => {
     } catch (e) {
       console.log("Failed to parse Date:", e);
     }
-  }, []);
+  }, [location, navigate]);
 
-  const fetchMyFees = async () => {
+  const fetchMyFees = async (shouldDownloadStatement = false) => {
     setIsLoading(true);
     try {
       // 1. Fetch Student Details first for the header
@@ -71,7 +96,8 @@ const SFeeManagement = () => {
           setStudentInfo(prev => ({
             ...prev,
             name: `${sData.firstName} ${sData.lastName}`,
-            class: sData.classId?.gradeName || `Grade ${sData.studentClass || ''}`,
+            class: sData.gradeId?.gradeName || `Grade ${sData.studentClass || ''}`,
+            section: sData.sectionId?.sectionName || "N/A",
             studentId: sData.studentId || prev.studentId,
             schoolId: sData.schoolId || prev.schoolId,
             avatarUrl: sData.profilePhoto || prev.avatarUrl
@@ -86,10 +112,28 @@ const SFeeManagement = () => {
       setFees(data);
 
       if (data.length > 0) {
+        const year = data[0].academicYear;
         setStudentInfo(prev => ({
           ...prev,
-          academicYear: data[0].academicYear
+          academicYear: year
         }));
+
+        if (shouldDownloadStatement) {
+          const lastPaidIdsRaw = sessionStorage.getItem("lastPaidFees");
+          if (lastPaidIdsRaw) {
+            try {
+              const lastPaidIds = JSON.parse(lastPaidIdsRaw);
+              const filteredData = data.filter(f => lastPaidIds.includes(f._id));
+              generateFullStatement(filteredData, "Digital Fee Receipt");
+              sessionStorage.removeItem("lastPaidFees");
+            } catch (err) {
+              console.error("Failed to parse last payment data", err);
+              generateFullStatement(data); // Fallback to all
+            }
+          } else {
+            generateFullStatement(data); // Fallback to all
+          }
+        }
       }
     } catch (error) {
       toast({ type: 'error', message: 'Failed to fetch your fee records.' });
@@ -157,29 +201,69 @@ const SFeeManagement = () => {
 
   const confirmPayment = async () => {
     try {
-      toast({ type: 'info', message: 'Processing payment simulation...' });
+      if (paymentGateway === 'khalti') {
+        toast({ type: 'info', message: 'Redirecting to Khalti for secure payment...' });
 
-      // In a real MERN app, this would redirect to E-Sewa or Khalti
-      // For this task, we'll simulate successful bulk payment
+        const amountInPaisa = subTotal * 100;
+        const purchaseOrderId = `ORDER_${Date.now()}`;
+        const feeIds = selectedFees.map(f => f._id);
+        
+        sessionStorage.setItem("lastPaidFees", JSON.stringify(feeIds));
 
-      // Since we don't have a bulk-pay endpoint yet, we'll pay one by one (demo only)
-      // In reality, one request would handle all selected months
-
-      for (const idx of selectedIndexes) {
-        const f = fees[idx];
-        await feeService.markAsPaid(f._id, {
-          paidAmount: f.dueAmount,
-          paymentMethod: "ONLINE",
-          paymentDate: new Date()
+        const response = await feeService.initiateKhaltiPayment({
+          feeIds,
+          studentId: studentInfo.studentId,
+          amount: amountInPaisa,
+          purchaseOrderId,
+          studentName: studentInfo.name
         });
-      }
 
-      setSelectedIndexes([]);
-      setIsConfirmModalOpen(false);
-      toast({ type: 'success', message: 'Digital payment settled successfully.' });
-      fetchMyFees();
+        if (response && response.payment_url) {
+          window.location.href = response.payment_url;
+        } else {
+          throw new Error("Invalid response from payment gateway");
+        }
+      } else if (paymentGateway === 'esewa') {
+        toast({ type: 'info', message: 'Redirecting to eSewa for secure payment...' });
+
+        const purchaseOrderId = `ORDER_${Date.now()}`;
+        const feeIds = selectedFees.map(f => f._id);
+        
+        sessionStorage.setItem("lastPaidFees", JSON.stringify(feeIds));
+
+        const response = await feeService.initiateEsewaPayment({
+          feeIds,
+          amount: subTotal, // eSewa uses Rupees
+          purchaseOrderId
+        });
+
+        if (response && response.signature) {
+          // Create a dynamic form and submit it
+          const form = document.createElement('form');
+          form.setAttribute('method', 'POST');
+          form.setAttribute('action', response.esewa_url);
+
+          for (const key in response) {
+            if (key !== 'esewa_url') {
+              const input = document.createElement('input');
+              input.setAttribute('type', 'hidden');
+              input.setAttribute('name', key);
+              input.setAttribute('value', response[key]);
+              form.appendChild(input);
+            }
+          }
+
+          document.body.appendChild(form);
+          form.submit();
+        } else {
+          throw new Error("Failed to get eSewa signature");
+        }
+      }
     } catch (error) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Payment settlement failed.' });
+      console.error("Payment Initiation Error:", error);
+      const detailMsg = error.response?.data?.details;
+      const displayMsg = detailMsg ? (typeof detailMsg === 'object' ? JSON.stringify(detailMsg) : detailMsg) : (error.response?.data?.message || 'Failed to initiate payment. Please try again.');
+      toast({ type: 'error', message: displayMsg });
     }
   };
 
@@ -193,72 +277,173 @@ const SFeeManagement = () => {
     }, 1500);
   };
 
-  const generateFullStatement = () => {
+  const generateFullStatement = (dataToUse = fees, title = "Annual Academic Ledger") => {
+    // If called via onClick, the first argument is an event object
+    // We should fallback to the 'fees' state if dataToUse is not an array
+    const targetData = Array.isArray(dataToUse) ? dataToUse : fees;
+    
+    if (!targetData || targetData.length === 0) {
+      toast({ type: 'error', message: 'No fee records available to print.' });
+      return;
+    }
+
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const primaryColor = [16, 185, 129]; // Emerald Green #10B981
     
-    // Header
-    doc.setFontSize(22);
-    doc.setTextColor(16, 185, 129); // Emerald-500
-    doc.text(studentInfo.schoolName.toUpperCase() || "SCHOOL STATEMENT", pageWidth / 2, 20, { align: 'center' });
+    // 1. HEADER SECTION
+    // Colored Banner
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, pageWidth, 40, 'F');
     
-    doc.setFontSize(14);
-    doc.setTextColor(100, 116, 139); // Slate-500
-    doc.text("Academic Fee Account Statement", pageWidth / 2, 30, { align: 'center' });
+    // Logo Placeholder (Circle with Initials)
+    const schoolInitials = (studentInfo.schoolName || "S").split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    doc.setFillColor(255, 255, 255);
+    doc.circle(25, 20, 12, 'F');
+    doc.setFontSize(12);
+    doc.setTextColor(...primaryColor);
+    doc.setFont("helvetica", "bold");
+    doc.text(schoolInitials, 25, 21.5, { align: 'center' });
     
-    // Horizontal Line
-    doc.setDrawColor(241, 245, 249);
-    doc.line(14, 38, pageWidth - 14, 48);
+    // School Name & Subtitle
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.text(studentInfo.schoolName.toUpperCase() || "SCHOOL STATEMENT", 42, 18);
     
-    // Student Info
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Student Name: ${studentInfo.name}`, 14, 50);
-    doc.text(`Student ID: ${studentInfo.studentId}`, 14, 57);
-    doc.text(`Class: ${studentInfo.class}`, 14, 64);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(title, 42, 26);
     
-    doc.text(`Academic Year: ${studentInfo.academicYear}`, pageWidth - 14, 50, { align: 'right' });
-    doc.text(`Generated Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, 57, { align: 'right' });
-    doc.text(`Total Dues: Rs. ${totalDueSummary.toLocaleString()}`, pageWidth - 14, 64, { align: 'right' });
+    // Header Right Info
+    doc.setFontSize(9);
+    doc.text(`Academic Year: ${studentInfo.academicYear || "2081/82"}`, pageWidth - 15, 18, { align: 'right' });
+    doc.text(`Printed On: ${new Date().toLocaleDateString()}`, pageWidth - 15, 26, { align: 'right' });
     
-    // Table Rows
-    const tableRows = fees.map((f, i) => [
-      i + 1,
-      f.monthName,
-      f.status,
-      `Rs. ${f.totalAmount.toLocaleString()}`,
-      `Rs. ${f.dueAmount.toLocaleString()}`,
-      f.status === 'PAID' ? 'SETTLED' : 'OUTSTANDING'
-    ]);
+    // Reset Text Color
+    doc.setTextColor(30, 41, 59); // Slate-800
+    
+    // 2. STUDENT INFO BOX
+    const infoBoxY = 50;
+    doc.setFillColor(248, 250, 252); // Slate-50 background
+    doc.setDrawColor(226, 232, 240); // Slate-200 border
+    doc.rect(14, infoBoxY, pageWidth - 28, 35, 'FD');
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("STUDENT PARTICULARS", 20, infoBoxY + 8);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    // Left Column
+    doc.text(`Student Name: ${studentInfo.name}`, 20, infoBoxY + 16);
+    doc.text(`Student ID:    ${studentInfo.studentId}`, 20, infoBoxY + 22);
+    doc.text(`Class/Grade:   ${studentInfo.class}`, 20, infoBoxY + 28);
+    doc.text(`Section:       ${studentInfo.section || "N/A"}`, 20, infoBoxY + 34);
+    
+    // Right Column
+    const rightColX = pageWidth / 2 + 10;
+    const totalPaidVal = targetData.reduce((sum, f) => sum + (f.paidAmount || 0), 0);
+    const totalDueVal = targetData.reduce((sum, f) => sum + (f.dueAmount || 0), 0);
+    
+    doc.text(`Academic Period: ${studentInfo.academicYear}`, rightColX, infoBoxY + 16);
+    doc.text(`Total Paid:      Rs. ${totalPaidVal.toLocaleString()}`, rightColX, infoBoxY + 22);
+    doc.text(`Total Balance:   Rs. ${totalDueVal.toLocaleString()}`, rightColX, infoBoxY + 28);
+    doc.text(`Statement Date:  ${new Date().toLocaleDateString()}`, rightColX, infoBoxY + 34);
+    
+    // 3. TABLE IMPROVEMENTS
+    const tableRows = targetData.map((f, i) => {
+      let statusText = f.status === 'PAID' ? "SETTLED" : 
+                       f.status === 'OVERDUE' ? "OVERDUE" : 
+                       f.status === 'PARTIAL' ? "PARTIAL" : "PENDING";
+      
+      return [
+        i + 1,
+        f.monthName,
+        statusText,
+        f.paymentMethod || "—",
+        f.receiptNumber || "—",
+        `Rs. ${f.totalAmount.toLocaleString()}`,
+        `Rs. ${f.dueAmount.toLocaleString()}`
+      ];
+    });
     
     autoTable(doc, {
-      startY: 75,
-      head: [['S.N', 'Month', 'Status', 'Total Charge', 'Amount Due', 'Remarks']],
+      startY: 95,
+      head: [['S.N', 'Month', 'Collection Status', 'Method', 'Receipt No.', 'Total Charge', 'Amount Due']],
       body: tableRows,
-      theme: 'grid',
-      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 4 },
+      theme: 'striped', // light gray stripes automatically
+      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+      styles: { fontSize: 8, cellPadding: 4, font: "helvetica" },
       columnStyles: {
-        0: { cellWidth: 15 },
+        0: { cellWidth: 10 },
         1: { fontStyle: 'bold' },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
-        5: { halign: 'center' }
+        2: { halign: 'center' },
+        5: { halign: 'right' },
+        6: { halign: 'right' }
+      },
+      didParseCell: function (data) {
+        if (data.section === 'body' && data.column.index === 2) {
+          const status = data.cell.raw;
+          if (status === "SETTLED") {
+              data.cell.styles.textColor = [16, 185, 129]; // Emerald
+              data.cell.styles.fontStyle = 'bold';
+          } else if (status === "OVERDUE") {
+              data.cell.styles.textColor = [239, 68, 68]; // Red
+              data.cell.styles.fontStyle = 'bold';
+          } else if (status === "PARTIAL") {
+              data.cell.styles.textColor = [245, 158, 11]; // Amber
+          }
+        }
       }
     });
     
-    // Summary
-    const finalY = (doc).lastAutoTable.finalY + 15;
-    doc.setFontSize(12);
-    doc.text(`Summary Balance: Rs. ${totalDueSummary.toLocaleString()}`, pageWidth - 14, finalY, { align: 'right' });
+    // 4. SUMMARY SECTION
+    const finalY = (doc).lastAutoTable.finalY + 10;
+    const totalChargeVal = targetData.reduce((sum, f) => sum + (f.totalAmount || 0), 0);
     
-    // Footer
+    const isReceipt = title.includes("Receipt");
+    
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(...primaryColor);
+    doc.rect(pageWidth - 84, finalY, 70, isReceipt ? 22 : 30, 'D');
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("Total Fees Charged:", pageWidth - 80, finalY + 8);
+    doc.text("Total Amount Paid:", pageWidth - 80, finalY + 16);
+    
+    if (!isReceipt) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Net Total Balance:", pageWidth - 80, finalY + 24);
+    }
+    
+    doc.setFont("helvetica", "normal");
+    doc.text(`Rs. ${totalChargeVal.toLocaleString()}`, pageWidth - 18, finalY + 8, { align: 'right' });
+    doc.text(`Rs. ${totalPaidVal.toLocaleString()}`, pageWidth - 18, finalY + 16, { align: 'right' });
+    
+    if (!isReceipt) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(239, 68, 68); // Red for debt
+      if (totalDueVal === 0) doc.setTextColor(...primaryColor);
+      doc.text(`Rs. ${totalDueVal.toLocaleString()}`, pageWidth - 18, finalY + 24, { align: 'right' });
+    }
+    
+    // 5. FOOTER
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, pageHeight - 25, pageWidth - 14, pageHeight - 25);
+    
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text("This is an official computer-generated statement of the school and does not require a physical signature.", pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
+    doc.setFont("helvetica", "italic");
+    doc.text("This is an official computer-generated statement of the school and is valid without physical signature.", pageWidth / 2, pageHeight - 18, { align: 'center' });
     
-    doc.save(`${studentInfo.name.replace(/\s+/g, '_')}_Statement.pdf`);
-    toast({ type: 'success', message: 'Account Statement Generated Successfully!' });
+    doc.setFont("helvetica", "normal");
+    // Determine Filename
+    const sanitizedName = studentInfo.name.replace(/\s+/g, '_');
+    const fileName = isReceipt ? `Digital_Fee_Receipt_${sanitizedName}.pdf` : `Academic_Ledger_${sanitizedName}.pdf`;
+    
+    doc.save(fileName);
   };
 
   if (isLoading) {
@@ -533,6 +718,8 @@ const SFeeManagement = () => {
         selectedFees={selectedFees}
         totalAmount={subTotal}
         onConfirm={confirmPayment}
+        paymentGateway={paymentGateway}
+        setPaymentGateway={setPaymentGateway}
       />
     </div>
   );
