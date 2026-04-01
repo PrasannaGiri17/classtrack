@@ -26,6 +26,7 @@ import StudentPage from './Page/studentpage';
 import AdminMePage from './Adminpages/AdminMePage';
 import TeacherPage from './Page/teacherpage';
 import MessagesPage from './Page/MessagesPage';
+import ActivityPage from './Page/NotificationPage';
 
 
 import TeacherLayout from './TeacherComponents/Layout/TecaherLayout';
@@ -144,6 +145,7 @@ function App() {
           <Route path="teacher/:id" element={<TeacherPage />} />
           <Route path="messages" element={<MessagesPage />} />
           <Route path="profile" element={<AdminMePage />} />
+          <Route path="activities" element={<ActivityPage />} />
         </Route>
 
         <Route path="/teacher" element={
@@ -166,6 +168,7 @@ function App() {
           <Route path="profile" element={<TeacherMePage />} />
           <Route path="student-profile" element={<StudentMePage />} />
           <Route path="messages" element={<MessagesPage />} />
+          <Route path="activities" element={<ActivityPage />} />
         </Route>
 
         <Route path="/student" element={
@@ -187,6 +190,7 @@ function App() {
           <Route path="discussions" element={<SDiscussionsPage />} />
           <Route path="profile" element={<StudentMePage />} />
           <Route path="messages" element={<MessagesPage />} />
+          <Route path="activities" element={<ActivityPage />} />
           
         </Route>
 

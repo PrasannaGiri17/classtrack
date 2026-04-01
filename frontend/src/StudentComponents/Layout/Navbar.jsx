@@ -186,7 +186,10 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
                 </div>
               ))}
             </div>
-            <button className="w-full p-4 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-800/50">
+            <button 
+              onClick={() => navigate('/student/activities')}
+              className="w-full p-4 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-800/50"
+            >
               View all activities <ArrowRight className="w-3 h-3" />
             </button>
           </div>
