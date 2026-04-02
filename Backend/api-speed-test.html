@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Speed Tester</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; padding: 30px; }
+    h1 { color: #10b981; font-size: 22px; margin-bottom: 24px; }
+    .card { background: #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 20px; border: 1px solid #334155; }
+    label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; display: block; margin-bottom: 8px; }
+    input { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid #334155; border-radius: 10px; color: #fff; font-size: 14px; margin-bottom: 12px; outline: none; }
+    input:focus { border-color: #10b981; }
+    button { padding: 12px 24px; background: #10b981; color: #fff; border: none; border-radius: 10px; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; margin-right: 10px; margin-bottom: 10px; transition: all 0.2s; }
+    button:hover { background: #059669; transform: scale(1.02); }
+    button:disabled { background: #334155; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: #3b82f6; }
+    .btn-secondary:hover { background: #2563eb; }
+    .btn-danger { background: #ef4444; }
+    .btn-danger:hover { background: #dc2626; }
+    .result { background: #0f172a; border-radius: 12px; padding: 20px; margin-top: 16px; border: 1px solid #334155; min-height: 60px; }
+    .log { font-size: 13px; line-height: 1.8; }
+    .fast { color: #10b981; }
+    .medium { color: #f59e0b; }
+    .slow { color: #ef4444; font-weight: bold; }
+    .info { color: #94a3b8; }
+    .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; margin-right: 6px; }
+    .tag-fast { background: #10b98122; color: #10b981; }
+    .tag-medium { background: #f59e0b22; color: #f59e0b; }
+    .tag-slow { background: #ef444422; color: #ef4444; }
+    .data-box { background: #0f172a; border-radius: 12px; padding: 16px; margin-top: 12px; font-size: 12px; color: #94a3b8; max-height: 300px; overflow-y: auto; border: 1px solid #1e293b; white-space: pre-wrap; word-break: break-all; }
+    .student-card { background: #1e293b; border-radius: 12px; padding: 16px; margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { background: #0f172a; border-radius: 8px; padding: 10px 14px; }
+    .field-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 4px; }
+    .field-value { font-size: 14px; font-weight: 700; color: #e2e8f0; }
+    .photo { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #10b981; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .timer { font-size: 28px; font-weight: 900; margin: 8px 0; }
+    .summary { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+    .summary-item { background: #0f172a; border-radius: 10px; padding: 12px 20px; text-align: center; flex: 1; min-width: 120px; }
+    .summary-num { font-size: 22px; font-weight: 900; }
+    hr { border: none; border-top: 1px solid #334155; margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<h1>🚀 API Speed Tester</h1>
+
+<div class="card">
+  <label>Backend Base URL</label>
+  <input id="baseUrl" value="http://localhost:7000/api" placeholder="http://localhost:7000/api" />
+
+  <label>Student ID to Test</label>
+  <input id="studentId" value="69bebcd2f90e172ec1ff26f0" placeholder="MongoDB ObjectId" />
+
+  <label>Auth Token (paste from localStorage)</label>
+  <input id="authToken" placeholder="Bearer eyJ..." />
+
+  <button onclick="runAllTests()">▶ Run All Speed Tests</button>
+  <button class="btn-secondary" onclick="testSingleStudent()">👤 Test Student Fetch Only</button>
+  <button class="btn-danger" onclick="clearLogs()">🗑 Clear Logs</button>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <label>⏱ Speed Results</label>
+    <div id="logs" class="result log"><span class="info">Click "Run All Speed Tests" to start...</span></div>
+  </div>
+  <div class="card">
+    <label>📊 Summary</label>
+    <div class="summary">
+      <div class="summary-item">
+        <div class="summary-num fast" id="fastCount">0</div>
+        <div style="font-size:10px;color:#10b981;text-transform:uppercase;letter-spacing:1px">Fast (&lt;500ms)</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-num medium" id="medCount">0</div>
+        <div style="font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:1px">Medium (500-2s)</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-num slow" id="slowCount">0</div>
+        <div style="font-size:10px;color:#ef4444;text-transform:uppercase;letter-spacing:1px">Slow (&gt;2s)</div>
+      </div>
+    </div>
+    <hr>
+    <label>Slowest Route</label>
+    <div id="slowestRoute" style="color:#ef4444;font-weight:800;font-size:14px;">—</div>
+  </div>
+</div>
+
+<div class="card">
+  <label>👤 Student Data Preview</label>
+  <div id="studentData"><span class="info" style="font-size:13px;">Student data will appear here after fetch...</span></div>
+</div>
+
+<script>
+  let fastCount = 0, medCount = 0, slowCount = 0;
+  let slowestMs = 0, slowestRoute = '';
+
+  function getHeaders() {
+    const token = document.getElementById('authToken').value.trim();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = token.startsWith('Bearer') ? token : `Bearer ${token}`;
+    return headers;
+  }
+
+  function log(msg, type = 'info') {
+    const el = document.getElementById('logs');
+    const line = document.createElement('div');
+    line.className = type;
+    line.innerHTML = msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function updateSummary(ms, route) {
+    if (ms < 500) { fastCount++; document.getElementById('fastCount').textContent = fastCount; }
+    else if (ms < 2000) { medCount++; document.getElementById('medCount').textContent = medCount; }
+    else { slowCount++; document.getElementById('slowCount').textContent = slowCount; }
+
+    if (ms > slowestMs) {
+      slowestMs = ms;
+      slowestRoute = route;
+      document.getElementById('slowestRoute').textContent = `${route} — ${ms}ms`;
+    }
+  }
+
+  async function testRoute(label, url, options = {}) {
+    const start = performance.now();
+    try {
+      const res = await fetch(url, { headers: getHeaders(), ...options });
+      const ms = Math.round(performance.now() - start);
+      let tag, cls;
+      if (ms < 500) { tag = '<span class="tag tag-fast">✅ FAST</span>'; cls = 'fast'; }
+      else if (ms < 2000) { tag = '<span class="tag tag-medium">⚠️ MEDIUM</span>'; cls = 'medium'; }
+      else { tag = '<span class="tag tag-slow">🐢 SLOW</span>'; cls = 'slow'; }
+
+      log(`${tag} <span class="${cls}">${label}</span> — <strong>${ms}ms</strong>`);
+      updateSummary(ms, label);
+
+      if (res.ok) return await res.json();
+      else { log(`&nbsp;&nbsp;↳ <span style="color:#ef4444">HTTP ${res.status}: ${res.statusText}</span>`); return null; }
+    } catch (err) {
+      const ms = Math.round(performance.now() - start);
+      log(`<span class="tag tag-slow">❌ ERROR</span> ${label} — ${ms}ms — ${err.message}`, 'slow');
+      updateSummary(ms, label);
+      return null;
+    }
+  }
+
+  async function testSingleStudent() {
+    const base = document.getElementById('baseUrl').value.trim();
+    const id = document.getElementById('studentId').value.trim();
+    log('<hr style="border-color:#334155;margin:8px 0">');
+    log(`<span class="info">🔍 Testing student fetch: ${id}</span>`);
+
+    const data = await testRoute(`GET /students/${id}`, `${base}/students/${id}`);
+    if (data) renderStudentCard(data);
+  }
+
+  async function runAllTests() {
+    fastCount = 0; medCount = 0; slowCount = 0; slowestMs = 0; slowestRoute = '';
+    document.getElementById('fastCount').textContent = 0;
+    document.getElementById('medCount').textContent = 0;
+    document.getElementById('slowCount').textContent = 0;
+    document.getElementById('slowestRoute').textContent = '—';
+    document.getElementById('logs').innerHTML = '';
+
+    const base = document.getElementById('baseUrl').value.trim();
+    const id = document.getElementById('studentId').value.trim();
+
+    log(`<span class="info">🚀 Starting all speed tests at ${new Date().toLocaleTimeString()}</span>`);
+    log(`<span class="info">Base URL: ${base}</span>`);
+    log('<hr style="border-color:#334155;margin:8px 0">');
+
+    // Test root
+    await testRoute('GET / (root)', base.replace('/api', '/'));
+
+    // Auth
+    log('<span class="info" style="margin-top:8px;display:block">── Auth ──</span>');
+    await testRoute('GET /auth/me or overview', `${base}/auth/me`);
+
+    // Students
+    log('<span class="info" style="margin-top:8px;display:block">── Students ──</span>');
+    const student = await testRoute(`GET /students/${id}`, `${base}/students/${id}`);
+    if (student) renderStudentCard(student);
+    await testRoute('GET /students', `${base}/students`);
+
+    // Assignments
+    log('<span class="info" style="margin-top:8px;display:block">── Assignments ──</span>');
+    await testRoute('GET /assignments', `${base}/assignments`);
+    await testRoute(`GET /assignments/student/4/A?studentId=${id}`, `${base}/assignments/student/4/A?studentId=${id}`);
+
+    // Attendance
+    log('<span class="info" style="margin-top:8px;display:block">── Attendance ──</span>');
+    await testRoute(`GET /attendance/section/${id}`, `${base}/attendance/section/${id}`);
+    await testRoute(`GET /attendance?studentClass=4&sectionId=${id}`, `${base}/attendance?studentClass=4&sectionId=${id}`);
+
+    // Fees
+    log('<span class="info" style="margin-top:8px;display:block">── Fees ──</span>');
+    await testRoute(`GET /fees/${id}`, `${base}/fees/${id}`);
+    await testRoute('GET /fee-records', `${base}/fee-records`);
+
+    // Notices & Messages
+    log('<span class="info" style="margin-top:8px;display:block">── Notices & Messages ──</span>');
+    await testRoute('GET /notifications', `${base}/notifications`);
+    await testRoute('GET /messages', `${base}/messages`);
+    await testRoute('GET /classroom-notices', `${base}/classroom-notices`);
+
+    // Stats
+    log('<span class="info" style="margin-top:8px;display:block">── Stats ──</span>');
+    await testRoute('GET /stats', `${base}/stats`);
+    await testRoute('GET /stats/overview', `${base}/stats/overview`);
+
+    log('<hr style="border-color:#334155;margin:8px 0">');
+    log(`<span class="info">✅ All tests done at ${new Date().toLocaleTimeString()}</span>`);
+  }
+
+  function renderStudentCard(data) {
+    const s = data.student || data;
+    if (!s || !s.firstName) {
+      document.getElementById('studentData').innerHTML = `<div class="data-box">${JSON.stringify(data, null, 2)}</div>`;
+      return;
+    }
+    document.getElementById('studentData').innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+        ${s.profilePhoto ? `<img src="${s.profilePhoto}" class="photo" onerror="this.style.display='none'">` : '<div style="width:80px;height:80px;border-radius:50%;background:#1e293b;display:flex;align-items:center;justify-content:center;font-size:28px">👤</div>'}
+        <div>
+          <div style="font-size:20px;font-weight:900;color:#e2e8f0">${s.firstName} ${s.lastName}</div>
+          <div style="font-size:11px;color:#10b981;text-transform:uppercase;letter-spacing:2px">${s.role || 'Student'}</div>
+        </div>
+      </div>
+      <div class="student-card">
+        <div class="field"><div class="field-label">Email</div><div class="field-value" style="font-size:12px">${s.email || '—'}</div></div>
+        <div class="field"><div class="field-label">Class</div><div class="field-value">${s.studentClass || s.gradeId?.gradeNumber || '—'}</div></div>
+        <div class="field"><div class="field-label">Section</div><div class="field-value">${s.section || s.sectionId?.sectionName || '—'}</div></div>
+        <div class="field"><div class="field-label">Roll No</div><div class="field-value">${s.rollNumber || '—'}</div></div>
+        <div class="field"><div class="field-label">Phone</div><div class="field-value">${s.phone || s.parentPhone || '—'}</div></div>
+        <div class="field"><div class="field-label">School ID</div><div class="field-value">${s.schoolId || '—'}</div></div>
+      </div>
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:2px">Raw JSON</summary>
+        <div class="data-box">${JSON.stringify(s, null, 2)}</div>
+      </details>
+    `;
+  }
+
+  function clearLogs() {
+    document.getElementById('logs').innerHTML = '<span class="info">Logs cleared.</span>';
+    document.getElementById('studentData').innerHTML = '<span class="info" style="font-size:13px;">Student data will appear here after fetch...</span>';
+    fastCount = 0; medCount = 0; slowCount = 0; slowestMs = 0;
+    document.getElementById('fastCount').textContent = 0;
+    document.getElementById('medCount').textContent = 0;
+    document.getElementById('slowCount').textContent = 0;
+    document.getElementById('slowestRoute').textContent = '—';
+  }
+</script>
+</body>
+</html>

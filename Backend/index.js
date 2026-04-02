@@ -1,12 +1,12 @@
 // index.js
-require("dotenv").config(); // load .env first
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./database");
 
 const studentRoutes = require("./routes/studentRoutes");
-const teacherRoutes = require("./routes/teacherRoutes"); // ✅ add this
+const teacherRoutes = require("./routes/teacherRoutes");
 const schoolRoutes = require("./routes/schoolRoutes");
 const gradeRoutes = require("./routes/gradeRoutes");
 const routineRoutes = require("./routes/routineRoutes");
@@ -30,28 +30,40 @@ const adminRoutes = require("./routes/adminRoutes");
 const statsRoutes = require("./routes/statsRoutes");
 const superAdminAuthRoutes = require("./routes/superAdminAuthRoutes");
 const discussionRoutes = require("./routes/discussionRoutes");
-const messageRoutes = require("./routes/messageRoutes");
 const userRoutes = require("./routes/userRoutes");
 const khaltiPaymentRoutes = require("./routes/khaltiPayment");
 const esewaPaymentRoutes = require("./routes/esewaPayment");
-
-
 
 const app = express();
 const port = 7000;
 
 // middlewares
-// middlewares
 app.use(cors({
-  origin: "http://localhost:3000", // Allow frontend origin
+  origin: "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
 }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+app.use(express.static(__dirname));
+
 // connect MongoDB
 connectDB();
+
+// ✅ Speed Logger Middleware — BEFORE routes
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (duration > 500) {
+      console.log(`🐢 SLOW: ${req.method} ${req.url} — ${duration}ms`);
+    } else {
+      console.log(`✅ FAST: ${req.method} ${req.url} — ${duration}ms`);
+    }
+  });
+  next();
+});
 
 app.get("/", (req, res) => {
   res.send("Hello from the Backend server!");
@@ -59,15 +71,15 @@ app.get("/", (req, res) => {
 
 // routes
 app.use("/api/students", studentRoutes);
-app.use("/api/teachers", teacherRoutes); // ✅ now: /api/teachers, /api/teachers/add, /api/teachers/:id
+app.use("/api/teachers", teacherRoutes);
 app.use("/api/school", schoolRoutes);
 app.use("/api/grades", gradeRoutes);
 app.use("/api/routines", routineRoutes);
 app.use("/api/timetables", timetableRoutes);
-app.use("/api/calendar", calendarRoutes); // Mount calendar routes
-app.use("/api/exams", examRoutes); // Mount exam routes
-app.use("/api/results", resultRoutes); // Mount result routes
-app.use("/api/auth", authRoutes);    // /api/auth/register, /api/auth/login, etc.
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/exams", examRoutes);
+app.use("/api/results", resultRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/classroom-notices", classroomNoticeRoutes);
 app.use("/api/attendance", attendanceRoutes);
@@ -83,11 +95,9 @@ app.use("/api/admins", adminRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/superadmin", superAdminAuthRoutes);
 app.use("/api/discussions", discussionRoutes);
-app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/payment/khalti", khaltiPaymentRoutes);
 app.use("/api/payment/esewa", esewaPaymentRoutes);
-
 
 app.listen(port, () => {
   console.log(`Backend server is running on http://localhost:${port}`);

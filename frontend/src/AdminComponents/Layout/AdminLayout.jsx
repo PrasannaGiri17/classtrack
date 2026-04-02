@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation, Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
-import messageService from "../../Api/messageService";
 import { toast, ToastHost } from "../../MainSystemComponents/Toast";
 
 const AdminLayout = () => {
@@ -42,43 +41,8 @@ const AdminLayout = () => {
     else if (path.includes("/exam")) setActivePage("exam");
     else if (path.includes("/notification")) setActivePage("notification");
     else if (path.includes("/fee")) setActivePage("fee");
-    else if (path.includes("/messages")) setActivePage("messages");
     else if (path.includes("/profile")) setActivePage("profile");
   }, [location.pathname]);
-
-  // Message Notification Polling (across all admin pages)
-  const lastMessageIdRef = useRef(null);
-  useEffect(() => {
-    const checkNewMessages = async () => {
-      try {
-        const user = JSON.parse(localStorage.getItem('user'));
-        const myUid = user?.userId || user?.id || user?._id;
-        
-        const data = await messageService.getConversations();
-        const latestMsg = data.reduce((latest, conv) => {
-          const msg = conv.lastMessage;
-          if (!msg || msg.senderId === myUid) return latest;
-          if (!latest || new Date(msg.createdAt) > new Date(latest.createdAt)) return msg;
-          return latest;
-        }, null);
-
-        if (latestMsg && lastMessageIdRef.current !== null && latestMsg._id !== lastMessageIdRef.current) {
-          toast({ type: 'info', message: 'New message received' });
-        }
-        
-        if (latestMsg) {
-          lastMessageIdRef.current = latestMsg._id;
-        } else if (lastMessageIdRef.current === null) {
-          lastMessageIdRef.current = "initialized";
-        }
-      } catch (err) {
-        console.error("Layout polling error:", err);
-      }
-    };
-
-    const interval = setInterval(checkNewMessages, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
 

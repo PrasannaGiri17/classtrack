@@ -25,7 +25,6 @@ import PlaceholderPage from './Adminpages/PlaceholderPage';
 import StudentPage from './Page/studentpage';
 import AdminMePage from './Adminpages/AdminMePage';
 import TeacherPage from './Page/teacherpage';
-import MessagesPage from './Page/MessagesPage';
 import ActivityPage from './Page/NotificationPage';
 
 
@@ -121,7 +120,6 @@ function App() {
               <Route path="dashboard" element={<SuDashboard />} />
               <Route path="school" element={<SuSchoolsPage />} />
               <Route path="school/:id" element={<SuSchoolDetailPage />} />
-              <Route path="messages" element={<MessagesPage />} />
             </Route>
             
             <Route path="/admin" element={
@@ -143,7 +141,6 @@ function App() {
           <Route path="fee/student/:id" element={<StudentFee />} />
           <Route path="student/:id" element={<StudentPage />} />
           <Route path="teacher/:id" element={<TeacherPage />} />
-          <Route path="messages" element={<MessagesPage />} />
           <Route path="profile" element={<AdminMePage />} />
           <Route path="activities" element={<ActivityPage />} />
         </Route>
@@ -167,7 +164,6 @@ function App() {
           <Route path="discussions" element={<SDiscussionsPage />} />
           <Route path="profile" element={<TeacherMePage />} />
           <Route path="student-profile" element={<StudentMePage />} />
-          <Route path="messages" element={<MessagesPage />} />
           <Route path="activities" element={<ActivityPage />} />
         </Route>
 
@@ -189,7 +185,6 @@ function App() {
           <Route path="fee" element={<SFeeManagement />} />
           <Route path="discussions" element={<SDiscussionsPage />} />
           <Route path="profile" element={<StudentMePage />} />
-          <Route path="messages" element={<MessagesPage />} />
           <Route path="activities" element={<ActivityPage />} />
           
         </Route>

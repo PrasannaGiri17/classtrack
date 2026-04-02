@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Bell, Sun, Moon, Check, ArrowRight, User, MessageSquare } from 'lucide-react';
+import { Bell, Sun, Moon, Check, ArrowRight, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import messageService from '../../Api/messageService';
 
 const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
@@ -9,7 +8,6 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const notificationRef = useRef(null);
   const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
   const [userPhoto, setUserPhoto] = useState(localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200");
-  const [unreadConversations, setUnreadConversations] = useState(0);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -59,8 +57,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       calendar: 'Calendar',
       exam: 'Examination',
       notification: 'Notifications',
-      profile: 'My Profile',
-      messages: 'Messages'
+      profile: 'My Profile'
     };
     return pageNames[activePage] || 'Dashboard';
   };
@@ -73,23 +70,6 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Messages Unread Count Polling
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const data = await messageService.getConversations();
-        const count = data.filter(conv => conv.unreadCount > 0).length;
-        setUnreadConversations(count);
-      } catch (err) {
-        console.error("Unread count fetch error:", err);
-      }
-    };
-
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 10000);
-    return () => clearInterval(interval);
   }, []);
 
   const today = new Date();
@@ -130,20 +110,6 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-
-        {/* Messages */}
-        <button
-          onClick={() => navigate('/student/messages')}
-          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all relative"
-          title="Messages"
-        >
-          <MessageSquare className="w-5 h-5" />
-          {unreadConversations > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-emerald-500 border-2 border-white dark:border-slate-800 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-1 shadow-sm">
-              {unreadConversations}
-            </span>
-          )}
         </button>
 
         {/* Notifications */}

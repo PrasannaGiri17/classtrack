@@ -15,7 +15,13 @@ export const useSchoolFetch = (url, dependencies = []) => {
     let isMounted = true;
 
     const fetchData = async () => {
-      // SAFE FETCH RULE: IF schoolId is missing -> DO NOT FETCH
+      // ✅ CHECK 1: URL must exist
+      if (!url) {
+        setLoading(false);
+        return;
+      }
+
+      // ✅ CHECK 2: schoolId must exist
       if (!schoolId) {
         setLoading(false);
         setError("No data available: missing school context.");

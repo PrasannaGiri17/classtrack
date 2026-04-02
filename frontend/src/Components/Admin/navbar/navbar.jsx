@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, Bell, Sun, Moon, Check, ArrowRight, User, Loader2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import messageService from "../../../Api/messageService";
+import userService from "../../../Api/userService";
 
 const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
@@ -65,7 +65,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
     const handler = setTimeout(async () => {
       try {
-        const data = await messageService.getContacts(searchQuery);
+        const data = await userService.getUsers(searchQuery);
         setSearchResults(data);
       } catch (error) {
         console.error("Search error:", error);

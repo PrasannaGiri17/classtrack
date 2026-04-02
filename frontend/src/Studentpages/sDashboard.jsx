@@ -20,6 +20,9 @@ import {
   Clock
 } from 'lucide-react';
 import GMainC from '../AdminComponents/Dashboard/GMainC';
+import attendanceService from '../Api/attendanceService';
+import calendarService from '../Api/calendarService';
+import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
 
 // --- Helpers ---
 const RadialGauge = ({ title, subtitle, value, label, percent, color }) => {
@@ -122,13 +125,18 @@ const SDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
+  const [attendanceRate, setAttendanceRate] = useState(0);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const role = localStorage.getItem("role");
-        const studentId = localStorage.getItem("studentId");
-        if (role === "student" && studentId) {
+    const fetchData = async () => {
+      const role = localStorage.getItem("role");
+      const studentId = localStorage.getItem("studentId");
+
+      if (role !== "student" || !studentId) return;
+
+      // 1. Fetch User Data if missing
+      if (userName === "Student" || userName === "User") {
+        try {
           const res = await fetch(`http://localhost:7000/api/students/${studentId}`);
           const data = await res.json();
           if (data) {
@@ -136,15 +144,65 @@ const SDashboard = () => {
             setUserName(name);
             localStorage.setItem("userName", name);
           }
+        } catch (err) {
+          console.error("Failed to fetch student profile", err);
+        }
+      }
+
+      // 2. Fetch Attendance Track
+      try {
+        const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+        const [currentBSYear] = todayBS.split('-').map(Number);
+        
+        // Fetch Present/Absent count for the BS Year
+        const attendanceData = await attendanceService.getStudentYearlyAttendance(studentId, currentBSYear || 2081);
+        
+        if (attendanceData) {
+          const present = attendanceData.present || 0;
+          
+          // Calculate total working days in academic year so far (matching StudentMePage.jsx)
+          try {
+            const startYear = currentBSYear || 2081;
+            const startAD = convertBStoAD(`${startYear}-01-01`);
+            const endAD = new Date().toISOString().split('T')[0];
+
+            const holidaysList = await calendarService.getEvents(startAD, endAD);
+            const holidayDates = new Set(
+              holidaysList
+                .filter(e => e.type === 'HOLIDAY')
+                .map(e => new Date(e.startDate).toISOString().split('T')[0])
+            );
+
+            let workingDaysCount = 0;
+            let curDate = new Date(startAD);
+            const todayDate = new Date(endAD);
+            while (curDate <= todayDate) {
+              const dayOfWeek = curDate.getDay(); // 6 is Saturday
+              const dateStr = curDate.toISOString().split('T')[0];
+              if (dayOfWeek !== 6 && !holidayDates.has(dateStr)) {
+                workingDaysCount++;
+              }
+              curDate.setDate(curDate.getDate() + 1);
+            }
+
+            if (workingDaysCount > 0) {
+              setAttendanceRate(Math.round((present / workingDaysCount) * 100));
+            } else if (typeof attendanceData.rate === 'number') {
+              setAttendanceRate(attendanceData.rate);
+            }
+          } catch (calcErr) {
+            console.warn("Failed to calculate detailed rate, using simple rate", calcErr);
+            if (typeof attendanceData.rate === 'number') {
+              setAttendanceRate(attendanceData.rate);
+            }
+          }
         }
       } catch (err) {
-        console.error("Failed to fetch user in Dashboard", err);
+        console.error("Failed to fetch attendance track", err);
       }
     };
 
-    if (userName === "Student" || userName === "User") {
-      fetchUserData();
-    }
+    fetchData();
   }, []);
 
   // Pagination Logic
@@ -176,8 +234,8 @@ const SDashboard = () => {
         <RadialGauge
           title="Attendance Track"
           subtitle="Academic Year Presence"
-          value="92%"
-          percent={92}
+          value={`${attendanceRate}%`}
+          percent={attendanceRate}
           color="#10b981"
         />
         <RadialGauge

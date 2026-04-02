@@ -5,7 +5,6 @@ import Navbar from './Navbar';
 import NotAssignedPopup from '../Popups/NotAssignedPopup';
 import { useAuth } from '../../context/AuthContext';
 import { useRef } from "react";
-import messageService from "../../Api/messageService";
 import { toast, ToastHost } from "../../MainSystemComponents/Toast";
 
 const StudentLayout = () => {
@@ -57,42 +56,7 @@ const StudentLayout = () => {
     else if (path.includes('/assignments')) setActivePage('assignments');
     else if (path.includes('/quiz')) setActivePage('quiz');
     else if (path.includes('/profile')) setActivePage('profile');
-    else if (path.includes('/messages')) setActivePage('messages');
   }, [location.pathname]);
-
-  // Message Notification Polling (across all student pages)
-  const lastMessageIdRef = useRef(null);
-  useEffect(() => {
-    const checkNewMessages = async () => {
-      try {
-        const user = JSON.parse(localStorage.getItem('user'));
-        const myUid = user?.userId || user?.id || user?._id;
-        
-        const data = await messageService.getConversations();
-        const latestMsg = data.reduce((latest, conv) => {
-          const msg = conv.lastMessage;
-          if (!msg || msg.senderId === myUid) return latest;
-          if (!latest || new Date(msg.createdAt) > new Date(latest.createdAt)) return msg;
-          return latest;
-        }, null);
-
-        if (latestMsg && lastMessageIdRef.current !== null && latestMsg._id !== lastMessageIdRef.current) {
-          toast({ type: 'info', message: 'New message received' });
-        }
-        
-        if (latestMsg) {
-          lastMessageIdRef.current = latestMsg._id;
-        } else if (lastMessageIdRef.current === null) {
-          lastMessageIdRef.current = "initialized";
-        }
-      } catch (err) {
-        console.error("Layout polling error:", err);
-      }
-    };
-
-    const interval = setInterval(checkNewMessages, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
