@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const HolidaySchema = new mongoose.Schema({
-  schoolId: { type: Number, required: true, index: true },
+  schoolId: { type: Number, index: true }, // Optional to allow global holidays
   gregorian_date: {
     type: String, // Stored as "YYYY-MM-DD" based on extractHolidays.js
     required: true

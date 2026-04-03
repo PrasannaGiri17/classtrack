@@ -434,11 +434,57 @@ const clearAllTeachers = async (req, res) => {
   }
 };
 
+const getSectionTeachersFromTimetable = async (req, res) => {
+  try {
+    const { gradeNumber, sectionName, gradeId, sectionId } = req.query;
+    const activeSchoolId = req.schoolId;
+
+    const finalGradeNumber = gradeNumber || gradeId;
+    const finalSectionName = sectionName || sectionId;
+
+    if (!finalGradeNumber || !finalSectionName) {
+      return res.status(400).json({ message: "Grade and section are required" });
+    }
+
+    // Find all timetables for this section (across all weekdays)
+    const timetables = await Timetable.find({
+      schoolId: activeSchoolId,
+      gradeNumber: finalGradeNumber,
+      sectionName: finalSectionName
+    }).populate({
+      path: "assignments.teacherId",
+      select: "firstName lastName email profilePhoto primarySubject",
+      populate: {
+        path: "primarySubject",
+        select: "subjectName"
+      }
+    });
+
+    // Extract unique teachers
+    const uniqueTeachersMap = new Map();
+    timetables.forEach(tt => {
+      tt.assignments.forEach(a => {
+        if (a.teacherId && !uniqueTeachersMap.has(a.teacherId._id.toString())) {
+          uniqueTeachersMap.set(a.teacherId._id.toString(), a.teacherId);
+        }
+      });
+    });
+
+    const teachers = Array.from(uniqueTeachersMap.values());
+    res.status(200).json(teachers);
+
+  } catch (error) {
+    console.error("GET SECTION TEACHERS ERROR:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getTimetable,
   updateTimetable,
   getTimetableOptions,
   getTeacherRoutine,
   updateTeacherTopic,
-  clearAllTeachers
+  clearAllTeachers,
+  getSectionTeachersFromTimetable
 };

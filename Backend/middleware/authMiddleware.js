@@ -13,6 +13,11 @@ exports.protect = async (req, res, next) => {
     }
 
     // Verify token
+    if (!process.env.JWT_SECRET) {
+      console.error("CRITICAL ERROR: JWT_SECRET is missing from process.env");
+      return res.status(500).json({ message: "Internal server authentication error" });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Check if user still exists

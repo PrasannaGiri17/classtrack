@@ -26,6 +26,68 @@ import PortalPopup from '../MainSystemComponents/PortalPopup';
 import Loading from '../MainSystemComponents/Loading';
 
 import messageService from '../Api/messageService';
+import { Sparkles } from 'lucide-react';
+
+const BOT_USER = {
+    uid: 'bot',
+    name: 'ClassTrack Assistant',
+    role: 'AI Assistant',
+    isBot: true
+};
+
+const BOT_ANSWERS = {
+    // Shared
+    "how do i send a message?": "You can send messages by selecting a person from your contacts in this Messages portal and typing in the chat box.",
+    "how do i check notifications?": "Click on 'Notification' in your sidebar or the bell icon in the top header to see recent alerts, messages, and system updates.",
+
+    // Student Specific (based on sidebar)
+    "how do i view my classroom?": "Go to the 'Classroom' section in your sidebar to see your enrolled classes, subjects, and teacher information.",
+    "where can i find my assignments?": "All your coursework is listed under 'Assignments / Content'. You can download materials and track your submission status there.",
+    "how do i pay my school fees?": "Visit the 'Fee Payment' page in your sidebar to view your due amount, payment history, and complete online transactions via Khalti.",
+    "where is my class routine?": "Your weekly schedule is available in the 'Routine' section. You can check subject timings and teacher names for each period.",
+    "how do i view exam results?": "Results for mid-terms and finals are posted in the 'Exam' section once published by the administration.",
+    "what is class diary?": "The Class Diary shows daily updates, homework notes, and important logs shared by your teachers for each subject.",
+
+    // Teacher Specific (based on sidebar)
+    "how do i take attendance?": "Go to the 'Attendance' section in your sidebar. Select your class and section to mark students as present, absent, or late.",
+    "how do i post an announcement?": "Use the 'Announcements' feature in your sidebar to send broadcast messages and updates to all your students and parents.",
+    "how do i manage assignments?": "Navigate to 'Assignments' to create new tasks, upload reference materials, and grade student submissions.",
+    "how do i update class diary?": "Teachers can log daily progress and homework in the 'Diary' section to keep students and parents informed.",
+    "where can i see my routine?": "Your teaching schedule is located in the 'Routine' section, showing your assigned periods across different classes.",
+    "how do i view classes?": "The 'Classroom' tab shows all classes where you are assigned as a teacher or co-teacher.",
+
+    // Admin/General
+    "how do i add a student?": "To add a student, go to 'Student Record' in the Admin sidebar and click the 'Add Student' button at the top right.",
+    "how do i view grades?": "Teachers can view and export grades from the 'Grade Management' section. Students can view their progress in the 'Classroom' tab.",
+    "how do i generate a report?": "Navigate to the designated feature page (like Student Record or Attendance) and look for the 'Export' or 'PDF' icon in the header.",
+    "what is a status flag?": "Status flags (green, yellow, red) help track student academic standing. Green is active, Yellow is at risk, and Red needs immediate attention."
+};
+
+const BOT_QUICK_REPLIES = {
+    student: [
+        "How do I pay my school fees?",
+        "Where can I find my assignments?",
+        "Where is my class routine?",
+        "How do I view my classroom?",
+        "What is Class Diary?",
+        "How do I send a message?"
+    ],
+    teacher: [
+        "How do I take attendance?",
+        "How do I post an announcement?",
+        "How do I manage assignments?",
+        "How do I update Class Diary?",
+        "Where can I see my routine?",
+        "How do I view my classroom?"
+    ],
+    admin: [
+        "How do I add a student?",
+        "How do I send a message?",
+        "How do I view grades?",
+        "How do I generate a report?",
+        "What is a status flag?"
+    ]
+};
 
 const MessagesPage = () => {
     const location = useLocation();
@@ -63,6 +125,36 @@ const MessagesPage = () => {
         return saved ? JSON.parse(saved) : {};
     });
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+    const [botMessages, setBotMessages] = useState([
+        { id: 'bot-initial', text: "Hello! I am your ClassTrack Assistant. How can I help you today?", senderId: 'bot', timestamp: new Date() }
+    ]);
+    const [isBotTyping, setIsBotTyping] = useState(false);
+    const tabsRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
+
+    const handleMouseDown = (e) => {
+        setIsDragging(true);
+        setStartX(e.pageX - tabsRef.current.offsetLeft);
+        setScrollLeft(tabsRef.current.scrollLeft);
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - tabsRef.current.offsetLeft;
+        const walk = (x - startX) * 2; // Scroll speed
+        tabsRef.current.scrollLeft = scrollLeft - walk;
+    };
     const fileInputRef = useRef(null);
 
     const messagesEndRef = useRef(null);
@@ -135,7 +227,7 @@ const MessagesPage = () => {
         const checkNewMessages = async () => {
             try {
                 const data = await messageService.getConversations();
-                
+
                 // Find the latest message that is NOT from the current user
                 const latestMsg = data.reduce((latest, conv) => {
                     const msg = conv.lastMessage;
@@ -170,10 +262,10 @@ const MessagesPage = () => {
                     id: m._id,
                     timestamp: new Date(m.createdAt)
                 }));
-                
+
                 // Filter out messages that were cleared on frontend
                 const clearedAt = clearedTimestamps[selectedUser.uid];
-                const filtered = clearedAt 
+                const filtered = clearedAt
                     ? formatted.filter(m => new Date(m.createdAt) > new Date(clearedAt))
                     : formatted;
 
@@ -202,7 +294,7 @@ const MessagesPage = () => {
 
                 // Filter out messages that were cleared on frontend
                 const clearedAt = clearedTimestamps[selectedUser.uid];
-                const filtered = clearedAt 
+                const filtered = clearedAt
                     ? formatted.filter(m => new Date(m.createdAt) > new Date(clearedAt))
                     : formatted;
 
@@ -244,9 +336,40 @@ const MessagesPage = () => {
         setSelectedImages(prev => prev.filter(img => img.id !== id));
     };
 
+    const handleBotMessage = (text) => {
+        const userMsg = {
+            id: Date.now(),
+            text,
+            senderId: currentUser.uid,
+            timestamp: new Date()
+        };
+        setBotMessages(prev => [...prev, userMsg]);
+        setNewMessage('');
+        setIsBotTyping(true);
+
+        const normalizedText = text.toLowerCase().trim();
+        const responseText = BOT_ANSWERS[normalizedText] || "I'm not sure about that yet. Please contact your admin for help.";
+
+        setTimeout(() => {
+            const botReply = {
+                id: Date.now() + 1,
+                text: responseText,
+                senderId: 'bot',
+                timestamp: new Date()
+            };
+            setBotMessages(prev => [...prev, botReply]);
+            setIsBotTyping(false);
+        }, 600); // 600ms fake typing delay
+    };
+
     const handleSendMessage = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!selectedUser || (!newMessage.trim() && selectedImages.length === 0)) return;
+
+        if (selectedUser.isBot) {
+            handleBotMessage(newMessage);
+            return;
+        }
 
         try {
             // Convert images to base64 strings before sending to backend
@@ -293,13 +416,13 @@ const MessagesPage = () => {
 
     const confirmClearAll = () => {
         if (!selectedUser) return;
-        
+
         const now = new Date().toISOString();
         setClearedTimestamps(prev => ({
             ...prev,
             [selectedUser.uid]: now
         }));
-        
+
         setMessages([]);
         setShowClearConfirm(false);
         toast({
@@ -371,8 +494,8 @@ const MessagesPage = () => {
         contacts.forEach(contact => {
             if (!convoUserIds.has(contact._id)) {
                 displayList.push({
-                    otherUser: { 
-                        ...contact, 
+                    otherUser: {
+                        ...contact,
                         uid: contact._id,
                         photoURL: contact.profilePhoto // Map for profile photo rendering
                     },
@@ -411,6 +534,8 @@ const MessagesPage = () => {
             return c;
         });
     })();
+
+    const displayConversations = filteredConversations;
 
     const isSelectedUserBlocked = selectedUser ? blockedUserIds.includes(selectedUser.uid) : false;
 
@@ -454,26 +579,57 @@ const MessagesPage = () => {
                     </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex items-center gap-2 px-6 py-3 overflow-x-auto scrollbar-hide border-b border-slate-50 dark:border-slate-800">
-                    {visibleTabs.map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === tab
-                                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100 dark:shadow-none'
-                                : 'bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400'
-                                }`}
+                {/* Tabs Area: Movable tabs with Fixed AI Action */}
+                <div className="relative flex items-center px-4 py-3 border-b border-slate-50 dark:border-slate-800 transition-colors">
+                    <div className="flex-1 min-w-0 relative">
+                        <div 
+                            ref={tabsRef}
+                            onMouseDown={handleMouseDown}
+                            onMouseLeave={handleMouseLeave}
+                            onMouseUp={handleMouseUp}
+                            onMouseMove={handleMouseMove}
+                            className={`flex items-center gap-2 overflow-x-auto scrollbar-hide scroll-smooth flex-nowrap pr-8 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+                            style={{ 
+                                scrollSnapType: isDragging ? 'none' : 'x mandatory',
+                                WebkitOverflowScrolling: 'touch'
+                            }}
                         >
-                            {tab}
+                            {visibleTabs.map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => !isDragging && setActiveTab(tab)}
+                                    style={{ scrollSnapAlign: 'start' }}
+                                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border flex-shrink-0 ${activeTab === tab
+                                        ? 'bg-emerald-500 border-emerald-400 text-white shadow-md shadow-emerald-100 dark:shadow-none'
+                                        : 'bg-slate-50 dark:bg-slate-800 border-transparent text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400'
+                                        }`}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+                        {/* Gradient Fade Indicator */}
+                        <div className="absolute top-0 right-0 h-full w-10 bg-gradient-to-l from-white dark:from-slate-900 to-transparent pointer-events-none z-10" />
+                    </div>
+                    
+                    <div className="flex-shrink-0 ml-2">
+                        <button
+                            onClick={() => setSelectedUser(BOT_USER)}
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${selectedUser?.uid === 'bot'
+                                ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-200 dark:shadow-none'
+                                : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:text-emerald-500 hover:border-emerald-200 shadow-sm'
+                                }`}
+                            title="AI Assistant"
+                        >
+                            <Sparkles size={18} fill={selectedUser?.uid === 'bot' ? "currentColor" : "none"} />
                         </button>
-                    ))}
+                    </div>
                 </div>
 
                 {/* List */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide p-2">
-                    {filteredConversations.length > 0 ? (
-                        filteredConversations.map((convo) => (
+                    {displayConversations.length > 0 ? (
+                        displayConversations.map((convo) => (
                             <button
                                 key={convo.otherUser.uid}
                                 onClick={() => setSelectedUser(convo.otherUser)}
@@ -483,14 +639,20 @@ const MessagesPage = () => {
                                     }`}
                             >
                                 <div className="relative">
-                                    <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
-                                        {convo.otherUser.photoURL ? (
-                                            <img src={convo.otherUser.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                        ) : (
-                                            <User className="text-emerald-600" size={20} />
-                                        )}
-                                    </div>
-                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
+                                    {convo.isBot ? (
+                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+                                            <Sparkles size={22} fill="currentColor" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
+                                            {convo.otherUser.photoURL ? (
+                                                <img src={convo.otherUser.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                            ) : (
+                                                <User className="text-emerald-600" size={20} />
+                                            )}
+                                        </div>
+                                    )}
+                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full shadow-sm"></div>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start mb-0.5">
@@ -498,13 +660,16 @@ const MessagesPage = () => {
                                             <p className={`text-sm font-bold truncate ${selectedUser?.uid === convo.otherUser.uid ? 'text-emerald-600' : 'text-slate-700 dark:text-slate-200'}`}>
                                                 {convo.otherUser.name}
                                             </p>
-                                            {blockedUserIds.includes(convo.otherUser.uid) && (
+                                            {!convo.isBot && blockedUserIds.includes(convo.otherUser.uid) && (
                                                 <span className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[8px] font-black uppercase rounded-md">Blocked</span>
+                                            )}
+                                            {convo.isBot && (
+                                                <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase rounded-md">AI</span>
                                             )}
                                         </div>
                                         {convo.lastMessage && (
                                             <span className="text-[10px] font-medium text-slate-400">
-                                                {format(convo.lastMessage.timestamp, 'HH:mm')}
+                                                {convo.isBot ? 'Now' : format(convo.lastMessage.timestamp, 'HH:mm')}
                                             </span>
                                         )}
                                     </div>
@@ -512,7 +677,7 @@ const MessagesPage = () => {
                                         <p className="text-xs text-slate-400 truncate flex-1">
                                             {convo.lastMessage ? convo.lastMessage.text : `Start a conversation with ${convo.otherUser.role}`}
                                         </p>
-                                        {convo.unreadCount > 0 && (
+                                        {!convo.isBot && convo.unreadCount > 0 && (
                                             <span className="ml-2 w-5 h-5 bg-emerald-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-sm">
                                                 {convo.unreadCount}
                                             </span>
@@ -537,13 +702,19 @@ const MessagesPage = () => {
                         {/* Chat Header */}
                         <div className="h-[80px] px-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 transition-colors">
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden">
-                                    {selectedUser.photoURL ? (
-                                        <img src={selectedUser.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                    ) : (
-                                        <User className="text-emerald-600" size={18} />
-                                    )}
-                                </div>
+                                {selectedUser.isBot ? (
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                                        <Sparkles size={18} fill="currentColor" />
+                                    </div>
+                                ) : (
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden">
+                                        {selectedUser.photoURL ? (
+                                            <img src={selectedUser.photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                        ) : (
+                                            <User className="text-emerald-600" size={18} />
+                                        )}
+                                    </div>
+                                )}
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{selectedUser.name}</h3>
@@ -559,55 +730,57 @@ const MessagesPage = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 relative" ref={moreMenuRef}>
-                                <button
-                                    onClick={() => setShowMoreMenu(!showMoreMenu)}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${showMoreMenu
-                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none'
-                                        : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-600'
-                                        }`}
-                                >
-                                    <MoreVertical size={18} />
-                                </button>
+                            {!selectedUser.isBot && (
+                                <div className="flex items-center gap-2 relative" ref={moreMenuRef}>
+                                    <button
+                                        onClick={() => setShowMoreMenu(!showMoreMenu)}
+                                        className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${showMoreMenu
+                                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none'
+                                            : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-600'
+                                            }`}
+                                    >
+                                        <MoreVertical size={18} />
+                                    </button>
 
-                                <AnimatePresence>
-                                    {showMoreMenu && (
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                            className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl z-50 overflow-hidden"
-                                        >
-                                            <div className="p-2">
-                                                <button
-                                                    onClick={handleClearAll}
-                                                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 transition-all"
-                                                >
-                                                    <Trash2 size={16} />
-                                                    Clear All
-                                                </button>
-                                                {isSelectedUserBlocked ? (
+                                    <AnimatePresence>
+                                        {showMoreMenu && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl z-50 overflow-hidden"
+                                            >
+                                                <div className="p-2">
                                                     <button
-                                                        onClick={handleUnblock}
-                                                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 hover:text-emerald-600 transition-all"
+                                                        onClick={handleClearAll}
+                                                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 transition-all"
                                                     >
-                                                        <ShieldCheck size={16} />
-                                                        Unblock User
+                                                        <Trash2 size={16} />
+                                                        Clear All
                                                     </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={handleReport}
-                                                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/10 hover:text-amber-600 transition-all"
-                                                    >
-                                                        <AlertTriangle size={16} />
-                                                        Report & Block
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                                                    {isSelectedUserBlocked ? (
+                                                        <button
+                                                            onClick={handleUnblock}
+                                                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 hover:text-emerald-600 transition-all"
+                                                        >
+                                                            <ShieldCheck size={16} />
+                                                            Unblock User
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={handleReport}
+                                                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-900/10 hover:text-amber-600 transition-all"
+                                                        >
+                                                            <AlertTriangle size={16} />
+                                                            Report & Block
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
                         </div>
 
                         {/* Messages Area */}
@@ -618,84 +791,93 @@ const MessagesPage = () => {
                                 </div>
                             ) : (
                                 <AnimatePresence initial={false}>
-                                    {selectedMessages.map((msg, idx) => {
-                                    const isMe = msg.senderId === currentUser.uid;
-                                    const showDate = idx === 0 || format(selectedMessages[idx - 1].timestamp, 'yyyy-MM-dd') !== format(msg.timestamp, 'yyyy-MM-dd');
+                                    {(selectedUser.isBot ? botMessages : selectedMessages).map((msg, idx) => {
+                                        const isMe = msg.senderId === currentUser.uid;
+                                        const convoSrc = selectedUser.isBot ? botMessages : selectedMessages;
+                                        const showDate = idx === 0 || format(convoSrc[idx - 1].timestamp, 'yyyy-MM-dd') !== format(msg.timestamp, 'yyyy-MM-dd');
 
-                                    return (
-                                        <motion.div
-                                            key={msg.id}
-                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            transition={{ duration: 0.2 }}
-                                        >
-                                            {showDate && (
-                                                <div className="flex justify-center my-8">
-                                                    <span className="px-4 py-1.5 bg-white dark:bg-slate-800 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-widest shadow-sm border border-slate-50 dark:border-slate-700">
-                                                        {format(msg.timestamp, 'MMMM d, yyyy')}
-                                                    </span>
-                                                </div>
-                                            )}
-                                            <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full`}>
-
-                                                <div className={`relative max-w-[70%] flex ${isMe ? 'items-end flex-col' : 'items-start flex-col'}`}>
-
-                                                    {/* Action Buttons (Hover) */}
-                                                    <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all ${isMe ? '-left-20' : '-right-20'}`}>
-                                                        <button
-                                                            onClick={() => setReplyTo(msg)}
-                                                            className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 shadow-sm transition-all"
-                                                            title="Reply to message"
-                                                        >
-                                                            <Reply size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteMessage(msg)}
-                                                            className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 shadow-sm transition-all"
-                                                            title="Delete message"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </div>
-
-                                                    <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm transition-all ${isMe
-                                                        ? 'bg-emerald-500 text-white rounded-tr-none'
-                                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none border border-slate-50 dark:border-slate-700'
-                                                        }`}>
-                                                        {msg.text && (
-                                                            <div className={msg.images?.length > 0 ? 'mb-2' : ''}>
-                                                                {msg.text}
-                                                            </div>
-                                                        )}
-
-                                                        {msg.images?.length > 0 && (
-                                                            <div className={`grid gap-2 ${msg.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2 shadow-inner'}`}>
-                                                                {msg.images.map((img, i) => (
-                                                                    <img
-                                                                        key={i}
-                                                                        src={img}
-                                                                        alt="sent"
-                                                                        onClick={() => setPreviewImage(img)}
-                                                                        className="rounded-xl object-cover w-full h-auto max-h-64 border border-white/10 cursor-pointer hover:opacity-90 transition-opacity"
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className={`flex items-center gap-2 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                        <span className="text-[10px] font-medium text-slate-400">
-                                                            {format(msg.timestamp, 'HH:mm')}
+                                        return (
+                                            <motion.div
+                                                key={msg.id}
+                                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                transition={{ duration: 0.2 }}
+                                            >
+                                                {showDate && (
+                                                    <div className="flex justify-center my-8">
+                                                        <span className="px-4 py-1.5 bg-white dark:bg-slate-800 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-widest shadow-sm border border-slate-50 dark:border-slate-700">
+                                                            {format(msg.timestamp, 'MMMM d, yyyy')}
                                                         </span>
-                                                        {isMe && (
-                                                            msg.read ? <CheckCheck size={12} className="text-emerald-500" /> : <Clock size={10} className="text-slate-300" />
-                                                        )}
                                                     </div>
+                                                )}
+                                                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full`}>
+                                                    <div className={`relative max-w-[70%] flex ${isMe ? 'items-end flex-col' : 'items-start flex-col'}`}>
+                                                        {!selectedUser.isBot && (
+                                                            <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all ${isMe ? '-left-20' : '-right-20'}`}>
+                                                                <button
+                                                                    onClick={() => setReplyTo(msg)}
+                                                                    className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 shadow-sm transition-all"
+                                                                    title="Reply to message"
+                                                                >
+                                                                    <Reply size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteMessage(msg)}
+                                                                    className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 shadow-sm transition-all"
+                                                                    title="Delete message"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                        <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm transition-all ${isMe
+                                                            ? 'bg-emerald-500 text-white rounded-tr-none'
+                                                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none border border-slate-50 dark:border-slate-700'
+                                                            }`}>
+                                                            {msg.text && (
+                                                                <div className={msg.images?.length > 0 ? 'mb-2' : ''}>
+                                                                    {msg.text}
+                                                                </div>
+                                                            )}
+                                                            {msg.images?.length > 0 && (
+                                                                <div className={`grid gap-2 ${msg.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2 shadow-inner'}`}>
+                                                                    {msg.images.map((img, i) => (
+                                                                        <img
+                                                                            key={i}
+                                                                            src={img}
+                                                                            alt="sent"
+                                                                            onClick={() => setPreviewImage(img)}
+                                                                            className="rounded-xl object-cover w-full h-auto max-h-64 border border-white/10 cursor-pointer hover:opacity-90 transition-opacity"
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className={`flex items-center gap-2 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                            <span className="text-[10px] font-medium text-slate-400">
+                                                                {format(msg.timestamp, 'HH:mm')}
+                                                            </span>
+                                                            {isMe && !selectedUser.isBot && (
+                                                                msg.read ? <CheckCheck size={12} className="text-emerald-500" /> : <Clock size={10} className="text-slate-300" />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+                                    {isBotTyping && (
+                                        <div className="flex justify-start">
+                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl rounded-tl-none shadow-sm border border-slate-50 dark:border-slate-700">
+                                                <div className="flex gap-1">
+                                                    <motion.span animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-1.5 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
+                                                    <motion.span animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1.5 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
+                                                    <motion.span animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-1.5 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
                                                 </div>
                                             </div>
-                                        </motion.div>
-                                    );
-                                })}
-                            </AnimatePresence>
+                                        </div>
+                                    )}
+                                </AnimatePresence>
                             )}
                             <div ref={messagesEndRef} />
                         </div>
@@ -766,6 +948,25 @@ const MessagesPage = () => {
                                             )}
                                         </AnimatePresence>
 
+                                        {/* Bot Quick Replies (Role-based) */}
+                                        {selectedUser.isBot && (
+                                            <div className="flex flex-wrap gap-2 mb-4 px-2">
+                                                {(BOT_QUICK_REPLIES[currentUser.role] || BOT_QUICK_REPLIES.admin).map((reply, i) => (
+                                                    <button
+                                                        key={i}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setNewMessage(reply);
+                                                            handleBotMessage(reply);
+                                                        }}
+                                                        className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all shadow-sm"
+                                                    >
+                                                        {reply}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                                             <input
                                                 type="file"
@@ -775,17 +976,19 @@ const MessagesPage = () => {
                                                 ref={fileInputRef}
                                                 onChange={handleImageSelect}
                                             />
-                                            <button
-                                                type="button"
-                                                onClick={() => fileInputRef.current.click()}
-                                                className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-500 transition-all"
-                                            >
-                                                <ImageIcon size={22} />
-                                            </button>
+                                            {!selectedUser.isBot && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fileInputRef.current.click()}
+                                                    className="w-12 h-12 flex items-center justify-center rounded-2xl text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-500 transition-all"
+                                                >
+                                                    <ImageIcon size={22} />
+                                                </button>
+                                            )}
                                             <div className="flex-1 relative group">
                                                 <input
                                                     type="text"
-                                                    placeholder="Type a message..."
+                                                    placeholder={selectedUser.isBot ? "Ask the AI Assistant..." : "Type a message..."}
                                                     value={newMessage}
                                                     onChange={(e) => setNewMessage(e.target.value)}
                                                     className="w-full h-12 bg-slate-50 dark:bg-slate-800 border border-transparent rounded-2xl px-6 text-sm font-medium text-slate-600 dark:text-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-300/30 transition-all outline-none"

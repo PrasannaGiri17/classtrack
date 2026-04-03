@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ClipboardCheck,
   Search,
@@ -41,6 +41,32 @@ const AttendancePage = () => {
   const [holidays, setHolidays] = useState([]); // Array of day numbers that are holidays
 
   const teacherId = localStorage.getItem("teacherId");
+  const scrollRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
 
   // Dynamically calculate days in the selected Nepali Month
   const daysInMonth = useMemo(() => {
@@ -344,7 +370,14 @@ const AttendancePage = () => {
           </div>
         </div>
 
-        <div className="relative overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-[32px] scrollbar-hide transition-colors">
+        <div 
+          ref={scrollRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className={`relative overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-[32px] scrollbar-show transition-colors ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+        >
           <table className="w-full text-left border-collapse min-w-[3000px]">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/30">

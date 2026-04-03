@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Users,
   Megaphone,
@@ -11,10 +11,12 @@ import {
   Crown,
   User
 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from '../MainSystemComponents/Toast';
 import studentService from "../Api/studentService";
 import classroomNoticeService from "../Api/classroomNoticeService";
 import gradeService from "../Api/gradeService";
+import timetableService from "../Api/timetableService";
 import Loading from "../MainSystemComponents/Loading";
 
 const SStudentRecord = () => {
@@ -25,6 +27,11 @@ const SStudentRecord = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [sectionInfo, setSectionInfo] = useState(null);
   const [studentInfo, setStudentInfo] = useState(null);
+  const [assignedTeachers, setAssignedTeachers] = useState([]);
+  const teacherScrollRef = useRef(null);
+  const scrollTeachers = (dir) => {
+    if (teacherScrollRef.current) teacherScrollRef.current.scrollBy({ left: dir * 250, behavior: 'smooth' });
+  };
 
   // Notice Pagination
   const [noticePage, setNoticePage] = useState(1);
@@ -59,6 +66,15 @@ const SStudentRecord = () => {
           if (sectionRes.status === 'fulfilled') {
             setSectionInfo(sectionRes.value);
             setMonitorId(sectionRes.value.classMonitorId);
+          }
+
+          // 3. Fetch exact teachers actively teaching this section from their Timetables
+          if (profile.schoolId && sectionRes.value) {
+            const finalGrade = profile.studentClass || profile.gradeId?.gradeNumber || gradeNum;
+            const finalSection = sectionRes.value.sectionName;
+            
+            const activeTeachers = await timetableService.getSectionTeachersFromTimetable(finalGrade, finalSection);
+            setAssignedTeachers(activeTeachers);
           }
         }
       } catch (err) {
@@ -166,6 +182,67 @@ const SStudentRecord = () => {
           </div>
         </div>
       </div>
+
+      {/* ─── Assigned Teachers Section ─── */}
+          <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-800 pb-5">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
+                  <GraduationCap className="text-emerald-500" size={22} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Assigned Teachers</h3>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Faculty for Grade {studentInfo?.studentClass}-{sectionInfo?.sectionName}</p>
+                </div>
+              </div>
+              {assignedTeachers.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => scrollTeachers(-1)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-500 transition-all">
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button onClick={() => scrollTeachers(1)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-500 transition-all">
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div ref={teacherScrollRef} className="flex items-stretch gap-5 overflow-x-auto pb-2" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
+              {assignedTeachers.length > 0 ? (
+                assignedTeachers.map((t) => (
+                  <div
+                    key={t._id}
+                    className="group relative flex flex-col items-center text-center bg-gradient-to-b from-emerald-50/60 to-white dark:from-emerald-900/10 dark:to-slate-900 rounded-[36px] pt-8 pb-6 px-6 border border-emerald-100/60 dark:border-emerald-800/20 hover:border-emerald-300/80 dark:hover:border-emerald-600/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 min-w-[200px] max-w-[200px] cursor-default flex-shrink-0"
+                  >
+                    <div className="relative mb-4">
+                      <div className={`w-24 h-24 rounded-[32px] flex items-center justify-center text-3xl font-black shadow-lg overflow-hidden ring-2 transition-transform duration-500 group-hover:scale-105 ${
+                        t.profilePhoto
+                          ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-emerald-500/20 ring-emerald-400 dark:ring-emerald-500'
+                          : 'bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-emerald-500/10 ring-emerald-400 dark:ring-emerald-600 border border-emerald-300 dark:border-emerald-700'
+                      }`}>
+                        {t.profilePhoto ? (
+                          <img src={t.profilePhoto} alt={t.firstName} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="drop-shadow-sm">{t.firstName?.[0]}{t.lastName?.[0] || ""}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2 w-full">
+                      <h4 className="text-[15px] font-black text-slate-900 dark:text-white leading-tight tracking-tight">{t.firstName} {t.lastName}</h4>
+                      <div className="inline-flex items-center px-3 py-1 bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-full border border-emerald-300 dark:border-emerald-700">
+                        <span className="text-[9px] font-black uppercase tracking-[0.15em]">{t.primarySubject?.subjectName || t.primarySubject || 'Faculty'}</span>
+                      </div>
+                      <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 pt-1 break-all leading-relaxed">{t.email}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="w-full py-10 text-center">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-20">No subject teachers assigned yet</p>
+                </div>
+              )}
+            </div>
+          </div>
 
       {/* REDESIGNED NOTICE BOARD - Mobile App Style (Adaptive Light/Dark) */}
       <div className="bg-white dark:bg-[#071425] rounded-[40px] border border-slate-100 dark:border-white/5 shadow-2xl overflow-hidden p-6 sm:p-8 lg:p-10 space-y-8 transition-all duration-500">

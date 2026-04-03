@@ -444,16 +444,19 @@ const ClassroomPage = () => {
 
               {currentTeacher ? (
                 <div className="space-y-6">
-                  <div className="flex items-center gap-5">
-                    <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-indigo-500/20 overflow-hidden">
+                  <div 
+                    onClick={() => navigate(`/admin/teacher/${currentTeacher._id}`)}
+                    className="flex items-center gap-5 cursor-pointer group/teacher hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 p-3 -m-3 rounded-3xl transition-all"
+                  >
+                    <div className="w-20 h-20 rounded-[28px] bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-indigo-500/20 overflow-hidden shrink-0 group-hover/teacher:scale-110 transition-transform duration-500">
                       {currentTeacher.profilePhoto ? (
                         <img src={currentTeacher.profilePhoto} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <>{currentTeacher.firstName[0]}{currentTeacher.lastName?.[0] || ""}</>
                       )}
                     </div>
-                    <div>
-                      <h4 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                    <div className="flex-1">
+                      <h4 className="text-lg font-black text-slate-900 dark:text-white leading-tight group-hover/teacher:text-indigo-600 dark:group-hover/teacher:text-indigo-400 transition-colors">
                         {currentTeacher.firstName} {currentTeacher.lastName}
                       </h4>
                       <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest mt-1">

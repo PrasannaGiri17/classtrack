@@ -9,8 +9,10 @@ import {
   ChevronRight,
   GraduationCap,
   AlertCircle,
-  Pencil
+  Pencil,
+  List
 } from "lucide-react";
+import { CiGrid32 } from "react-icons/ci";
 import AddPopupTeacher from "../AdminComponents/Admin/AddPopupTeacher";
 import { toast } from "../MainSystemComponents/Toast";
 import Loading from "../MainSystemComponents/Loading";
@@ -23,6 +25,7 @@ const TeacherRecord = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const [viewMode, setViewMode] = useState('grid');
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
   const location = useLocation();
@@ -90,18 +93,18 @@ const TeacherRecord = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-0 space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="bg-white dark:bg-slate-900 px-8 py-5 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-colors">
-          <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-            <GraduationCap className="text-emerald-500 w-7 h-7" />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="bg-white dark:bg-slate-900 px-8 py-4 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-colors shrink-0">
+          <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
+            <GraduationCap className="text-emerald-500 w-6 h-6" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 tracking-widest mb-0.5 uppercase">Total Teachers</p>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white leading-none">{teachers.length}</h2>
+            <p className="text-[10px] font-black text-slate-400 tracking-widest mb-0.5 uppercase">Total Registry</p>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-none">{teachers.length}</h2>
           </div>
         </div>
 
-        <div className="flex-1 max-w-xl relative">
+        <div className="flex-1 relative">
           <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
@@ -115,116 +118,215 @@ const TeacherRecord = () => {
           />
         </div>
 
+        {/* Grid / List Toggle Button */}
+        <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-2.5 rounded-[18px] transition-all ${
+              viewMode === 'grid' 
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <CiGrid32 size={22} />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-2.5 rounded-[18px] transition-all ${
+              viewMode === 'list' 
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <List size={22} />
+          </button>
+        </div>
+
         <button
           onClick={() => {
             setEditingTeacher(null);
             setIsPopupOpen(true);
           }}
-          className="px-10 py-5 bg-emerald-500 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap uppercase tracking-widest"
+          className="px-8 py-5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap shrink-0 uppercase"
         >
           <Plus size={22} /> Add Teacher
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors h-auto">
-        <div className="w-full overflow-x-auto scrollbar-hide">
-          <table className="w-full min-w-[800px] table-auto text-left">
-            <thead>
-              <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">ID</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Faculty Details</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center uppercase">Grades</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Core Subject</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Elective</th>
-                <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="py-24">
-                    <Loading text="Accessing Teacher Vault..." fullScreen={false} />
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan={6} className="py-32">
-                    <div className="flex flex-col items-center justify-center text-red-500">
-                      <AlertCircle className="w-10 h-10 mb-4" />
-                      <p className="text-sm font-bold tracking-widest uppercase">{error}</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : currentTeachers.length > 0 ? (
-                currentTeachers.map((teacher) => (
-                  <tr
-                    key={teacher._id}
-                    onClick={() => navigate(`/admin/teacher/${teacher._id}`)}
-                    className="group hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5 transition-all cursor-pointer"
-                  >
-                    <td className="pl-12 pr-6 py-6 font-bold text-slate-400 text-xs">{teacher.teacherCode}</td>
-                    <td className="px-6 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20 flex items-center justify-center text-emerald-600 font-black text-xs shadow-inner shrink-0 overflow-hidden">
-                          {teacher.profilePhoto ? (
-                            <img src={teacher.profilePhoto} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            getInitials(teacher.firstName, teacher.lastName)
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-black text-slate-900 dark:text-white leading-tight truncate">{teacher.firstName} {teacher.lastName}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-6 text-center">
-                      <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black tracking-widest text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700 whitespace-nowrap">
-                        {teacher.assignedGrades?.map(g => g.gradeNumber).join(", ") || "N/A"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-6 font-bold text-sm text-slate-700 dark:text-slate-300">
-                      {teacher.primarySubject?.subjectName || "N/A"}
-                    </td>
-                    <td className="px-6 py-6 font-medium text-xs text-slate-400">
-                      {teacher.secondarySubject?.subjectName || "—"}
-                    </td>
-                    <td className="pr-12 pl-6 py-6 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingTeacher(teacher);
-                            setIsPopupOpen(true);
-                          }}
-                          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl"
-                          title="Edit Faculty Record"
-                        >
-                          <Pencil size={18} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(teacher);
-                          }}
-                          className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
-                          title="Delete Faculty Record"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="py-32 text-center text-slate-400 font-bold tracking-widest text-xs uppercase">No Faculty Records Found</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* Data View */}
+      {loading ? (
+        <div className="py-24 bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm">
+          <Loading text="Accessing Teacher Vault..." fullScreen={false} />
         </div>
+      ) : error ? (
+        <div className="py-32 bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-red-500">
+          <AlertCircle className="w-10 h-10 mb-4" />
+          <p className="text-sm font-bold tracking-widest uppercase">{error}</p>
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* Grid View */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {currentTeachers.length > 0 ? (
+            currentTeachers.map((teacher) => (
+              <div 
+                key={teacher._id} 
+                className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 group relative flex flex-col"
+                onClick={() => navigate(`/admin/teacher/${teacher._id}`)}
+              >
+                {/* Delete Button */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(teacher);
+                  }} 
+                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white transition-all hover:bg-red-500 rounded-xl z-10 opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 size={16} />
+                </button>
 
-        <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-50 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                {/* Top: Profile */}
+                <div className="p-6 pb-5 flex flex-col items-center text-center border-b border-slate-50 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-800/10">
+                  <div className="w-20 h-20 mb-4 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-black text-2xl shadow-inner ring-4 ring-white dark:ring-slate-900 overflow-hidden">
+                    {teacher.profilePhoto ? (
+                      <img src={teacher.profilePhoto} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      getInitials(teacher.firstName, teacher.lastName)
+                    )}
+                  </div>
+                  <h3 className="font-black text-lg text-slate-900 dark:text-white leading-tight mb-1">{teacher.firstName} {teacher.lastName}</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ID: {teacher.teacherCode}</p>
+                  <div className="flex flex-wrap justify-center gap-1.5">
+                    <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-800">
+                      {teacher.primarySubject?.subjectName || "General"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom: Details */}
+                <div className="p-6 flex-1 flex flex-col gap-4 bg-white dark:bg-slate-900">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Assigned Grades</p>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {teacher.assignedGrades?.length > 0 ? (
+                        teacher.assignedGrades.map(g => (
+                          <span key={g._id} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-bold text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700">
+                            Class {g.gradeNumber}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-slate-400">None</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-auto pt-4 border-t border-slate-50 dark:border-slate-800/50 flex justify-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTeacher(teacher);
+                        setIsPopupOpen(true);
+                      }}
+                      className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-emerald-500 transition-colors uppercase tracking-widest"
+                    >
+                      <Pencil size={12} /> Edit Record
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full py-32 text-center text-slate-400 font-bold tracking-widest text-xs uppercase">No Faculty Records Found</div>
+          )}
+        </div>
+      ) : (
+        /* List View (Table) */
+        <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors h-auto">
+          <div className="w-full overflow-x-auto scrollbar-hide">
+            <table className="w-full min-w-[800px] table-auto text-left">
+              <thead>
+                <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                  <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">ID</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Faculty Details</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center uppercase">Grades</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Core Subject</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Elective</th>
+                  <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                {currentTeachers.length > 0 ? (
+                  currentTeachers.map((teacher) => (
+                    <tr
+                      key={teacher._id}
+                      onClick={() => navigate(`/admin/teacher/${teacher._id}`)}
+                      className="group hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5 transition-all cursor-pointer"
+                    >
+                      <td className="pl-12 pr-6 py-6 font-bold text-slate-400 text-xs">{teacher.teacherCode}</td>
+                      <td className="px-6 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/20 flex items-center justify-center text-emerald-600 font-black text-xs shadow-inner shrink-0 overflow-hidden">
+                            {teacher.profilePhoto ? (
+                              <img src={teacher.profilePhoto} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              getInitials(teacher.firstName, teacher.lastName)
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-black text-slate-900 dark:text-white leading-tight truncate">{teacher.firstName} {teacher.lastName}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-6 text-center">
+                        <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black tracking-widest text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700 whitespace-nowrap">
+                          {teacher.assignedGrades?.map(g => g.gradeNumber).join(", ") || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-6 font-bold text-sm text-slate-700 dark:text-slate-300">
+                        {teacher.primarySubject?.subjectName || "N/A"}
+                      </td>
+                      <td className="px-6 py-6 font-medium text-xs text-slate-400">
+                        {teacher.secondarySubject?.subjectName || "—"}
+                      </td>
+                      <td className="pr-12 pl-6 py-6 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTeacher(teacher);
+                              setIsPopupOpen(true);
+                            }}
+                            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl"
+                            title="Edit Faculty Record"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(teacher);
+                            }}
+                            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
+                            title="Delete Faculty Record"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="py-32 text-center text-slate-400 font-bold tracking-widest text-xs uppercase">No Faculty Records Found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination Footer */}
+      {!loading && !error && (
+        <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-[28px] border border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] uppercase">Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredTeachers.length)} of {filteredTeachers.length}</p>
           <div className="flex items-center gap-3 flex-wrap">
             <button
@@ -257,7 +359,7 @@ const TeacherRecord = () => {
             </button>
           </div>
         </div>
-      </div>
+      )}
 
       <AddPopupTeacher
         isOpen={isPopupOpen}

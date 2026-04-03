@@ -56,9 +56,10 @@ router.post('/login', async (req, res) => {
     }
 
     // Completely isolated token containing no multi-tenant fields linking back to UserModal.js
+    if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is missing");
     const token = jwt.sign(
       { id: admin._id, role: 'superadmin' }, 
-      process.env.JWT_SECRET || 'superadmin_fallback_secret', 
+      process.env.JWT_SECRET, 
       { expiresIn: '30d' }
     );
 

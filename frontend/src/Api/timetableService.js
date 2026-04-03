@@ -44,13 +44,21 @@ const clearAllTeachers = async (schoolId) => {
   return response.data;
 };
 
+const getSectionTeachersFromTimetable = async (gradeNumber, sectionName) => {
+  const response = await axios.get(`${API_URL}/section-teachers`, {
+    params: { gradeNumber, sectionName }
+  });
+  return response.data;
+};
+
 const timetableService = {
   getTimetable,
   getTimetableOptions,
   getTeacherRoutine,
   updateTeacherTopic,
   updateTimetable,
-  clearAllTeachers
+  clearAllTeachers,
+  getSectionTeachersFromTimetable
 };
 
 export default timetableService;
