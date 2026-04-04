@@ -3,23 +3,41 @@ const Student = require("../models/studentModel");
 const { Grade } = require("../models/School");
 const mongoose = require("mongoose");
 
-// Get attendance records for a specific section, year, and month
+// Get attendance records for a specific section (or entire school), year, and month
 const getAttendance = async (req, res) => {
   try {
     const { sectionId, year, month } = req.query;
+    const schoolId = Number(req.schoolId);
 
-    if (!sectionId || !year || !month) {
-      return res.status(400).json({ message: "sectionId, year, and month are required." });
+    if (!year || !month) {
+      return res.status(400).json({ message: "year and month are required." });
     }
 
-    let attendance = await ClassroomAttendance.findOne({ sectionId, year, month }).populate("attendanceData.studentId", "firstName lastName studentId profilePhoto");
+    let attendance;
+    if (sectionId) {
+      attendance = await ClassroomAttendance.findOne({ sectionId, year, month })
+        .populate("attendanceData.studentId", "firstName lastName studentId profilePhoto");
+      
+      if (!attendance) {
+        return res.status(200).json({ attendanceData: [] });
+      }
+      return res.status(200).json(attendance);
+    } else {
+      // School-wide aggregation for Admin
+      const records = await ClassroomAttendance.find({ schoolId, year, month })
+        .populate("attendanceData.studentId", "firstName lastName studentId profilePhoto");
 
-    if (!attendance) {
-      // If no records exist yet, we might want to return an empty structure or handle it in the frontend
-      return res.status(200).json({ attendanceData: [] });
+      if (!records || records.length === 0) {
+        return res.status(200).json({ attendanceData: [] });
+      }
+
+      // Merge all attendanceData from all section-wise records into one flat array for the frontend
+      const mergedData = records.reduce((acc, current) => {
+        return acc.concat(current.attendanceData || []);
+      }, []);
+
+      return res.status(200).json({ attendanceData: mergedData });
     }
-
-    res.status(200).json(attendance);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

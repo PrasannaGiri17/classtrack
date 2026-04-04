@@ -10,6 +10,8 @@ import examService from '../Api/examService';
 import gradeService from '../Api/gradeService';
 import studentService from '../Api/studentService';
 import resultService from '../Api/resultService';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // --- Constants & Dummy Data ---
 const SECTIONS = ["A", "B", "C"];
@@ -34,10 +36,10 @@ const ExamManagement = () => {
   const [analyticsGrade, setAnalyticsGrade] = useState('10');
   const [analyticsSection, setAnalyticsSection] = useState('A');
 
-  const [resYear, setResYear] = useState('2025');
-  const [resPhase, setResPhase] = useState('MID-TERM 1');
-  const [resGrade, setResGrade] = useState('10');
-  const [resSection, setResSection] = useState('A');
+  const [resYear, setResYear] = useState(localStorage.getItem('resYear') || '2025');
+  const [resPhase, setResPhase] = useState(localStorage.getItem('resPhase') || 'First Mid Term');
+  const [resGrade, setResGrade] = useState(localStorage.getItem('resGrade') || '10');
+  const [resSection, setResSection] = useState(localStorage.getItem('resSection') || 'A');
   const [resultSearch, setResultSearch] = useState('');
   const [activeResultIndex, setActiveResultIndex] = useState(0);
 
@@ -51,19 +53,25 @@ const ExamManagement = () => {
         ]);
         setExamData({ ...examData, allGrades: gradesData });
         setGrades(gradesData.map(g => g.gradeNumber.toString()));
-        if (gradesData.length > 0) {
-          const firstGrade = gradesData[0];
-          const firstGradeNum = firstGrade.gradeNumber.toString();
-          setAnalyticsGrade(firstGradeNum);
-          setResGrade(firstGradeNum);
-          if (firstGrade.sections && firstGrade.sections.length > 0) {
-            setResSection(firstGrade.sections[0].sectionName);
+        if (!localStorage.getItem('resGrade')) {
+          if (gradesData.length > 0) {
+            const firstGrade = gradesData[0];
+            const firstGradeNum = firstGrade.gradeNumber.toString();
+            setAnalyticsGrade(firstGradeNum);
+            setResGrade(firstGradeNum);
+            if (firstGrade.sections && firstGrade.sections.length > 0) {
+              setResSection(firstGrade.sections[0].sectionName);
+            }
           }
         }
-        // Initialize resPhase from exam data config
-        const { termsCount, includeMidTerm } = examData.config || { termsCount: 3, includeMidTerm: true };
-        const initialPhase = includeMidTerm ? 'First Mid Term' : 'First Term';
-        setResPhase(initialPhase);
+        setAnalyticsGrade(localStorage.getItem('resGrade') || gradesData[0]?.gradeNumber?.toString() || '10');
+
+        // Initialize resPhase from exam data config if not in storage
+        if (!localStorage.getItem('resPhase')) {
+          const { includeMidTerm } = examData.config || { termsCount: 3, includeMidTerm: true };
+          const initialPhase = includeMidTerm ? 'First Mid Term' : 'First Term';
+          setResPhase(initialPhase);
+        }
       } catch (error) {
         console.error("Failed to fetch data:", error);
       }
@@ -85,7 +93,7 @@ const ExamManagement = () => {
         const statusObj = examData.termStatuses?.find(s => s.term === midName);
         generatedPhases.push({
           id: midName,
-          name: midName.toUpperCase(),
+          name: midName,
           status: statusObj?.isOpen ? 'Open' : 'Closed',
           publishStatus: statusObj?.isPublished ? 'Published' : 'Hidden'
         });
@@ -94,7 +102,7 @@ const ExamManagement = () => {
       const statusObj = examData.termStatuses?.find(s => s.term === termName);
       generatedPhases.push({
         id: termName,
-        name: termName.toUpperCase(),
+        name: termName,
         status: statusObj?.isOpen ? 'Open' : 'Closed',
         publishStatus: statusObj?.isPublished ? 'Published' : 'Hidden'
       });
@@ -117,7 +125,7 @@ const ExamManagement = () => {
 
       try {
         const [studentsData, resultsData] = await Promise.all([
-          studentService.getStudentsByClassAndSection(resGrade, sectionDoc._id),
+          studentService.getStudentsBySection(resGrade, sectionDoc._id),
           resultService.getResultsByGradeSectionTerm(gradeDoc._id, resSection, resPhase)
         ]);
         setRealStudents(studentsData);
@@ -129,6 +137,14 @@ const ExamManagement = () => {
 
     if (examData) fetchStudentsAndResults();
   }, [resGrade, resSection, resPhase, examData]);
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('resYear', resYear);
+    localStorage.setItem('resPhase', resPhase);
+    localStorage.setItem('resGrade', resGrade);
+    localStorage.setItem('resSection', resSection);
+  }, [resYear, resPhase, resGrade, resSection]);
 
   const filteredResults = useMemo(() => {
     // Find grade doc to get its subjects
@@ -154,7 +170,11 @@ const ExamManagement = () => {
         result.marks.forEach(m => {
           const subName = m.subjectId?.subjectName || m.subjectId?.title;
           if (subName) {
-            marksObj[subName.toUpperCase()] = (m.theoryMarks || 0) + (m.practicalMarks || 0);
+            marksObj[subName.toUpperCase()] = {
+              total: (m.theoryMarks || 0) + (m.practicalMarks || 0),
+              theory: m.theoryMarks || 0,
+              practical: m.practicalMarks || 0
+            };
           }
         });
       }
@@ -163,13 +183,14 @@ const ExamManagement = () => {
         id: student._id,
         studentId: student.studentId,
         name: `${student.firstName} ${student.lastName}`,
+        image: student.profilePhoto,
         phase: resPhase,
         grade: resGrade,
         section: resSection,
         marks: marksObj,
         total: result?.summary?.total || 0,
-        percentage: result?.summary?.percentage || 0,
-        gpa: result?.summary?.gpa || '0.0',
+        percentage: parseFloat(result?.summary?.percentage || 0).toFixed(2),
+        gpa: parseFloat(result?.summary?.gpa || 0).toFixed(2),
         status: result?.summary?.status || 'Incomplete'
       };
     });
@@ -267,6 +288,170 @@ const ExamManagement = () => {
     }
   };
 
+  const calculateGrade = (total) => {
+    if (total >= 90) return 'A+';
+    if (total >= 80) return 'A';
+    if (total >= 70) return 'B+';
+    if (total >= 60) return 'B';
+    if (total >= 50) return 'C+';
+    if (total >= 40) return 'C';
+    return 'D';
+  };
+
+  const handleDownloadPDF = (result) => {
+    if (!result) return;
+
+    toast({
+      type: 'info',
+      message: `Generating official transcript for ${result.name}...`
+    });
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const primaryColor = [16, 185, 129]; // Emerald Green
+    const accentColor = [15, 23, 42]; // Slate 900
+    
+    // --- 1. HEADER SECTION ---
+    doc.setFillColor(...accentColor);
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    
+    const schoolName = localStorage.getItem("schoolName") || "CLASS TRACK SCHOOL";
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text(schoolName.toUpperCase(), pageWidth / 2, 18, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Official Academic Performance Report", pageWidth / 2, 26, { align: 'center' });
+    
+    doc.setFillColor(...primaryColor);
+    doc.roundedRect(pageWidth / 2 - 35, 32, 70, 8, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(result.phase.toUpperCase(), pageWidth / 2, 37.5, { align: 'center' });
+
+    // --- 2. STUDENT INFORMATION ---
+    const infoY = 55;
+    doc.setTextColor(...accentColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("STUDENT PROFILE", 14, infoY);
+    
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, infoY + 2, pageWidth - 14, infoY + 2);
+    
+    doc.setFont("helvetica", "normal");
+    const labelX1 = 14, valX1 = 45;
+    const labelX2 = 110, valX2 = 140;
+    
+    doc.setTextColor(100, 116, 139);
+    doc.text("Student Name:", labelX1, infoY + 10);
+    doc.setTextColor(...accentColor);
+    doc.setFont("helvetica", "bold");
+    doc.text(result.name.toUpperCase(), valX1, infoY + 10);
+    
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Student ID:", labelX2, infoY + 10);
+    doc.setTextColor(...accentColor);
+    doc.text(result.studentId || 'N/A', valX2, infoY + 10);
+    
+    doc.setTextColor(100, 116, 139);
+    doc.text("Grade / Class:", labelX1, infoY + 18);
+    doc.setTextColor(...accentColor);
+    doc.text(`Grade ${result.grade} - ${result.section}`, valX1, infoY + 18);
+    
+    doc.setTextColor(100, 116, 139);
+    doc.text("Academic Year:", labelX1, infoY + 26);
+    doc.setTextColor(...accentColor);
+    doc.text("2082", valX1, infoY + 26);
+    
+    doc.setTextColor(100, 116, 139);
+    doc.text("Issue Date:", labelX2, infoY + 26);
+    doc.setTextColor(...accentColor);
+    doc.text(new Date().toLocaleDateString(), valX2, infoY + 26);
+
+    // --- 3. ACADEMIC SCORES TABLE ---
+    const tableData = Object.entries(result.marks).map(([subject, data]) => [
+      subject,
+      data ? data.theory : '—',
+      data ? data.practical : '—',
+      data ? data.total : '—',
+      data ? calculateGrade(data.total) : '—'
+    ]);
+    
+    autoTable(doc, {
+      startY: infoY + 35,
+      head: [['Subject Name', 'Theory', 'Practical', 'Total', 'Grade']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+      columnStyles: { 0: { halign: 'left', fontStyle: 'bold' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', fontStyle: 'bold' }, 4: { halign: 'center', fontStyle: 'bold' } },
+      styles: { fontSize: 9, cellPadding: 5 }
+    });
+
+    // --- 4. SUMMARY SECTION ---
+    const finalY = (doc).lastAutoTable.finalY + 15;
+    doc.setFillColor(248, 250, 252);
+    doc.rect(14, finalY, pageWidth - 28, 30, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(14, finalY, pageWidth - 28, 30, 'D');
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...accentColor);
+    doc.text("OVERALL PERFORMANCE", 20, finalY + 8);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Average Percentage:", 20, finalY + 18);
+    doc.text("Grade Point Average (GPA):", 20, finalY + 25);
+    
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(14);
+    doc.text(`${result.percentage}%`, 75, finalY + 18);
+    doc.text(result.gpa, 75, finalY + 25);
+    
+    const finalGrade = calculateGrade(parseFloat(result.percentage));
+    doc.setFillColor(...primaryColor);
+    doc.circle(pageWidth - 35, finalY + 15, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.text(finalGrade, pageWidth - 35, finalY + 16.5, { align: 'center' });
+    doc.setFontSize(7);
+    doc.text("FINAL GRADE", pageWidth - 35, finalY + 22, { align: 'center' });
+
+    // --- 5. GRADING SCALE ---
+    const scaleY = finalY + 45;
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("GRADING SYSTEM:", 14, scaleY);
+    doc.setFont("helvetica", "normal");
+    doc.text("A+: 90-100 | A: 80-89 | B+: 70-79 | B: 60-69 | C+: 50-59 | C: 40-49 | D: Below 40", 14, scaleY + 5);
+
+    // --- 6. SIGNATURE SECTION ---
+    const sigY = scaleY + 30;
+    const sigWidth = 40;
+    const sigX1 = 14, sigX2 = pageWidth / 2 - sigWidth / 2, sigX3 = pageWidth - 14 - sigWidth;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(sigX1, sigY, sigX1 + sigWidth, sigY);
+    doc.line(sigX2, sigY, sigX2 + sigWidth, sigY);
+    doc.line(sigX3, sigY, sigX3 + sigWidth, sigY);
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Class Teacher", sigX1 + sigWidth / 2, sigY + 5, { align: 'center' });
+    doc.text("Exam Controller", sigX2 + sigWidth / 2, sigY + 5, { align: 'center' });
+    doc.text("Principal", sigX3 + sigWidth / 2, sigY + 5, { align: 'center' });
+
+    doc.save(`Transcript_${result.name.replace(/\s+/g, '_')}_${result.phase}.pdf`);
+    toast({ type: 'success', message: 'Examination Report successfully exported to PDF.' });
+  };
+
   return (
     <div className="min-h-full animate-in fade-in duration-500 pb-20">
       {activeView === 'menu' ? (
@@ -340,6 +525,7 @@ const ExamManagement = () => {
               sections={SECTIONS}
               years={YEARS}
               initialPhases={phases}
+              onDownloadPDF={handleDownloadPDF}
             />
           )}
         </div>

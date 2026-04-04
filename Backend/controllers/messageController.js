@@ -258,12 +258,12 @@ exports.getConversationsList = async (req, res) => {
                 .select('name email role teacherId studentId adminId')
                 .populate('teacherId', 'firstName lastName profilePhoto')
                 .populate('studentId', 'firstName lastName profilePhoto')
-                .populate('adminId', 'name profilePhoto');
+                .populate('adminId', 'firstName lastName profilePhoto');
 
             let otherUserName = otherUser?.email || 'Unknown User';
             if (otherUser) {
                 if (otherUser.role === 'admin' && otherUser.adminId) {
-                    otherUserName = otherUser.adminId.name || `${otherUser.adminId.firstName || ''} ${otherUser.adminId.lastName || ''}`.trim() || otherUserName;
+                    otherUserName = `${otherUser.adminId.firstName || ''} ${otherUser.adminId.lastName || ''}`.trim() || otherUserName;
                 } else if (otherUser.role && otherUser[`${otherUser.role}Id`]) {
                     const profile = otherUser[`${otherUser.role}Id`];
                     otherUserName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || otherUserName;

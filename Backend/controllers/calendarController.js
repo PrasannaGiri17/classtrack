@@ -1,5 +1,7 @@
- const Event = require('../models/Event');
+const Event = require('../models/Event');
 const Holiday = require('../models/Holiday');
+const Exam = require('../models/Exam');
+const Student = require('../models/studentModel');
 const School = require('../models/School'); // Assuming School model exists, though we default to 1
 
 // @desc    Create a new calendar event
@@ -120,8 +122,8 @@ exports.getEvents = async (req, res) => {
       ];
     }
 
-    // Fetch Events and Holidays concurrently
-    const [events, dbHolidays] = await Promise.all([
+    // Fetch Events, Holidays and Exam Data concurrently
+    const [events, dbHolidays, examData] = await Promise.all([
       Event.find(query).sort({ startDate: 1 }),
       Holiday.find({ 
         $or: [
@@ -129,9 +131,80 @@ exports.getEvents = async (req, res) => {
           { schoolId: { $exists: false } },
           { schoolId: null }
         ]
-      })
+      }),
+      Exam.findOne({ schoolId: req.schoolId }).populate('schedules.entries.subjectId')
     ]);
 
+    // Map and filter Exams based on role
+    let mappedExams = [];
+    if (examData && examData.schedules) {
+      if (role === 'student' && req.user.studentId) {
+        // Find the student's grade
+        const student = await Student.findById(req.user.studentId);
+        const studentClass = student ? student.studentClass : null;
+
+        if (studentClass !== null) {
+          // Filter exams for this specific student's grade
+          examData.schedules.forEach(schedule => {
+            if (Number(schedule.gradeNumber) === Number(studentClass)) {
+              schedule.entries.forEach(entry => {
+                if (entry.date) {
+                  const entryDate = new Date(entry.date);
+                  // Apply date filter
+                  if ((from && to) && (entryDate < new Date(from) || entryDate > new Date(to))) return;
+
+                  mappedExams.push({
+                    _id: `exam-${entry._id}`,
+                    title: `Exam: ${entry.subjectId ? entry.subjectId.subjectName : 'Subject'}`,
+                    type: 'EXAMS',
+                    description: `${schedule.term} - Day ${entry.slotOrder || ''}`,
+                    startDate: entryDate,
+                    endDate: entryDate,
+                    color: 'blue',
+                    audience: 'Students'
+                  });
+                }
+              });
+            }
+          });
+        }
+      } else if (role === 'admin' || role === 'teacher') {
+        // Show "Exam Week" summary for each term
+        // Group all entries by Term to find start and end dates
+        const termSummary = {};
+        examData.schedules.forEach(schedule => {
+          if (!termSummary[schedule.term]) {
+            termSummary[schedule.term] = { min: null, max: null };
+          }
+          schedule.entries.forEach(entry => {
+            if (entry.date) {
+              const d = new Date(entry.date);
+              if (!termSummary[schedule.term].min || d < termSummary[schedule.term].min) termSummary[schedule.term].min = d;
+              if (!termSummary[schedule.term].max || d > termSummary[schedule.term].max) termSummary[schedule.term].max = d;
+            }
+          });
+        });
+
+        Object.keys(termSummary).forEach(term => {
+          const { min, max } = termSummary[term];
+          if (min && max) {
+            // Apply date filter
+            if ((from && to) && (max < new Date(from) || min > new Date(to))) return;
+
+            mappedExams.push({
+              _id: `exam-week-${term.replace(/\s+/g, '-')}`,
+              title: `Exam Week: ${term}`,
+              type: 'EXAMS',
+              description: `Final assessment period for all classes`,
+              startDate: min,
+              endDate: max,
+              color: 'blue',
+              audience: role === 'admin' ? 'Admins' : 'Teachers'
+            });
+          }
+        });
+      }
+    }
 
     // Map and filter Holidays in memory for robustness
     const mappedHolidays = dbHolidays
@@ -173,7 +246,7 @@ exports.getEvents = async (req, res) => {
         isPublicHoliday: true
       }));
 
-    const allEvents = [...events, ...mappedHolidays].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    const allEvents = [...events, ...mappedHolidays, ...mappedExams].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
 
     res.json(allEvents);
   } catch (error) {

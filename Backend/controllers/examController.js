@@ -58,7 +58,7 @@ exports.getExamData = async (req, res) => {
 // @route   POST /api/exams/config
 exports.saveExamConfig = async (req, res) => {
   try {
-    const { termsCount, includeMidTerm, globalStartTime, globalDuration } = req.body;
+    const { termsCount, includeMidTerm, globalStartTime, globalDuration, termDates } = req.body;
 
     let exam = await Exam.findOne({ schoolId: req.schoolId });
     if (!exam) {
@@ -69,7 +69,8 @@ exports.saveExamConfig = async (req, res) => {
       termsCount,
       includeMidTerm,
       globalStartTime,
-      globalDuration
+      globalDuration,
+      termDates // Store the universal date sequence
     };
 
     await exam.save();

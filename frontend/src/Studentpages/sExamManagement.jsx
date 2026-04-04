@@ -20,6 +20,9 @@ import studentService from '../Api/studentService';
 import resultService from '../Api/resultService';
 import examService from '../Api/examService';
 import gradeService from '../Api/gradeService';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 const SExamManagement = () => {
   const [selectedTerm, setSelectedTerm] = useState('First Term');
@@ -95,6 +98,186 @@ const SExamManagement = () => {
     return ['First Mid Term', 'First Term', 'Second Mid Term', 'Second Term'];
   }, [examConfig]);
 
+  const generateReportCard = () => {
+    if (!studentData || !marksData.length) {
+      toast({ type: 'error', message: 'Incomplete data to generate report.' });
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const primaryColor = [16, 185, 129]; // Emerald Green
+    const accentColor = [15, 23, 42]; // Slate 900
+    
+    // --- 1. HEADER SECTION ---
+    doc.setFillColor(...accentColor);
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    
+    // Header Info
+    const schoolName = localStorage.getItem("schoolName") || "CLASS TRACK SCHOOL";
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text(schoolName.toUpperCase(), pageWidth / 2, 18, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Academic Performance Assessment Report", pageWidth / 2, 26, { align: 'center' });
+    
+    // Report Title / Term
+    doc.setFillColor(...primaryColor);
+    doc.roundedRect(pageWidth / 2 - 35, 32, 70, 8, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(selectedTerm.toUpperCase(), pageWidth / 2, 37.5, { align: 'center' });
+
+    // --- 2. STUDENT INFORMATION ---
+    const infoY = 55;
+    doc.setTextColor(...accentColor);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("STUDENT PROFILE", 14, infoY);
+    
+    doc.setDrawColor(226, 232, 240); // Slate 200
+    doc.line(14, infoY + 2, pageWidth - 14, infoY + 2);
+    
+    doc.setFont("helvetica", "normal");
+    const labelX1 = 14, valX1 = 45;
+    const labelX2 = 110, valX2 = 140;
+    
+    // Row 1
+    doc.setTextColor(100, 116, 139); // Slate 500
+    doc.text("Student Name:", labelX1, infoY + 10);
+    doc.setTextColor(...accentColor);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${studentData?.firstName} ${studentData?.lastName || ''}`.toUpperCase(), valX1, infoY + 10);
+    
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Student ID:", labelX2, infoY + 10);
+    doc.setTextColor(...accentColor);
+    doc.text(studentData?.studentId || 'N/A', valX2, infoY + 10);
+    
+    // Row 2
+    doc.setTextColor(100, 116, 139);
+    doc.text("Grade / Class:", labelX1, infoY + 18);
+    doc.setTextColor(...accentColor);
+    doc.text(`Grade ${studentData?.studentClass || 'N/A'} - ${studentData?.sectionId?.sectionName || 'N/A'}`, valX1, infoY + 18);
+    
+    // Row 3
+    doc.setTextColor(100, 116, 139);
+    doc.text("Academic Year:", labelX1, infoY + 26);
+    doc.setTextColor(...accentColor);
+    doc.text("2082", valX1, infoY + 26);
+    
+    doc.setTextColor(100, 116, 139);
+    doc.text("Issue Date:", labelX2, infoY + 26);
+    doc.setTextColor(...accentColor);
+    doc.text(new Date().toLocaleDateString(), valX2, infoY + 26);
+
+    // --- 3. ACADEMIC SCORES TABLE ---
+    const tableData = marksData.map(row => [
+      row.subject,
+      row.theory !== null ? row.theory : '—',
+      row.practical !== null ? row.practical : '—',
+      (row.theory || 0) + (row.practical || 0),
+      row.grade
+    ]);
+    
+    autoTable(doc, {
+      startY: infoY + 35,
+      head: [['Subject Name', 'Theory', 'Practical', 'Total', 'Grade']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { halign: 'left', fontStyle: 'bold' },
+        1: { halign: 'center' },
+        2: { halign: 'center' },
+        3: { halign: 'center', fontStyle: 'bold' },
+        4: { halign: 'center', fontStyle: 'bold' }
+      },
+      styles: { fontSize: 9, cellPadding: 5 }
+    });
+
+    // --- 4. SUMMARY SECTION ---
+    const finalY = (doc).lastAutoTable.finalY + 15;
+    
+    doc.setFillColor(248, 250, 252); // Slate 50
+    doc.rect(14, finalY, pageWidth - 28, 30, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(14, finalY, pageWidth - 28, 30, 'D');
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...accentColor);
+    doc.text("OVERALL ASSESSMENT", 20, finalY + 8);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Cumulative Grade Point (CGPA):", 20, finalY + 18);
+    doc.text("Performance Description:", 20, finalY + 25);
+    
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(14);
+    doc.text(overallGpa, 75, finalY + 18);
+    doc.setFontSize(9);
+    doc.text("EXCELLENT PERFORMANCE", 65, finalY + 25);
+    
+    // Grade Circle / Big Grade
+    doc.setFillColor(...primaryColor);
+    doc.circle(pageWidth - 35, finalY + 15, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.text(overallGrade, pageWidth - 35, finalY + 16.5, { align: 'center' });
+    doc.setFontSize(7);
+    doc.text("FINAL GRADE", pageWidth - 35, finalY + 22, { align: 'center' });
+
+    // --- 5. GRADING SCALE ---
+    const scaleY = finalY + 45;
+    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("GRADING SYSTEM:", 14, scaleY);
+    doc.setFont("helvetica", "normal");
+    doc.text("A+: 90-100 (Outstanding) | A: 80-89 (Excellent) | B+: 70-79 (Very Good) | B: 60-69 (Good) | C+: 50-59 (Satisfactory) | C: 40-49 (Acceptable) | D: Below 40", 14, scaleY + 5);
+
+    // --- 6. SIGNATURE SECTION ---
+    const sigY = scaleY + 30;
+    doc.setDrawColor(200, 200, 200);
+    
+    const sigWidth = 40;
+    const sigX1 = 14, sigX2 = pageWidth / 2 - sigWidth / 2, sigX3 = pageWidth - 14 - sigWidth;
+    
+    doc.line(sigX1, sigY, sigX1 + sigWidth, sigY);
+    doc.line(sigX2, sigY, sigX2 + sigWidth, sigY);
+    doc.line(sigX3, sigY, sigX3 + sigWidth, sigY);
+    
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Class Teacher", sigX1 + sigWidth / 2, sigY + 5, { align: 'center' });
+    doc.text("Exam Controller", sigX2 + sigWidth / 2, sigY + 5, { align: 'center' });
+    doc.text("Principal", sigX3 + sigWidth / 2, sigY + 5, { align: 'center' });
+
+    // --- FOOTER ---
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setFontSize(7);
+    doc.setTextColor(203, 213, 225); // Slate 300
+    doc.text(`Official Academic Record - Generated on ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+    // Save PDF
+    const filename = `Report_Card_${selectedTerm.replace(/\s+/g, '_')}_${studentData?.firstName}_${studentData?.lastName || ''}.pdf`;
+    doc.save(filename);
+  };
+
   const handleGenerateReport = () => {
     toast({
       type: 'info',
@@ -102,11 +285,12 @@ const SExamManagement = () => {
     });
 
     setTimeout(() => {
+      generateReportCard();
       toast({
         type: 'success',
         message: 'Examination Report successfully exported to PDF.'
       });
-    }, 2000);
+    }, 1500);
   };
 
   const currentResult = useMemo(() => {
@@ -255,11 +439,11 @@ const SExamManagement = () => {
               </div>
               <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <Hash size={14} className="text-emerald-500" />
-                ROLL NO: {studentData?.rollNumber || 'N/A'}
+                STUDENT ID: {studentData?.studentId || 'N/A'}
               </div>
               <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest uppercase">
                 <Calendar size={14} className="text-emerald-500" />
-                AY: 2024-25
+                AY: 2082
               </div>
             </div>
           </div>

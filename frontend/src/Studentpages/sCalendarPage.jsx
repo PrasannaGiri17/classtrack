@@ -71,16 +71,38 @@ const SCalendarPage = () => {
   };
 
 
-  // Derived state: Upcoming events (Future events only, sorted)
-  const upcomingEvents = events
+  // Determine if we are viewing a past month
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isPastMonth = currentDate.getFullYear() < today.getFullYear() || 
+                    (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() < today.getMonth());
+
+  // Derived state: Events filtered by viewed month and future/past status
+  const filteredEvents = events
     .filter(event => {
+      const eventStart = new Date(event.startDate);
       const eventEnd = new Date(event.endDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return eventEnd >= today;
+
+      // 1. Filter by viewed AD month
+      const isCorrectMonth = eventStart.getMonth() === currentDate.getMonth() &&
+                            eventStart.getFullYear() === currentDate.getFullYear();
+      
+      if (!isCorrectMonth) return false;
+
+      // 2. If viewing current month, only show future/today events
+      const isCurrentMonth = currentDate.getFullYear() === today.getFullYear() && 
+                            currentDate.getMonth() === today.getMonth();
+      
+      if (isCurrentMonth) {
+        return eventEnd >= today;
+      }
+
+      // 3. If past or future month, show all events of that month
+      return true;
     })
-    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
-    .slice(0, 6); // Top 6 upcoming
+    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+  const listTitle = isPastMonth ? 'Past Events' : 'Upcoming Events';
 
   const formatDateRange = (start, end) => {
     const s = new Date(start);
@@ -175,7 +197,7 @@ const SCalendarPage = () => {
             className="w-full flex items-center justify-between p-8 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] shadow-sm hover:border-emerald-500/20 transition-all group"
           >
             <div className="flex items-center gap-4">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">Upcoming Events ({upcomingEvents.length})</h3>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">{listTitle} ({filteredEvents.length})</h3>
               {loading && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
             </div>
             <div className={`w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-all ${isEventsOpen ? 'rotate-180' : ''}`}>
@@ -185,11 +207,11 @@ const SCalendarPage = () => {
 
           {isEventsOpen && (
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-4 fade-in duration-300">
-              {upcomingEvents.length === 0 ? (
+              {filteredEvents.length === 0 ? (
                 <div className="col-span-2 text-center p-8 text-slate-400 font-bold uppercase tracking-widest text-xs">
-                  No upcoming events found
+                  No {listTitle.toLowerCase()} found
                 </div>
-              ) : upcomingEvents.map((event) => {
+              ) : filteredEvents.map((event) => {
                 const isBlue = event.type === 'EXAMS' || event.type === 'blue' || event.color === 'blue';
                 const isRed = event.type === 'HOLIDAY' || event.type === 'red' || event.color === 'red';
 

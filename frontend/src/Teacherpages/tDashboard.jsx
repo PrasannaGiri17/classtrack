@@ -17,6 +17,9 @@ import attendanceService from '../Api/attendanceService';
 import gradeService from '../Api/gradeService';
 import studentService from '../Api/studentService';
 import calendarService from '../Api/calendarService';
+import timetableService from '../Api/timetableService';
+import resultService from '../Api/resultService';
+import teacherService from '../Api/teacherService';
 import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 import Loading from '../MainSystemComponents/Loading';
 import { Cell } from 'recharts';
@@ -31,8 +34,9 @@ const TDashboard = () => {
   const [statsData, setStatsData] = useState({
     totalStudents: 0,
     attendanceRate: 0,
-    passRate: '94.2%', // Keeping mocked as it's not implemented yet
-    failRate: '5.8%'
+    passRate: '0%',
+    failRate: '0%',
+    avgMarkPercent: '0%'
   });
   const [weeklyAttendanceData, setWeeklyAttendanceData] = useState([]);
 
@@ -43,42 +47,102 @@ const TDashboard = () => {
       if (!teacherId) return;
       setIsLoading(true);
       try {
-        // 1. Get Teacher's Section Info
-        const secData = await gradeService.getSectionByTeacherId(teacherId);
+        // 1. Fetch multi-source data for classrooms, assignments, and results
+        const [secData, routine, grades, events, allStudents, teacherData, results] = await Promise.all([
+          gradeService.getSectionByTeacherId(teacherId),
+          timetableService.getTeacherRoutine(teacherId),
+          gradeService.getGrades(),
+          calendarService.getEvents(),
+          studentService.getStudents(),
+          teacherService.getTeacherById(teacherId),
+          resultService.getResultsByGradeSectionTerm()
+        ]);
+
         setSectionInfo(secData);
 
-        if (secData?.sectionId) {
-          // 2. Get Students for this section
-          const students = await studentService.getStudentsByClassTeacher(teacherId);
-          const totalStudents = students?.length || 0;
+        // 2. Identify all sections assigned to this teacher
+        const assignedSectionIds = new Set();
+        if (secData?.sectionId) assignedSectionIds.add(String(secData.sectionId));
+        const routineSlots = routine ? Object.values(routine).flat() : [];
+        if (routineSlots.length > 0) {
+          routineSlots.forEach(slot => {
+            const raw = slot.rawIds;
+            if (raw && raw.gradeNumber && raw.sectionName) {
+              const grade = grades.find(g => Number(g.gradeNumber) === Number(raw.gradeNumber));
+              if (grade && Array.isArray(grade.sections)) {
+                const section = grade.sections.find(s => s.sectionName === raw.sectionName);
+                if (section && section._id) assignedSectionIds.add(String(section._id));
+              }
+            }
+          });
+        }
 
-          // 3. Get Current BS Date
+        // 3. Filter students from all unique assigned sections
+        const teacherStudents = allStudents.filter(s => s.sectionId && assignedSectionIds.has(String(s.sectionId)));
+        const totalStudentsCount = teacherStudents.length;
+
+        // 4. Identify Teacher's Subjects
+        const mySubjectIds = new Set();
+        if (teacherData.primarySubject?._id) mySubjectIds.add(String(teacherData.primarySubject._id));
+        if (teacherData.secondarySubject?._id) mySubjectIds.add(String(teacherData.secondarySubject._id));
+
+        // 5. Calculate Subject-Specific Pass/Fail Rates
+        let teacherPassCount = 0;
+        let teacherTotalResults = 0;
+        let teacherTotalMarks = 0;
+
+        if (results && results.length > 0) {
+          results.forEach(res => {
+            // Check if result record belongs to one of teacher's students/sections
+            if (assignedSectionIds.has(String(res.sectionId || res.gradeId?.sections?.[0]?._id))) {
+              const subjectMarks = res.marks.filter(m => mySubjectIds.has(String(m.subjectId?._id || m.subjectId)));
+
+              subjectMarks.forEach(m => {
+                const total = (m.theoryMarks || 0) + (m.practicalMarks || 0);
+                teacherTotalResults++;
+                teacherTotalMarks += total;
+                if (total >= 40) teacherPassCount++;
+              });
+            }
+          });
+        }
+
+        const passRate = teacherTotalResults > 0 ? ((teacherPassCount / teacherTotalResults) * 100).toFixed(1) + '%' : '0%';
+        const failRate = teacherTotalResults > 0 ? ((100 - (teacherPassCount / teacherTotalResults) * 100)).toFixed(1) + '%' : '0%';
+        const avgMarkPercent = teacherTotalResults > 0 ? (teacherTotalMarks / teacherTotalResults).toFixed(1) + '%' : '0%';
+
+        if (assignedSectionIds.size > 0) {
+          // 6. Get Current BS Date
           const todayAD = new Date().toISOString().split('T')[0];
           const todayBS = convertADtoBS(todayAD);
           const [currentYear, currentMonthNum] = todayBS.split('-').map(Number);
           const currentMonthName = NEPALI_MONTHS[currentMonthNum - 1];
 
-          // 4. Get Attendance Records
-          const attData = await attendanceService.getAttendance(secData.sectionId, currentYear, currentMonthName);
+          // 7. Get Attendance Records
+          const targetSectionId = secData?.sectionId || Array.from(assignedSectionIds)[0];
+          const attData = await attendanceService.getAttendance(targetSectionId, currentYear, currentMonthName);
 
-          // 5. Get Holidays
-          const events = await calendarService.getEvents();
+          // 8. Get Holidays
           const holidays = (events || [])
             .filter(e => e.type?.toUpperCase() === 'HOLIDAY' || e.isPublicHoliday);
 
-          // 6. Calculate Weekly Attendance
-          const currentWeekData = calculateWeeklySummary(attData?.attendanceData || [], students, holidays);
+          // 9. Calculate Weekly Attendance
+          const primaryClassStudents = teacherStudents.filter(s => String(s.sectionId) === String(targetSectionId));
+          const currentWeekData = calculateWeeklySummary(attData?.attendanceData || [], primaryClassStudents, holidays);
           setWeeklyAttendanceData(currentWeekData);
 
-          // 6. Calculate Average Attendance Rate for the week
+          // 10. Calculate Average Attendance Rate for the week
           const totalPresents = currentWeekData.reduce((acc, day) => acc + day.students, 0);
-          const totalPossible = totalStudents * currentWeekData.filter(d => d.students > 0).length;
+          const totalPossible = primaryClassStudents.length * currentWeekData.filter(d => d.students > 0).length;
           const attRate = totalPossible > 0 ? (totalPresents / totalPossible * 100).toFixed(1) : 0;
 
           setStatsData(prev => ({
             ...prev,
-            totalStudents,
-            attendanceRate: attRate
+            totalStudents: totalStudentsCount,
+            attendanceRate: attRate,
+            passRate,
+            failRate,
+            avgMarkPercent
           }));
         }
       } catch (error) {
@@ -159,10 +223,10 @@ const TDashboard = () => {
   };
 
   const stats = [
-    { title: 'Your Students', value: statsData.totalStudents.toLocaleString(), icon: Users, color: 'bg-emerald-500', trend: '+0%', trendUp: true },
-    { title: 'Attendance Rate', value: `${statsData.attendanceRate}%`, icon: Clock, color: 'bg-emerald-500', trend: 'Current Week', trendUp: true },
-    { title: 'Pass Rate', value: statsData.passRate, icon: TrendingUp, color: 'bg-emerald-500', trend: '+0.8%', trendUp: true },
-    { title: 'Fail Rate', value: statsData.failRate, icon: AlertCircle, color: 'bg-red-500', trend: '-0.2%', trendUp: false },
+    { title: 'Your Students', value: statsData.totalStudents.toLocaleString(), icon: Users, color: 'bg-emerald-500', trend: 'Aggregate', trendUp: true },
+    { title: 'Class Attendance', value: `${statsData.attendanceRate}%`, icon: Clock, color: 'bg-emerald-500', trend: 'Primary class', trendUp: true },
+    { title: 'Pass Rate', value: statsData.passRate, icon: TrendingUp, color: 'bg-emerald-500', trend: `Avg: ${statsData.avgMarkPercent}`, trendUp: true },
+    { title: 'Fail Rate', value: statsData.failRate, icon: AlertCircle, color: 'bg-red-500', trend: 'Subject Specific', trendUp: false },
   ];
 
   if (isLoading) return <Loading fullScreen={true} text="Updating your dashboard..." />;
@@ -177,10 +241,7 @@ const TDashboard = () => {
               <div className={`w-12 h-12 ${stat.color} rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>
                 <stat.icon className="text-white w-6 h-6" />
               </div>
-              <div className={`flex items-center gap-1 text-xs font-bold ${stat.trendUp ? 'text-emerald-500' : 'text-red-500'}`}>
-                {stat.trend}
-                {stat.trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-              </div>
+
             </div>
             <div>
               <p className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{stat.title}</p>

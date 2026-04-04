@@ -53,7 +53,8 @@ const ControlView = ({
   grades,
   sections,
   years,
-  initialPhases
+  initialPhases,
+  onDownloadPDF
 }) => {
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-500 pb-20">
@@ -83,7 +84,7 @@ const ControlView = ({
                 <thead>
                   <tr className="bg-slate-100/50 dark:bg-slate-800/50">
                     <th className="pl-10 py-6 text-[13px] font-black text-slate-400 tracking-tight text-left whitespace-nowrap">Examination Phase</th>
-                    <th className="px-6 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center">Portal Status</th>
+                    <th className="px-6 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center">Status</th>
                     <th className="px-6 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center">Portal Action</th>
                     <th className="px-6 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center">Result Status</th>
                     <th className="px-10 py-6 text-[13px] font-black text-slate-400 tracking-tight text-center whitespace-nowrap">Result Action</th>
@@ -95,7 +96,7 @@ const ControlView = ({
                       <td className="pl-10 py-5 font-black text-sm text-slate-700 dark:text-slate-300 text-left whitespace-nowrap">{p.name}</td>
                       <td className="px-6 py-5 text-center">
                         <span className={`px-6 py-2 rounded-2xl text-[11px] font-black tracking-tight border transition-all ${p.status === 'Open' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border-transparent'}`}>
-                          {p.status === 'Open' ? 'Open' : 'Closed'}
+                          {p.status}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-center whitespace-nowrap">
@@ -131,7 +132,7 @@ const ControlView = ({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
               <div className="flex items-center gap-3">
                 <FileBarChart className="text-emerald-500" size={24} />
-                <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">System Performance Analytics</h4>
+                <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Performance Analytics</h4>
               </div>
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -209,38 +210,65 @@ const ControlView = ({
                 <div className="relative z-10 flex flex-col space-y-12">
                   <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
                     <div className="flex items-center gap-6">
-                      <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-[32px] flex items-center justify-center text-white shadow-xl shadow-emerald-500/20 ring-4 ring-white dark:ring-slate-800">
-                        <User size={48} />
+                      <div className="w-28 h-28 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-[36px] overflow-hidden flex items-center justify-center shadow-2xl shadow-emerald-500/30 ring-4 ring-white dark:ring-slate-800">
+                        {currentResult.image ? (
+                          <img
+                            src={(currentResult.image.startsWith('http') || currentResult.image.startsWith('data:')) 
+                              ? currentResult.image 
+                              : `http://localhost:7000/${currentResult.image.replace(/\\/g, '/')}`}
+                            alt={currentResult.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User size={56} className="text-white" />
+                        )}
                       </div>
                       <div>
                         <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">{currentResult.name}</h3>
-                        <p className="text-sm font-bold text-slate-400 tracking-tight mb-4">Sid: {currentResult.studentId} • Grade {currentResult.grade}-{currentResult.section}</p>
+                        <p className="text-sm font-bold text-slate-400 tracking-tight mb-4">SID: {currentResult.studentId} • Grade {currentResult.grade}-{currentResult.section}</p>
                         <span className="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 text-[10px] font-black tracking-tight rounded-xl border border-emerald-500/10">
-                          {currentResult.phase} Phase
+                          {currentResult.phase}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <button onClick={() => alert('PDF Viewer Loading...')} className="flex items-center gap-2 px-6 py-4 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black tracking-tight border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-all">
-                        <Eye size={16} /> Preview PDF
-                      </button>
-                      <button onClick={() => alert(`Downloading Transcript: ${currentResult.name}`)} className="flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black tracking-tight shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all">
-                        <Download size={16} /> Download Official Transcript
+                      <button 
+                        onClick={() => onDownloadPDF(currentResult)} 
+                        className="flex items-center gap-2 px-10 py-5 bg-emerald-600 text-white rounded-[24px] text-[11px] font-black tracking-tight shadow-2xl shadow-emerald-500/30 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all"
+                      >
+                        <Download size={18} /> Download Official Transcript
                       </button>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                    {Object.entries(currentResult.marks).map(([sub, mark]) => (
-                      <div key={sub} className="p-5 bg-slate-50/50 dark:bg-slate-800/40 rounded-[24px] border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center group hover:border-emerald-500/30 transition-all">
-                        <p className="text-[10px] font-black text-slate-400 tracking-tight mb-3 leading-none">{sub}</p>
-                        <p className={`text-2xl font-black leading-none mb-1 ${mark === null ? 'text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
-                          {mark ?? '—'}
+                    {Object.entries(currentResult.marks).map(([sub, data]) => (
+                      <div key={sub} className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-[32px] border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center group hover:border-indigo-500/30 transition-all shadow-sm">
+                        <p className="text-[10px] font-black text-slate-400 tracking-tight mb-4 leading-none uppercase">{sub}</p>
+                        <p className={`text-4xl font-black leading-none mb-2 ${!data ? 'text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
+                          {data ? data.total : '—'}
                         </p>
-                        <p className="text-[9px] font-bold text-slate-400 opacity-40">/ 100</p>
-                        <div className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-full mt-4 overflow-hidden">
-                          <div className={`h-full transition-all duration-1000 ${(Number(mark) >= 40) ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${mark ?? 0}%` }} />
+                        <div className="flex items-center gap-3 mt-4">
+                          <div className="flex flex-col items-center">
+                            <span className="text-[9px] font-black text-emerald-500 uppercase">Theory</span>
+                            <span className="text-sm font-black text-emerald-600">{data?.theory || 0}</span>
+                          </div>
+                          <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-800" />
+                          <div className="flex flex-col items-center">
+                            <span className="text-[9px] font-black text-indigo-500 uppercase">Prac</span>
+                            <span className="text-sm font-black text-indigo-600">{data?.practical || 0}</span>
+                          </div>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mt-6 overflow-hidden flex">
+                          <div 
+                            className="h-full bg-emerald-500 transition-all duration-1000" 
+                            style={{ width: `${(data?.theory || 0)}%` }} 
+                          />
+                          <div 
+                            className="h-full bg-indigo-500 transition-all duration-1000" 
+                            style={{ width: `${(data?.practical || 0)}%` }} 
+                          />
                         </div>
                       </div>
                     ))}
@@ -273,10 +301,10 @@ const ControlView = ({
                       </p>
                       <div className="h-[140px] w-full bg-slate-50/50 dark:bg-slate-800/20 rounded-[32px] p-6 border border-slate-100 dark:border-slate-800/50">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={Object.entries(currentResult.marks).map(([sub, val]) => ({ name: sub, val: val || 0 }))}>
+                          <BarChart data={Object.entries(currentResult.marks).map(([sub, val]) => ({ name: sub, val: val?.total || 0 }))}>
                             <Bar dataKey="val" radius={[4, 4, 0, 0]} barSize={24}>
                               {Object.values(currentResult.marks).map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={(Number(entry) >= 40) ? '#10b981' : '#ef4444'} />
+                                <Cell key={`cell-${index}`} fill={(Number(entry?.total) >= 40) ? '#10b981' : '#ef4444'} />
                               ))}
                             </Bar>
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} dy={10} />

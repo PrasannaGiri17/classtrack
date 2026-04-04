@@ -18,10 +18,10 @@ const NotificationSchema = new mongoose.Schema(
       enum: ["admin", "teacher", "student"], 
       default: "admin" 
     },
-    schoolId: { type: Number, required: true, index: true },
     
-    // Optional attachment or links could be added here
-    attachment: { type: String, default: null },
+    // Support for structured exam routines
+    attachment: { type: String, default: null }, // General attachment path/URL
+    routine_table: { type: mongoose.Schema.Types.Mixed, default: null }, // JSON data for portal-side rendering
   },
   { timestamps: true }
 );

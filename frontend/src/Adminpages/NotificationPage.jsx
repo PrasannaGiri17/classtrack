@@ -279,10 +279,10 @@ const NotificationPage = () => {
             onChange={(e) => setFilterPriority(e.target.value)}
             className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all"
           >
-            <option value="all">ALL PRIORITIES</option>
-            <option value="important">IMPORTANT</option>
-            <option value="urgent">URGENT</option>
-            <option value="warning">WARNINGS</option>
+            <option value="all">All Priorities</option>
+            <option value="important">Important</option>
+            <option value="urgent">Urgent</option>
+            <option value="warning">Warnings</option>
           </select>
           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
         </div>
@@ -296,8 +296,8 @@ const NotificationPage = () => {
             }}
             className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-4 focus:ring-emerald-500/10 text-xs font-black text-slate-600 dark:text-slate-300 rounded-2xl pl-5 pr-12 py-4 outline-none cursor-pointer transition-all"
           >
-            <option value="">WHOLE SCHOOL</option>
-            {grades.map(g => <option key={g._id} value={g.gradeNumber}>GRADE {g.gradeNumber}</option>)}
+            <option value="">Whole School</option>
+            {grades.map(g => <option key={g._id} value={g.gradeNumber}>Grade {g.gradeNumber}</option>)}
           </select>
           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
         </div>

@@ -38,7 +38,7 @@ exports.getContactableUsers = async (req, res) => {
             } else if (role === 'admin' && userDoc.adminId) {
                 const profile = await Admin.findById(userDoc.adminId);
                 if (profile) {
-                    userDoc.name = profile.name || `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Admin';
+                    userDoc.name = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Admin';
                 }
             }
             if (!userDoc.schoolId) userDoc.schoolId = sId;
@@ -172,7 +172,7 @@ exports.getContactableUsers = async (req, res) => {
         const formattedUsers = users.map(u => {
             let displayName = u.name;
             if (!displayName || displayName === 'undefined undefined' || displayName.trim() === '') {
-                if (u.role === 'admin' && u.adminId) displayName = u.adminId.name || `${u.adminId.firstName || ''} ${u.adminId.lastName || ''}`.trim();
+                if (u.role === 'admin' && u.adminId) displayName = `${u.adminId.firstName || ''} ${u.adminId.lastName || ''}`.trim();
                 else if (u.role === 'teacher' && u.teacherId) displayName = `${u.teacherId.firstName || ''} ${u.teacherId.lastName || ''}`.trim();
                 else if (u.role === 'student' && u.studentId) displayName = `${u.studentId.firstName || ''} ${u.studentId.lastName || ''}`.trim();
                 else displayName = u.email;

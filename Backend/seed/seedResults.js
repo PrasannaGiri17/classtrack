@@ -1,77 +1,86 @@
+require("dotenv").config();
 const mongoose = require("mongoose");
-const Result = require("../models/Result"); // <-- change if your filename/path is different
+const Result = require("../models/Result");
 
-const mongoURI =
-  "mongodb+srv://schooladmin:school123@cluster0.ns8mpgy.mongodb.net/school?retryWrites=true&w=majority&appName=Cluster0";
+const schoolId = 2;
+const gradeId = "69be848b240908408563da82";
+const sectionName = "A";
 
-// ✅ Grade IDs (from your earlier Grade screenshot)
-const grade1Id = new mongoose.Types.ObjectId("6976037edaf87c6831932739"); // Grade 1
-const grade2Id = new mongoose.Types.ObjectId("69760388daf87c683193275d"); // Grade 2
-const grade3Id = new mongoose.Types.ObjectId("697603badaf87c683193282e"); // Grade 3
-
-// ✅ Student _ids (from your Student screenshot / Compass)
-// I can clearly read these two from your screenshot:
-const studentIds = [
-  new mongoose.Types.ObjectId("6978a599a9a364c1041ec977"), // Pierre Gasly
-  new mongoose.Types.ObjectId("6978a599a9a364c1041ec979"), // Fernando Alonso
-  // add the rest from Compass here...
+const students = [
+  "69bebccdf90e172ec1ff2664",
+  "69bebccef90e172ec1ff268e",
+  "69bebcd2f90e172ec1ff26e9",
+  "69bebcd5f90e172ec1ff2736",
+  "69bebcd8f90e172ec1ff2798",
+  "69bebcd9f90e172ec1ff279f",
+  "69bebcdaf90e172ec1ff27c9",
+  "69bebcdef90e172ec1ff282b",
+  "69bebcdff90e172ec1ff2847",
+  "69bebce1f90e172ec1ff2878"
 ];
 
-// ✅ Subject _ids (from your pasted Subjects collection list)
-const SUBJECTS_FOR_RESULT = [
-  new mongoose.Types.ObjectId("69772b43e3a5b52a3eb77afe"), // Computer
-  new mongoose.Types.ObjectId("69772b47e3a5b52a3eb77b6b"), // Math
-  new mongoose.Types.ObjectId("69772b55e3a5b52a3eb77be2"), // Social Studies
-  new mongoose.Types.ObjectId("69772c80e3a5b52a3eb77f47"), // Moral Values
-  new mongoose.Types.ObjectId("697731a0e3a5b52a3eb78b03"), // General Knowledge
+const subjects = [
+  "69be96374c8b4a0a9ba49a49", // computer
+  "69beb9a189e85933d46e7910", // english
+  "69be965a4c8b4a0a9ba49a77", // gk
+  "69beb9a989e85933d46e7948", // math
+  "69be962c4c8b4a0a9ba499ff", // nepali
+  "69beb9b089e85933d46e7986", // science
+  "69be96324c8b4a0a9ba49a21"  // social
 ];
 
-// If you also have Science/English/Nepali in subjects collection, add them here too.
+const terms = ["First Mid Term", "First Term", "Second Mid Term", "Second Term"];
 
-function rand(min, max) {
+function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function buildMarks(term) {
-  const isMid = term === "MID-TERM 1";
-
-  return SUBJECTS_FOR_RESULT.map((subjectId) => ({
-    subjectId,
-    theoryMarks: isMid ? rand(10, 40) : rand(30, 85),
-    practicalMarks: rand(0, 20),
-  }));
-}
-
-async function run() {
+async function seedResults() {
   try {
-    await mongoose.connect(mongoURI);
-    console.log("MongoDB connected");
+    const mongoUri = "mongodb://localhost:27017/school";
+    await mongoose.connect(mongoUri);
+    console.log("✅ Connected to Database");
 
-    // optional cleanup: only delete these terms
-    await Result.deleteMany({ term: { $in: ["MID-TERM 1", "TERM 1"] } });
+    let count = 0;
 
-    const terms = ["MID-TERM 1", "TERM 1"];
+    // Check if results exist already (Optional improvement)
+    // await Result.deleteMany({ gradeId, sectionName, term: { $in: terms } });
 
-    for (const studentId of studentIds) {
+    for (const studentId of students) {
       for (const term of terms) {
-        await Result.create({
-          studentId,
-          gradeId: grade3Id,     // <--- UPDATED: Using Grade 3 ID for Pierre Gasly & friends
-          sectionName: "A",      
-          term,                 
-          marks: buildMarks(term),
-          summary: {},          
+        
+        const marks = subjects.map(subjectId => {
+          return {
+            subjectId: subjectId,
+            theoryMarks: getRandomInt(40, 80),
+            practicalMarks: getRandomInt(0, 20),
+            remark: "Seeded"
+          };
         });
+
+        // Use create() to trigger pre-save hooks
+        await Result.create({
+          schoolId,
+          studentId,
+          gradeId,
+          sectionName,
+          term,
+          marks,
+          summary: {} // Pass empty summary as hook will generate it
+        });
+
+        count++;
+        console.log(`Created result ${count}/40 for Student ${studentId} - Term: ${term}`);
       }
     }
 
-    console.log(`✅ Seeded results for ${studentIds.length} students (MID-TERM 1 + TERM 1)`);
-    await mongoose.disconnect();
-    console.log("Done");
-  } catch (err) {
-    console.error("❌ Seeding failed:", err.message);
+    console.log("\n🎉 Seeding completed successfully. 40 documents created.");
+    process.exit(0);
+
+  } catch (error) {
+    console.error("❌ Seeding Error:", error);
     process.exit(1);
   }
 }
 
-run();
+seedResults();
