@@ -16,6 +16,7 @@ import { CiGrid32 } from "react-icons/ci";
 import AddPopupTeacher from "../AdminComponents/Admin/AddPopupTeacher";
 import { toast } from "../MainSystemComponents/Toast";
 import Loading from "../MainSystemComponents/Loading";
+import ConfirmDialog from "../MainSystemComponents/ConfirmDialog";
 
 const TeacherRecord = () => {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ const TeacherRecord = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [teacherToDelete, setTeacherToDelete] = useState(null);
   const location = useLocation();
 
   // Listen for search state from Navbar
@@ -76,11 +79,16 @@ const TeacherRecord = () => {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
 
-  const handleDelete = async (teacher) => {
-    if (!window.confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`)) return;
+  const handleDeleteClick = (teacher) => {
+    setTeacherToDelete(teacher);
+    setIsConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!teacherToDelete) return;
     try {
-      await axios.delete(`http://localhost:7000/api/teachers/${teacher._id}`);
-      setTeachers(prev => prev.filter(t => t._id !== teacher._id));
+      await axios.delete(`http://localhost:7000/api/teachers/${teacherToDelete._id}`);
+      setTeachers(prev => prev.filter(t => t._id !== teacherToDelete._id));
       toast({ type: 'success', message: "Teacher record deleted successfully.", duration: 3000 });
       if (currentTeachers.length === 1 && currentPage > 1) {
         setCurrentPage(prev => prev - 1);
@@ -88,6 +96,9 @@ const TeacherRecord = () => {
     } catch (err) {
       toast({ type: 'error', message: "Failed to delete teacher record.", duration: 3000 });
       console.error(err);
+    } finally {
+      setIsConfirmOpen(false);
+      setTeacherToDelete(null);
     }
   };
 
@@ -177,7 +188,7 @@ const TeacherRecord = () => {
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDelete(teacher);
+                    handleDeleteClick(teacher);
                   }} 
                   className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white transition-all hover:bg-red-500 rounded-xl z-10 opacity-0 group-hover:opacity-100"
                 >
@@ -302,7 +313,7 @@ const TeacherRecord = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDelete(teacher);
+                              handleDeleteClick(teacher);
                             }}
                             className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
                             title="Delete Faculty Record"
@@ -369,6 +380,14 @@ const TeacherRecord = () => {
         }}
         onSuccess={fetchTeachers}
         teacherToEdit={editingTeacher}
+      />
+
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Teacher Record"
+        message={`Are you sure you want to delete ${teacherToDelete?.firstName} ${teacherToDelete?.lastName}? This action cannot be undone.`}
       />
     </div>
   );

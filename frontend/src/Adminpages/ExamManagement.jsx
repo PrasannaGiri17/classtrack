@@ -119,14 +119,17 @@ const ExamManagement = () => {
     const fetchStudentsAndResults = async () => {
       // Find grade doc to get section details
       const gradeDoc = examData?.allGrades?.find(g => g.gradeNumber.toString() === resGrade);
-      const sectionDoc = gradeDoc?.sections?.find(s => s.sectionName === resSection);
+      const isAll = resSection === 'All';
+      const sectionDoc = isAll ? null : gradeDoc?.sections?.find(s => s.sectionName === resSection);
 
-      if (!gradeDoc || !sectionDoc) return;
+      if (!gradeDoc || (!isAll && !sectionDoc)) return;
 
       try {
         const [studentsData, resultsData] = await Promise.all([
-          studentService.getStudentsBySection(resGrade, sectionDoc._id),
-          resultService.getResultsByGradeSectionTerm(gradeDoc._id, resSection, resPhase)
+          isAll 
+            ? studentService.getStudents(resGrade)
+            : studentService.getStudentsBySection(resGrade, sectionDoc._id),
+          resultService.getResultsByGradeSectionTerm(gradeDoc._id, isAll ? '' : resSection, resPhase)
         ]);
         setRealStudents(studentsData);
         setRealResults(resultsData);

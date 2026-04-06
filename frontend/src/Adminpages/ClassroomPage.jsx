@@ -166,13 +166,21 @@ const ClassroomPage = () => {
     return busy;
   }, [grades]);
 
-  // Filter existing students by search
-  const filteredStudents = enrolledStudents.filter(s => {
-    const fullName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase();
-    const sId = (s.studentId || "").toLowerCase();
-    const query = searchQuery.toLowerCase();
-    return fullName.includes(query) || sId.includes(query);
-  });
+  // Sort alphabetically by full name and filter by search
+  const filteredStudents = useMemo(() => {
+    return [...enrolledStudents]
+      .sort((a, b) => {
+        const nameA = `${a.firstName || ""} ${a.lastName || ""}`.toLowerCase();
+        const nameB = `${b.firstName || ""} ${b.lastName || ""}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      })
+      .filter(s => {
+        const fullName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase();
+        const sId = (s.studentId || "").toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return fullName.includes(query) || sId.includes(query);
+      });
+  }, [enrolledStudents, searchQuery]);
 
   // Filter pool students for the modal
   const filteredModalPool = useMemo(() => {
@@ -355,7 +363,8 @@ const ClassroomPage = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/30 dark:bg-slate-800/20">
-                  <th className="pl-10 pr-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID</th>
+                  <th className="pl-10 pr-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap w-[100px] text-center">Roll No</th>
+                  <th className="pl-8 pr-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID</th>
                   <th className="px-4 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</th>
                   <th className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
                 </tr>
@@ -368,7 +377,8 @@ const ClassroomPage = () => {
                       onClick={() => navigate(`/admin/student/${s._id}`)}
                       className="group hover:bg-emerald-50/20 dark:hover:bg-emerald-900/5 transition-colors cursor-pointer"
                     >
-                      <td className="pl-10 pr-4 py-5 text-xs font-bold text-slate-400">{s.studentId}</td>
+                      <td className="pl-10 pr-4 py-5 text-xs font-bold text-slate-400 text-center">{s.rollNumber || '—'}</td>
+                      <td className="pl-8 pr-4 py-5 text-xs font-bold text-slate-400">{s.studentId}</td>
                       <td className="px-4 py-5">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-[10px] font-black text-emerald-600 overflow-hidden">

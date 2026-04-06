@@ -5,15 +5,16 @@ const Teacher = require("../models/teacherModel");
 
 const getOverviewStats = async (req, res) => {
   try {
-    const schoolCount = await School.countDocuments({ schoolId: req.schoolId });
-    const studentCount = await Student.countDocuments({ schoolId: req.schoolId });
-    const teacherCount = await Teacher.countDocuments({ schoolId: req.schoolId });
+    const filter = req.schoolId ? { schoolId: req.schoolId } : {};
+
+    const schoolCount = await School.countDocuments({}); // Schools are global for SuperAdmin anyway
+    const studentCount = await Student.countDocuments(filter);
+    const teacherCount = await Teacher.countDocuments(filter);
 
     res.status(200).json({
       totalSchools: schoolCount,
       totalStudents: studentCount,
       totalTeachers: teacherCount,
-      // You can add more metrics here like "Active Schools", "Recent Enrollments", etc.
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -23,3 +24,4 @@ const getOverviewStats = async (req, res) => {
 module.exports = {
   getOverviewStats,
 };
+

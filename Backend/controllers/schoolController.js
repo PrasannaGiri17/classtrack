@@ -19,15 +19,30 @@ const getAllSchools = async (req, res) => {
 const getSchoolById = async (req, res) => {
   try {
     const lookupId = !isNaN(req.params.id) ? Number(req.params.id) : req.params.id;
-    const school = await School.findById(lookupId);
+    const school = await School.findById(lookupId).lean();
     if (!school) {
       return res.status(404).json({ message: "School not found." });
     }
-    res.status(200).json(school);
+
+    // Find the primary admin for this school
+    const admin = await Admin.findOne({ schoolId: school.schoolId }).lean();
+    
+    res.status(200).json({
+      ...school,
+      admin: admin ? {
+        name: `${admin.firstName} ${admin.lastName}`,
+        email: admin.email,
+        profilePhoto: admin.profilePhoto,
+        phone: admin.phone,
+        currentAddress: admin.currentAddress
+      } : null
+
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 const addSchool = async (req, res) => {
   try {

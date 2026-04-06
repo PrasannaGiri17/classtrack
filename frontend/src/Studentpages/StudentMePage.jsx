@@ -870,7 +870,7 @@ const StudentMePage = () => {
         ...data,
         name: `${data.firstName} ${data.lastName}`,
         studentId: data.studentId,
-        rollNo: data.rollNumber || data.studentId?.split('-').pop(),
+        rollNo: data.rollNumber ? String(data.rollNumber).padStart(2, '0') : "---",
         email: data.email,
         phone: data.phoneNumber,
         avatarUrl: data.profilePhoto || STUDENT_ME_INITIAL.avatarUrl,
@@ -998,36 +998,76 @@ const StudentMePage = () => {
   const fetchResults = async () => {
     if (!student._id) return;
     try {
-      const results = await resultService.getStudentResults(student._id);
-      const grades = await gradeService.getGrades();
-      const examConfigData = await examService.getExamData();
+      const [allGradeResults, grades, examConfigData] = await Promise.all([
+        resultService.getResultsByGradeSectionTerm(student.gradeId?._id || student.classId, null, selectedTerm),
+        gradeService.getGrades(),
+        examService.getExamData()
+      ]);
+      
       setExamConfig(examConfigData);
 
       if (examConfigData && examConfigData.termStatuses) {
         const terms = examConfigData.termStatuses.map(t => t.term);
         setAvailableTerms(terms);
-        // If current selectedTerm is not in the new list, pick the first available
         if (terms.length > 0 && !terms.includes(selectedTerm)) {
           setSelectedTerm(terms[0]);
         }
       }
 
-      // Check published status
+      // 1. Resolve published status
       const termStatus = examConfigData?.termStatuses?.find(
         t => t.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
       );
       const published = termStatus?.isPublished === true;
 
-      // Find current result for selected term (only if published)
-      const currentResult = published ? results.find(r =>
-        r.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
-      ) : null;
+      if (!published) {
+        setStudent(prev => ({
+          ...prev,
+          marksheet: { ...prev.marksheet, subjects: [] }
+        }));
+        return;
+      }
 
-      // Find grade config for the student's class
-      const studentGradeNum = student.studentClass || student.grade;
-      const currentGradeConfig = grades.find(g =>
-        g.gradeNumber.toString() === studentGradeNum?.toString()
+      // 2. Calculate Ranks
+      // Ensure we only have one result per student to avoid inflated rankings
+      const uniqueResultsMap = new Map();
+      allGradeResults.forEach(r => {
+        const sid = r.studentId?._id?.toString() || r.studentId?.toString();
+        if (sid) uniqueResultsMap.set(sid, r);
+      });
+      const uniqueGradeResults = Array.from(uniqueResultsMap.values());
+
+      // Sort ALL grade results by percentage descending
+      const sortedByGrade = uniqueGradeResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
+      const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === student._id?.toString());
+      
+      // Filter for current section only
+      const currentSectionName = (student.sectionId?.sectionName || student.section || "").toString().trim().toLowerCase();
+      const sectionResults = uniqueGradeResults.filter(r => 
+        (r.sectionName || "").toString().trim().toLowerCase() === currentSectionName
       );
+      const sortedBySection = sectionResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
+      const sectionRankIdx = sortedBySection.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === student._id?.toString());
+
+      const getRankSuffix = (n) => {
+        if (n === -1) return "---";
+        const i = n + 1;
+        const j = i % 10, k = i % 100;
+        if (j === 1 && k !== 11) return i + "st";
+        if (j === 2 && k !== 12) return i + "nd";
+        if (j === 3 && k !== 13) return i + "rd";
+        return i + "th";
+      };
+
+      const gradeRank = getRankSuffix(gradeRankIdx);
+      const sectionRank = getRankSuffix(sectionRankIdx);
+
+      // 3. Find current student specific result
+      const currentResult = allGradeResults.find(r => r.studentId?._id?.toString() === student._id?.toString());
+
+      // 4. Find grade subjects config
+      const studentGradeNum = student.studentClass || student.grade;
+      const currentGradeConfig = grades.find(g => g.gradeNumber.toString() === studentGradeNum?.toString());
 
       const calculateSubjectGrade = (total) => {
         if (total >= 90) return 'A+';
@@ -1043,44 +1083,37 @@ const StudentMePage = () => {
       if (currentGradeConfig) {
         marksData = (currentGradeConfig.subjects || []).map(gs => {
           const subjectDoc = gs.subjectId;
-          const subName = subjectDoc?.subjectName || 'Unknown';
           const subId = subjectDoc?._id?.toString();
-          const markEntry = currentResult?.marks?.find(m =>
-            (m.subjectId?._id || m.subjectId)?.toString() === subId
-          );
+          const markEntry = currentResult?.marks?.find(m => (m.subjectId?._id || m.subjectId)?.toString() === subId);
           return {
             code: subId,
-            name: subName,
+            name: subjectDoc?.subjectName || 'Unknown',
             theory: markEntry ? (markEntry.theoryMarks ?? 0) : 0,
             maxTheory: gs.theoryFullMarks || gs.fullMarks || 100,
             practical: markEntry ? (markEntry.practicalMarks ?? 0) : 0,
-            maxPractical: gs.practicalFullMarks || gs.practicalMarks || (markEntry?.practicalMarks > 0 ? markEntry.practicalMarks : 0),
+            maxPractical: gs.practicalFullMarks || gs.practicalMarks || (markEntry?.practicalMarks > 0 ? 25 : 0),
             grade: markEntry ? calculateSubjectGrade((markEntry.theoryMarks + (markEntry.practicalMarks || 0))) : '—'
           };
         });
       }
 
-      const overallGrade = currentResult?.summary?.percentage
-        ? calculateSubjectGrade(currentResult.summary.percentage)
-        : '—';
-
-      const overallGpa = currentResult?.summary?.gpa
-        ? Number(currentResult.summary.gpa).toFixed(2)
-        : "0.00";
+      const overallGpa = currentResult?.summary?.gpa ? Number(currentResult.summary.gpa).toFixed(2) : "0.00";
 
       setStudent(prev => ({
         ...prev,
         lastTermGPA: overallGpa,
         marksheet: {
           ...prev.marksheet,
-          percentage: currentResult?.summary?.percentage ? `${currentResult.summary.percentage}%` : '0%',
+          percentage: currentResult?.summary?.percentage ? `${Number(currentResult.summary.percentage).toFixed(2)}%` : '0.00%',
           gradePoint: overallGpa,
-          overallGrade: overallGrade,
+          overallGrade: currentResult?.summary?.percentage ? calculateSubjectGrade(currentResult.summary.percentage) : '—',
+          gradeRank: gradeRank,
+          classRank: sectionRank,
           subjects: marksData
         }
       }));
     } catch (err) {
-      console.warn("Failed to fetch exam results", err);
+      console.warn("Failed to fetch exam results/ranks", err);
     }
   };
 

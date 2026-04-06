@@ -20,7 +20,15 @@ exports.protect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Check if user still exists
+    // Support Super Admin token isolation
+    if (decoded.role === 'superadmin') {
+      req.user = { id: decoded.id, role: 'superadmin' };
+      req.schoolId = null; // Super admins don't have a single school constraint
+      return next();
+    }
+
+    // Standard Multi-Tenant User check
+    const User = require("../models/UserModal"); // Use local require to avoid circular or early access issues if needed
     const currentUser = await User.findById(decoded.id);
     if (!currentUser) {
       return res.status(401).json({ message: "The user belonging to this token no longer exists" });
@@ -30,6 +38,7 @@ exports.protect = async (req, res, next) => {
     req.user = currentUser;
     req.schoolId = currentUser.schoolId || decoded.schoolId; // Attach multi-tenant ID
     next();
+
   } catch (err) {
     console.error("AUTH ERROR:", err);
     return res.status(401).json({ message: "Token is invalid or expired" });

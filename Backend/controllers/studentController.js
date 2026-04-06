@@ -54,6 +54,22 @@ const updateSectionEnrollment = async (req, res) => {
       { $set: { sectionId: sectionId || null, studentClass: studentClass || null } }
     );
 
+    if (sectionId) {
+      const studentsInSection = await Student.find({ sectionId, schoolId: req.schoolId })
+        .sort({ firstName: 1, lastName: 1 });
+
+      const bulkOps = studentsInSection.map((student, index) => ({
+        updateOne: {
+          filter: { _id: student._id },
+          update: { $set: { rollNumber: index + 1 } }
+        }
+      }));
+
+      if (bulkOps.length > 0) {
+        await Student.bulkWrite(bulkOps);
+      }
+    }
+
     res.status(200).json({ message: "Enrollment updated successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -324,9 +340,32 @@ const removeStudentFromSection = async (req, res) => {
       return res.status(400).json({ message: "studentId is required" });
     }
 
+    const studentToUpdate = await Student.findOne({ _id: studentId, schoolId: req.schoolId });
+    if (!studentToUpdate) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    const sectionId = studentToUpdate.sectionId;
+
     await Student.findOneAndUpdate({ _id: studentId, schoolId: req.schoolId },
-      { $set: { sectionId: null, studentClass: null } }
+      { $set: { sectionId: null, studentClass: null, rollNumber: null } }
     );
+
+    if (sectionId) {
+      const studentsInSection = await Student.find({ sectionId, schoolId: req.schoolId })
+        .sort({ firstName: 1, lastName: 1 });
+
+      const bulkOps = studentsInSection.map((student, index) => ({
+        updateOne: {
+          filter: { _id: student._id },
+          update: { $set: { rollNumber: index + 1 } }
+        }
+      }));
+
+      if (bulkOps.length > 0) {
+        await Student.bulkWrite(bulkOps);
+      }
+    }
 
     res.status(200).json({ message: "Student removed from section successfully" });
   } catch (error) {

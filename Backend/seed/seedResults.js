@@ -1,23 +1,11 @@
-require("dotenv").config();
+require("dotenv").config({ path: "../.env" });
 const mongoose = require("mongoose");
 const Result = require("../models/Result");
+const Student = require("../models/studentModel");
 
 const schoolId = 2;
-const gradeId = "69be848b240908408563da82";
+const gradeId = "69be848b240908408563da82"; 
 const sectionName = "A";
-
-const students = [
-  "69bebccdf90e172ec1ff2664",
-  "69bebccef90e172ec1ff268e",
-  "69bebcd2f90e172ec1ff26e9",
-  "69bebcd5f90e172ec1ff2736",
-  "69bebcd8f90e172ec1ff2798",
-  "69bebcd9f90e172ec1ff279f",
-  "69bebcdaf90e172ec1ff27c9",
-  "69bebcdef90e172ec1ff282b",
-  "69bebcdff90e172ec1ff2847",
-  "69bebce1f90e172ec1ff2878"
-];
 
 const subjects = [
   "69be96374c8b4a0a9ba49a49", // computer
@@ -39,42 +27,78 @@ async function seedResults() {
   try {
     const mongoUri = "mongodb://localhost:27017/school";
     await mongoose.connect(mongoUri);
-    console.log("✅ Connected to Database");
+    console.log("✅ Connected to Database (Local)");
+
+    // 1. Resolve Grade details: find sectionId and dynamic subjects
+    const { Grade } = require("../models/School");
+    const grade = await Grade.findById(gradeId);
+    if (!grade) {
+       console.error(`❌ Grade document not found for ID: ${gradeId}`);
+       process.exit(1);
+    }
+    const section = grade.sections.find(s => s.sectionName === sectionName);
+    if (!section) {
+       console.error(`❌ Section ${sectionName} not found in this grade.`);
+       process.exit(1);
+    }
+    const sectionId = section._id;
+    const gradeSubjects = grade.subjects.map(s => s.subjectId);
+
+    console.log(`✅ Targeted Grade: ${grade.gradeName || grade.gradeNumber} (ID: ${gradeId})`);
+    console.log(`📍 Targeted Section: A (ID: ${sectionId})`);
+
+    // 2. Get ALL students for this grade and section
+    const students = await Student.find({ schoolId, classId: gradeId, sectionId });
+    if (students.length === 0) {
+        console.log("No students found for this grade and section.");
+        process.exit(0);
+    }
 
     let count = 0;
 
-    // Check if results exist already (Optional improvement)
-    // await Result.deleteMany({ gradeId, sectionName, term: { $in: terms } });
-
-    for (const studentId of students) {
+    for (const student of students) {
       for (const term of terms) {
         
-        const marks = subjects.map(subjectId => {
+        const marks = gradeSubjects.map(subjectId => {
           return {
             subjectId: subjectId,
-            theoryMarks: getRandomInt(40, 80),
-            practicalMarks: getRandomInt(0, 20),
+            theoryMarks: getRandomInt(60, 75),
+            practicalMarks: getRandomInt(15, 25),
             remark: "Seeded"
           };
         });
 
-        // Use create() to trigger pre-save hooks
-        await Result.create({
-          schoolId,
-          studentId,
-          gradeId,
-          sectionName,
-          term,
-          marks,
-          summary: {} // Pass empty summary as hook will generate it
+        // Use upsert or find and update to trigger hooks
+        let result = await Result.findOne({
+            schoolId,
+            studentId: student._id,
+            gradeId,
+            sectionName,
+            term
         });
 
+        if (result) {
+            result.marks = marks;
+            result.summary = {};
+            await result.save();
+        } else {
+            await Result.create({
+                schoolId,
+                studentId: student._id,
+                gradeId,
+                sectionName,
+                term,
+                marks,
+                summary: {}
+            });
+        }
+
         count++;
-        console.log(`Created result ${count}/40 for Student ${studentId} - Term: ${term}`);
+        console.log(`[${count}] Processed student ${student.firstName} - Term: ${term}`);
       }
     }
 
-    console.log("\n🎉 Seeding completed successfully. 40 documents created.");
+    console.log(`\n🎉 Seeding completed successfully. ${count} documents processed.`);
     process.exit(0);
 
   } catch (error) {

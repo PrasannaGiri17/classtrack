@@ -1,6 +1,6 @@
 import React from "react";
 import UserLoginbox from "../../Components/UserLoginbox";
-import mainlogo from "../../Assests/temp-logo.png";
+import mainlogo from "../../Assests/1.png";
 import classpicture from "../../Assests/cover.png";
 
 export default function LoginPage() {
@@ -14,7 +14,7 @@ export default function LoginPage() {
           <div className="mx-auto flex w-full max-w-2xl flex-col px-8 py-16 xl:px-10">
             {/* Logo + Text */}
             <div className="mb-8 flex items-center gap-4">
-              <img src={mainlogo} alt="ClassTrack logo" className="h-12 w-auto object-contain" />
+              <img src={mainlogo} alt="ClassTrack logo" className="h-24 w-auto object-contain" />
               <h2 className="text-3xl font-bold text-white">ClassTrack</h2>
             </div>
 

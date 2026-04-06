@@ -213,8 +213,8 @@ const ControlView = ({
                       <div className="w-28 h-28 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-[36px] overflow-hidden flex items-center justify-center shadow-2xl shadow-emerald-500/30 ring-4 ring-white dark:ring-slate-800">
                         {currentResult.image ? (
                           <img
-                            src={(currentResult.image.startsWith('http') || currentResult.image.startsWith('data:')) 
-                              ? currentResult.image 
+                            src={(currentResult.image.startsWith('http') || currentResult.image.startsWith('data:'))
+                              ? currentResult.image
                               : `http://localhost:7000/${currentResult.image.replace(/\\/g, '/')}`}
                             alt={currentResult.name}
                             className="w-full h-full object-cover"
@@ -233,8 +233,8 @@ const ControlView = ({
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => onDownloadPDF(currentResult)} 
+                      <button
+                        onClick={() => onDownloadPDF(currentResult)}
                         className="flex items-center gap-2 px-10 py-5 bg-emerald-600 text-white rounded-[24px] text-[11px] font-black tracking-tight shadow-2xl shadow-emerald-500/30 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all"
                       >
                         <Download size={18} /> Download Official Transcript
@@ -245,29 +245,29 @@ const ControlView = ({
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                     {Object.entries(currentResult.marks).map(([sub, data]) => (
                       <div key={sub} className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-[32px] border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center group hover:border-indigo-500/30 transition-all shadow-sm">
-                        <p className="text-[10px] font-black text-slate-400 tracking-tight mb-4 leading-none uppercase">{sub}</p>
+                        <p className="text-[10px] font-black text-slate-400 tracking-tight mb-4 leading-none captialize">{sub}</p>
                         <p className={`text-4xl font-black leading-none mb-2 ${!data ? 'text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
                           {data ? data.total : '—'}
                         </p>
                         <div className="flex items-center gap-3 mt-4">
                           <div className="flex flex-col items-center">
-                            <span className="text-[9px] font-black text-emerald-500 uppercase">Theory</span>
+                            <span className="text-[9px] font-black text-emerald-500 captialize">Theory</span>
                             <span className="text-sm font-black text-emerald-600">{data?.theory || 0}</span>
                           </div>
                           <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-800" />
                           <div className="flex flex-col items-center">
-                            <span className="text-[9px] font-black text-indigo-500 uppercase">Prac</span>
+                            <span className="text-[9px] font-black text-indigo-500 captialize">Prac</span>
                             <span className="text-sm font-black text-indigo-600">{data?.practical || 0}</span>
                           </div>
                         </div>
                         <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mt-6 overflow-hidden flex">
-                          <div 
-                            className="h-full bg-emerald-500 transition-all duration-1000" 
-                            style={{ width: `${(data?.theory || 0)}%` }} 
+                          <div
+                            className="h-full bg-emerald-500 transition-all duration-1000"
+                            style={{ width: `${(data?.theory || 0)}%` }}
                           />
-                          <div 
-                            className="h-full bg-indigo-500 transition-all duration-1000" 
-                            style={{ width: `${(data?.practical || 0)}%` }} 
+                          <div
+                            className="h-full bg-indigo-500 transition-all duration-1000"
+                            style={{ width: `${(data?.practical || 0)}%` }}
                           />
                         </div>
                       </div>
@@ -322,6 +322,117 @@ const ControlView = ({
                 <p className="text-[11px] font-black text-slate-400 tracking-tight">No student records found matching the filters</p>
               </div>
             )}
+            <div className="mt-12 pt-12 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-10 px-4">
+                <div className="flex items-center gap-3">
+                  <Trophy className="text-yellow-500" size={28} />
+                  <h4 className="text-xl font-black text-slate-900 dark:text-white captialize tracking-tight">
+                    Rank Leaderboard
+                  </h4>
+                </div>
+                <button 
+                  onClick={() => setResSection(resSection === 'All' ? 'A' : 'All')}
+                  className={`px-6 py-2.5 font-black text-[10px] capitalize tracking-widest rounded-xl transition-all shadow-lg active:scale-95 ${
+                    resSection === 'All' 
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700' 
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/20'
+                  }`}
+                >
+                  {resSection === 'All' ? 'View Section Only' : 'Compare with Grade'}
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-6 relative z-10">
+                {[...filteredResults]
+                  .sort((a, b) => b.percentage - a.percentage)
+                  .map((student, index) => {
+                    let glowClass = '';
+                    let rankColor = 'text-slate-400';
+                    let rankBg = 'bg-slate-50 dark:bg-slate-800';
+                    let medalIcon = null;
+                    const isSelected = currentResult?.studentId === student.studentId;
+
+                    if (index === 0) {
+                      glowClass = 'border-yellow-400/60 dark:border-yellow-400/40 shadow-[0_0_40px_6px_rgba(250,204,21,0.25)] dark:shadow-[0_0_40px_6px_rgba(250,204,21,0.18)]';
+                      rankColor = 'text-yellow-400';
+                      rankBg = 'bg-yellow-500/10 dark:bg-yellow-500/10';
+                      medalIcon = '🥇';
+                    } else if (index === 1) {
+                      glowClass = 'border-slate-300/80 dark:border-slate-400/40 shadow-[0_0_40px_6px_rgba(203,213,225,0.3)] dark:shadow-[0_0_40px_6px_rgba(148,163,184,0.18)]';
+                      rankColor = 'text-slate-400 dark:text-slate-300';
+                      rankBg = 'bg-slate-200/40 dark:bg-slate-700/40';
+                      medalIcon = '🥈';
+                    } else if (index === 2) {
+                      glowClass = 'border-orange-400/50 dark:border-orange-500/40 shadow-[0_0_40px_6px_rgba(251,146,60,0.2)] dark:shadow-[0_0_40px_6px_rgba(251,146,60,0.15)]';
+                      rankColor = 'text-orange-400';
+                      rankBg = 'bg-orange-500/10 dark:bg-orange-500/10';
+                      medalIcon = '🥉';
+                    } else if (student.percentage > 70) {
+                      glowClass = 'border-emerald-400/40 dark:border-emerald-500/30 shadow-[0_0_24px_4px_rgba(16,185,129,0.12)]';
+                      rankColor = 'text-emerald-500';
+                      rankBg = 'bg-emerald-500/5 dark:bg-emerald-500/10';
+                    } else if (student.percentage >= 50) {
+                      glowClass = 'border-slate-200 dark:border-slate-700 shadow-sm';
+                      rankColor = 'text-slate-400';
+                    } else {
+                      glowClass = 'border-red-400/40 dark:border-red-500/30 shadow-[0_0_24px_4px_rgba(239,68,68,0.12)]';
+                      rankColor = 'text-red-500';
+                    }
+
+                    return (
+                      <div
+                        key={student.id}
+                        className={`relative bg-white dark:bg-slate-900 border rounded-[40px] p-8 flex flex-col md:flex-row items-center justify-between gap-6 transition-all duration-300 cursor-default ${isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-lg' : glowClass} hover:translate-x-2`}
+                      >
+                        {/* Rank Indicator - Standalone Medals */}
+                        <div className="absolute -top-4 -left-4 z-20 flex items-center justify-center">
+                          {medalIcon ? (
+                            <span className="text-6xl leading-none drop-shadow-xl animate-in zoom-in-50 duration-500">{medalIcon}</span>
+                          ) : (
+                            <div className={`px-4 py-1 rounded-full text-xs font-black tracking-widest border-2 shadow-sm ${rankBg} ${rankColor} border-white dark:border-slate-800`}>
+                              {`RANK #${index + 1}`}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-6 pl-4">
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none captialize">
+                                {student.name}
+                              </h3>
+                              {isSelected && <Eye size={18} className="text-emerald-500 animate-pulse" />}
+                            </div>
+                            <p className="text-[11px] font-black text-slate-400 captialize tracking-[0.2em] mt-3 bg-slate-100 dark:bg-slate-800/50 px-3 py-1 rounded-lg w-fit">
+                              ID: {student.studentId}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-10 pr-4">
+                          <div className="text-center group-hover:scale-110 transition-transform duration-500">
+                            <p className="text-[10px] font-black text-slate-400 capitalize tracking-widest mb-2 opacity-60">GPA</p>
+                            <p className="text-3xl font-black text-indigo-500 leading-none tracking-tighter">{student.gpa}</p>
+                          </div>
+                          <div className="w-px h-12 bg-slate-200 dark:bg-slate-800" />
+                          <div className="text-center group-hover:scale-110 transition-transform duration-500">
+                            <p className="text-[10px] font-black text-slate-400 capitalize tracking-widest mb-2 opacity-60">Percentage</p>
+                            <p className={`text-3xl font-black leading-none tracking-tighter ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-slate-400 dark:text-slate-300' : index === 2 ? 'text-orange-400' : student.percentage >= 50 ? 'text-emerald-500' : 'text-red-500'}`}>
+                              {student.percentage}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {filteredResults.length === 0 && (
+                  <div className="py-20 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[48px] border-2 border-dashed border-slate-100 dark:border-slate-800">
+                    <p className="text-[12px] font-black text-slate-400 capitalize tracking-[0.5em]">No records to rank</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="mt-12 flex items-center justify-center gap-3 text-slate-400 opacity-40">
               <ShieldCheck size={14} />

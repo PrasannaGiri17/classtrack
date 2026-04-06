@@ -179,7 +179,14 @@ const AttendancePage = () => {
   const filteredStudents = students.filter(s =>
     `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.studentId.includes(searchQuery)
-  );
+  ).sort((a, b) => {
+    if (a.rollNumber != null && b.rollNumber != null) {
+      return a.rollNumber - b.rollNumber;
+    }
+    const nameA = `${a.firstName || ""} ${a.lastName || ""}`.toLowerCase();
+    const nameB = `${b.firstName || ""} ${b.lastName || ""}`.toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
 
   const isFutureDate = (day) => {
     const monthIndex = NEPALI_MONTHS.indexOf(selectedMonth) + 1;
@@ -381,7 +388,10 @@ const AttendancePage = () => {
           <table className="w-full text-left border-collapse min-w-[3000px]">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="sticky left-0 z-20 bg-slate-50 dark:bg-slate-800 pl-8 pr-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 dark:border-slate-800 min-w-[260px] transition-colors">
+                <th className="sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 w-[80px] min-w-[80px] py-8 border-r border-slate-200 dark:border-slate-700 transition-colors text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Roll No
+                </th>
+                <th className="sticky left-[80px] z-20 bg-slate-50 dark:bg-slate-800 pl-6 pr-6 py-8 border-r border-slate-200 dark:border-slate-700 min-w-[260px] transition-colors text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Student Identity
                 </th>
                 {daysArray.map(day => {
@@ -431,16 +441,21 @@ const AttendancePage = () => {
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {filteredStudents.map((s) => (
                 <tr key={s._id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-all">
-                  <td className="sticky left-0 z-20 bg-white dark:bg-slate-900 pl-8 pr-6 py-5 border-r border-slate-100 dark:border-slate-800 transition-colors">
-                    <div className="flex items-center gap-4">
+                  <td className="sticky left-0 z-30 bg-white dark:bg-slate-900 w-[80px] min-w-[80px] py-5 transition-colors pointer-events-none">
+                    <div className="flex h-full items-center justify-center">
+                      <span className="text-xs font-bold text-slate-400">{s.rollNumber ? String(s.rollNumber).padStart(2, '0') : '—'}</span>
+                    </div>
+                  </td>
+                  <td className="sticky left-[80px] z-20 bg-white dark:bg-slate-900 pl-6 pr-6 py-5 border-r border-slate-200 dark:border-slate-700 transition-colors pointer-events-none">
+                    <div className="flex items-center gap-4 min-w-0 pointer-events-auto">
                       {s.profilePhoto ? (
-                        <img src={s.profilePhoto} alt={s.firstName} className="w-10 h-10 rounded-xl object-cover shadow-sm" />
+                        <img src={s.profilePhoto} alt={s.firstName} className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[11px] font-black text-slate-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[11px] font-black text-slate-500 group-hover:bg-emerald-500 group-hover:text-white transition-all shrink-0">
                           {s.firstName[0]}
                         </div>
                       )}
-                      <div className="min-w-0">
+                      <div className="min-w-0 pr-2">
                         <p className="text-base font-black text-slate-900 dark:text-white leading-tight truncate">{s.firstName} {s.lastName}</p>
                         <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{s.studentId}</p>
                       </div>

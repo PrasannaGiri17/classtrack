@@ -154,7 +154,14 @@ const SStudentRecord = () => {
   const filtered = students.filter(s =>
     `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(s.studentId || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ).sort((a, b) => {
+    if (a.rollNumber != null && b.rollNumber != null) {
+      return a.rollNumber - b.rollNumber;
+    }
+    const nameA = `${a.firstName || ""} ${a.lastName || ""}`.toLowerCase();
+    const nameB = `${b.firstName || ""} ${b.lastName || ""}`.toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const currentItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -357,7 +364,7 @@ const SStudentRecord = () => {
                       )}
                     </div>
                     <h3 className={`font-black text-lg leading-tight mb-1 ${isMonitor ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{s.firstName} {s.lastName}</h3>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">ID: {s.studentId}</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Roll: {s.rollNumber ? String(s.rollNumber).padStart(2, '0') : '—'} • ID: {s.studentId}</p>
                     <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                       <UserCheck size={14} className="text-emerald-500" />
                       <span className="font-bold">{s.attendance || "0%"} Yearly Rate</span>
@@ -396,7 +403,8 @@ const SStudentRecord = () => {
             <table className="w-full min-w-[1000px] table-auto text-left">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                  <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest w-[180px]">ID Number</th>
+                  <th className="pl-12 pr-4 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap w-[100px] text-center">Roll No</th>
+                  <th className="pl-8 pr-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest w-[180px]">ID Number</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Member Profile</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Attendance Rate</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Academic Flag</th>
@@ -413,7 +421,8 @@ const SStudentRecord = () => {
                         onClick={() => handleStudentClick(s)}
                         className={`group cursor-pointer transition-all ${isMonitor ? 'bg-emerald-50/20 dark:bg-emerald-900/5' : 'hover:bg-emerald-50/30 dark:hover:bg-emerald-900/5'}`}
                       >
-                        <td className="pl-12 pr-6 py-6"><span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${isMonitor ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-slate-700'}`}>
+                        <td className="pl-12 pr-4 py-6 text-center text-xs font-bold text-slate-400">{s.rollNumber ? String(s.rollNumber).padStart(2, '0') : '—'}</td>
+                        <td className="pl-8 pr-6 py-6"><span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${isMonitor ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-slate-700'}`}>
                           {s.studentId?.includes('-') ? (() => {
                             const parts = s.studentId.split('-');
                             return `${parts[0]}-${parts[parts.length - 1]}`;
@@ -444,7 +453,7 @@ const SStudentRecord = () => {
                     );
                   })
                 ) : (
-                  <tr><td colSpan={5} className="py-32 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No classroom members found</td></tr>
+                  <tr><td colSpan={6} className="py-32 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No classroom members found</td></tr>
                 )}
               </tbody>
             </table>

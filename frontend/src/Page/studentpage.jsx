@@ -112,10 +112,10 @@ const STUDENT_ME_INITIAL = {
         ]
     },
     feeStatus: {
-        upcomingMonth: 'Mangsir',
-        upcomingAmount: 2500,
-        pendingMonthsCount: 2,
-        totalDueAmount: 6200
+        upcomingMonth: '---',
+        upcomingAmount: 0,
+        pendingMonthsCount: 0,
+        totalDueAmount: 0
     }
 };
 
@@ -736,10 +736,10 @@ const StudentPage = () => {
     const [examConfig, setExamConfig] = useState(null);
     const [isTermDropdownOpen, setIsTermDropdownOpen] = useState(false);
 
-    const fetchResults = async (studentId, currentClass) => {
+    const fetchResults = async (studentId, currentClass, sectionName, gradeId) => {
         try {
-            const [results, grades, examConfig] = await Promise.all([
-                resultService.getStudentResults(studentId),
+            const [allGradeResults, grades, examConfig] = await Promise.all([
+                resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm),
                 gradeService.getGrades(),
                 examService.getExamData()
             ]);
@@ -749,7 +749,54 @@ const StudentPage = () => {
                 setAvailableTerms(examConfig.termStatuses.map(t => t.term));
             }
 
-            const currentResult = results.find(r => r.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim());
+            // 1. Resolve published status
+            const termStatus = examConfig?.termStatuses?.find(
+                t => t.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
+            );
+            const published = termStatus?.isPublished === true;
+
+            if (!published) {
+                setStudent(prev => ({
+                    ...prev,
+                    marksheet: { ...prev.marksheet, subjects: [] }
+                }));
+                return;
+            }
+
+            // 2. Calculate Ranks
+            const uniqueResultsMap = new Map();
+            allGradeResults.forEach(r => {
+                const sid = r.studentId?._id?.toString() || r.studentId?.toString();
+                if (sid) uniqueResultsMap.set(sid, r);
+            });
+            const uniqueGradeResults = Array.from(uniqueResultsMap.values());
+
+            const sortedByGrade = uniqueGradeResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
+            const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === studentId?.toString());
+
+            // Filter for current section only (robust comparison)
+            const currentSectionName = (sectionName || "").toString().trim().toLowerCase();
+            const sectionResults = uniqueGradeResults.filter(r => 
+                (r.sectionName || "").toString().trim().toLowerCase() === currentSectionName
+            );
+            const sortedBySection = sectionResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
+            const sectionRankIdx = sortedBySection.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === studentId?.toString());
+
+            const getRankSuffix = (n) => {
+                if (n === -1) return "---";
+                const i = n + 1;
+                const j = i % 10, k = i % 100;
+                if (j === 1 && k !== 11) return i + "st";
+                if (j === 2 && k !== 12) return i + "nd";
+                if (j === 3 && k !== 13) return i + "rd";
+                return i + "th";
+            };
+
+            const gradeRank = getRankSuffix(gradeRankIdx);
+            const sectionRank = getRankSuffix(sectionRankIdx);
+
+            // 3. Find specific student result
+            const currentResult = allGradeResults.find(r => r.studentId?._id?.toString() === studentId?.toString());
             const currentGradeConfig = grades.find(g => g.gradeNumber.toString() === currentClass?.toString());
 
             const calculateGrade = (total) => {
@@ -773,7 +820,7 @@ const StudentPage = () => {
                         theory: markEntry ? (markEntry.theoryMarks ?? 0) : 0,
                         maxTheory: gs.theoryFullMarks || gs.fullMarks || 100,
                         practical: markEntry ? (markEntry.practicalMarks ?? 0) : 0,
-                        maxPractical: gs.practicalFullMarks || gs.practicalMarks || (markEntry?.practicalMarks > 0 ? markEntry.practicalMarks : 0),
+                        maxPractical: gs.practicalFullMarks || gs.practicalMarks || (markEntry?.practicalMarks > 0 ? 25 : 0),
                         grade: markEntry ? calculateGrade(markEntry.theoryMarks + (markEntry.practicalMarks || 0)) : '—'
                     };
                 });
@@ -786,13 +833,17 @@ const StudentPage = () => {
                 lastTermGPA: overallGpa,
                 marksheet: {
                     ...prev.marksheet,
-                    percentage: currentResult?.summary?.percentage ? `${currentResult.summary.percentage}%` : '0%',
+                    percentage: currentResult?.summary?.percentage ? `${Number(currentResult.summary.percentage).toFixed(2)}%` : '0.00%',
                     gradePoint: overallGpa,
                     overallGrade: currentResult?.summary?.percentage ? calculateGrade(currentResult.summary.percentage) : '—',
+                    gradeRank: gradeRank,
+                    classRank: sectionRank,
                     subjects: marksData
                 }
             }));
-        } catch (e) { console.warn("Results fetch error", e); }
+        } catch (e) {
+            console.warn("Results fetch error", e);
+        }
     };
 
     const fetchStudent = async () => {
@@ -828,19 +879,36 @@ const StudentPage = () => {
                     rate: workingDaysCount > 0 ? Math.round((yearlyData.present / workingDaysCount) * 100) : 0
                 } : STUDENT_ME_INITIAL.yearlyAttendance;
 
+                let finalFeeStatus = STUDENT_ME_INITIAL.feeStatus;
+                try {
+                    const feeRes = await feeService.getFeeSummary(data._id);
+                    if (feeRes) {
+                        finalFeeStatus = {
+                            upcomingMonth: feeRes.upcomingMonth || "N/A",
+                            upcomingAmount: feeRes.upcomingAmount || 0,
+                            pendingMonthsCount: feeRes.unpaidCount || 0,
+                            totalDueAmount: feeRes.totalDue || 0
+                        };
+                    }
+                } catch (fe) {
+                    console.warn("Fee fetch failed", fe);
+                }
+
                 setStudent(prev => ({
                     ...prev,
                     ...data,
                     name: `${data.firstName} ${data.lastName}`,
+                    rollNo: data.rollNumber ? String(data.rollNumber).padStart(2, '0') : "---",
                     grade: data.studentClass,
                     section: data.sectionId?.sectionName || "",
                     classTeacher: data.sectionId?.classTeacherId ? `${data.sectionId.classTeacherId.firstName} ${data.sectionId.classTeacherId.lastName || ""}` : "Unassigned",
                     permanentAddress: data.Address,
                     dateOfBirth: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0].split('-').reverse().join('/') : null,
-                    yearlyAttendance: finalYearly
+                    yearlyAttendance: finalYearly,
+                    feeStatus: finalFeeStatus
                 }));
 
-                await fetchResults(id, data.studentClass);
+                await fetchResults(id, data.studentClass, data.sectionId?.sectionName, data.gradeId?._id);
             }
             setIsLoaded(true);
         } catch (err) {
@@ -1067,12 +1135,12 @@ const FeeStatusCard = ({ feeStatus }) => {
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <Calendar size={12} className="text-indigo-400" />
-                                <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-widest">Upcoming ({feeStatus.upcomingMonth})</span>
+                                <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-widest">Upcoming ({feeStatus?.upcomingMonth || '---'})</span>
                             </div>
                         </div>
                         <p className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight tabular-nums">
                             <span className="text-lg font-bold text-slate-400 dark:text-slate-500 mr-1">Rs.</span>
-                            {feeStatus.upcomingAmount.toLocaleString()}
+                            {(feeStatus?.upcomingAmount || 0).toLocaleString()}
                         </p>
 
                     </div>
@@ -1084,7 +1152,7 @@ const FeeStatusCard = ({ feeStatus }) => {
                         </div>
                         <p className="text-3xl font-black text-red-500 leading-none tracking-tight tabular-nums">
                             <span className="text-lg font-bold text-red-500/40 mr-1">Rs.</span>
-                            {feeStatus.totalDueAmount.toLocaleString()}
+                            {(feeStatus?.totalDueAmount || 0).toLocaleString()}
                         </p>
 
                     </div>
