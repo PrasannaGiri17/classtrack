@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   TrendingUp,
@@ -23,13 +24,17 @@ import teacherService from '../Api/teacherService';
 import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 import Loading from '../MainSystemComponents/Loading';
 import { Cell } from 'recharts';
+import notificationService from '../Api/notificationService';
 const NEPALI_MONTHS = [
   "Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashwin",
   "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
 ];
 
 const TDashboard = () => {
+  const navigate = useNavigate();
+  const [announcements, setAnnouncements] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userName, setUserName] = useState(localStorage.getItem("userName") || "Teacher");
   const [sectionInfo, setSectionInfo] = useState(null);
   const [statsData, setStatsData] = useState({
     totalStudents: 0,
@@ -131,14 +136,39 @@ const TDashboard = () => {
           const currentWeekData = calculateWeeklySummary(attData?.attendanceData || [], primaryClassStudents, holidays);
           setWeeklyAttendanceData(currentWeekData);
 
-          // 10. Calculate Average Attendance Rate for the week
-          const totalPresents = currentWeekData.reduce((acc, day) => acc + day.students, 0);
-          const totalPossible = primaryClassStudents.length * currentWeekData.filter(d => d.students > 0).length;
-          const attRate = totalPossible > 0 ? (totalPresents / totalPossible * 100).toFixed(1) : 0;
+          // 10. Calculate Average Attendance Rate for the MONTH
+          let monthlyPresentCount = 0;
+          let monthlyTotalPossible = 0;
+          const monthRecords = attData?.attendanceData || [];
+          
+          if (monthRecords.length > 0) {
+            // Get all days that have at least one record (to count working days)
+            const recordedDays = new Set();
+            monthRecords.forEach(studentRec => {
+              if (studentRec.dailyStatus) {
+                Object.keys(studentRec.dailyStatus).forEach(day => {
+                  const status = studentRec.dailyStatus[day];
+                  if (status && status !== '-') {
+                    recordedDays.add(day);
+                    if (status === 'P') monthlyPresentCount++;
+                  }
+                });
+              }
+            });
+            
+            monthlyTotalPossible = monthRecords.length * recordedDays.size;
+          }
+
+          const attRate = monthlyTotalPossible > 0 
+            ? ((monthlyPresentCount / monthlyTotalPossible) * 100).toFixed(1) 
+            : 0;
+
+          const primaryClassCount = primaryClassStudents.length;
 
           setStatsData(prev => ({
             ...prev,
             totalStudents: totalStudentsCount,
+            primaryClassCount,
             attendanceRate: attRate,
             passRate,
             failRate,
@@ -154,6 +184,22 @@ const TDashboard = () => {
 
     fetchDashboardData();
   }, [teacherId]);
+
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const data = await notificationService.getNotifications();
+        if (Array.isArray(data)) {
+          setAnnouncements(data);
+        } else if (data && Array.isArray(data.data)) {
+          setAnnouncements(data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch announcements:", err);
+      }
+    };
+    fetchAnnouncements();
+  }, []);
 
   const calculateWeeklySummary = (attendanceRecords, students, holidays = []) => {
     const today = new Date();
@@ -224,7 +270,7 @@ const TDashboard = () => {
 
   const stats = [
     { title: 'Your Students', value: statsData.totalStudents.toLocaleString(), icon: Users, color: 'bg-emerald-500', trend: 'Aggregate', trendUp: true },
-    { title: 'Class Attendance', value: `${statsData.attendanceRate}%`, icon: Clock, color: 'bg-emerald-500', trend: 'Primary class', trendUp: true },
+    { title: 'Monthly Attendance', value: `${statsData.attendanceRate}%`, icon: Clock, color: 'bg-emerald-500', trend: 'Primary Class', trendUp: true },
     { title: 'Pass Rate', value: statsData.passRate, icon: TrendingUp, color: 'bg-emerald-500', trend: `Avg: ${statsData.avgMarkPercent}`, trendUp: true },
     { title: 'Fail Rate', value: statsData.failRate, icon: AlertCircle, color: 'bg-red-500', trend: 'Subject Specific', trendUp: false },
   ];
@@ -233,6 +279,15 @@ const TDashboard = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Welcome Header */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight ">
+          Welcome back, <span className="text-emerald-500">{userName.split(' ')[0] || "Teacher"}</span>!
+        </h1>
+        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+          Here's what's happening in your classes today.
+        </p>
+      </div>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
@@ -275,7 +330,7 @@ const TDashboard = () => {
 
           <div className="h-[380px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyAttendanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={weeklyAttendanceData} margin={{ top: 10, right: 10, left: -20, bottom: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" opacity={0.1} />
                 <XAxis
                   dataKey="name"
@@ -307,7 +362,7 @@ const TDashboard = () => {
                               <>
                                 <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                                 <span className="text-sm font-black text-emerald-500">
-                                  {data.students} out of {statsData.totalStudents} Students Present
+                                  {data.students} out of {statsData.primaryClassCount || 0} Students Present
                                 </span>
                               </>
                             )}
@@ -362,7 +417,7 @@ const TDashboard = () => {
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
-            <button className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
+            <button onClick={() => navigate('/teacher/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -380,28 +435,34 @@ const TDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-emerald-600 dark:bg-emerald-700 p-8 rounded-3xl shadow-lg shadow-emerald-200 dark:shadow-none text-white relative overflow-hidden group">
-          <div className="relative z-10 h-full flex flex-col justify-between">
-            <div>
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md group-hover:scale-110 transition-transform">
-                <Sparkles className="text-white w-6 h-6" />
-              </div>
-              <h3 className="text-2xl font-black mb-2 tracking-tight">Academic Milestone</h3>
-              <p className="text-emerald-100 text-sm font-medium mb-8 max-w-xs leading-relaxed">The school has achieved a record-breaking 94% pass rate this semester across all departments.</p>
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Announcements</h3>
             </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-3">
-                {[1, 2, 3, 4].map(i => (
-                  <img key={i} src={`https://picsum.photos/seed/${i + 100}/50/50`} className="w-10 h-10 rounded-full border-2 border-emerald-600 dark:border-emerald-700 object-cover shadow-sm" alt="Teacher" />
-                ))}
-              </div>
-              <p className="text-xs font-bold text-white/90 tracking-wide">+12 Faculty Members</p>
-            </div>
+            <button onClick={() => navigate('/teacher/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
-
-          <div className="absolute top-[-20px] right-[-20px] w-48 h-48 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-700"></div>
-          <div className="absolute bottom-[-40px] left-[-20px] w-64 h-64 bg-emerald-700/50 dark:bg-emerald-800/50 rounded-full blur-3xl"></div>
+          <div className="space-y-4 max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {announcements.map((item, idx) => (
+              <div key={item._id || item.id || idx} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  item.priority === 'urgent' ? 'bg-red-500' :
+                  item.priority === 'warning' ? 'bg-amber-500' :
+                  item.priority === 'important' ? 'bg-blue-500' : 'bg-slate-400'
+                }`} />
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</h4>
+                </div>
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${
+                  item.priority === 'urgent' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+                  item.priority === 'warning' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+                  item.priority === 'important' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                  'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                }`}>{item.priority || 'normal'}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

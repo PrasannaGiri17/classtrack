@@ -29,7 +29,7 @@ const StudentSchema = new mongoose.Schema(
     studentClass: { type: Number, min: 1, max: 13, default: null },
 
     // NEW: flag
-    flag: { type: String, enum: ["red", "green", "yellow"], default: "green" },
+    flag: { type: String, enum: ["red", "green", "yellow", "amber"], default: "green" },
 
     classId: { type: mongoose.Schema.Types.ObjectId, ref: "Grade", default: null },
     sectionId: { type: mongoose.Schema.Types.ObjectId, ref: "Section", default: null },

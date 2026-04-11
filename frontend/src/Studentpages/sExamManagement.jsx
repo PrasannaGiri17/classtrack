@@ -12,7 +12,9 @@ import {
   AlertCircle,
   TrendingUp,
   Target,
-  Download
+  Download,
+  Medal,
+  Trophy
 } from 'lucide-react';
 import { toast } from '../MainSystemComponents/Toast';
 
@@ -33,6 +35,7 @@ const SExamManagement = () => {
   const [results, setResults] = useState([]);
   const [examConfig, setExamConfig] = useState(null);
   const [grades, setGrades] = useState([]);
+  const [allGradeResults, setAllGradeResults] = useState([]);
 
   // 1. Fetch Student Profile
   useEffect(() => {
@@ -82,6 +85,18 @@ const SExamManagement = () => {
       try {
         const data = await resultService.getStudentResults(studentData._id);
         setResults(data);
+
+        // Fetch all grade results for ranking computation
+        const gradeId = studentData.gradeId?._id || studentData.classId || studentData.studentClass;
+        if (gradeId) {
+          try {
+             const gradeTermData = await resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm);
+             setAllGradeResults(gradeTermData || []);
+          } catch(err) {
+             console.warn("Failed to fetch grade results for ranking", err);
+             setAllGradeResults([]);
+          }
+        }
       } catch (error) {
         console.error("Error fetching results:", error);
       } finally {
@@ -391,6 +406,42 @@ const SExamManagement = () => {
     return (totalPoints / scoredMarks.length).toFixed(2);
   }, [currentResult, marksData]);
 
+  const { gradeRank, classRank } = useMemo(() => {
+    if (!allGradeResults || !allGradeResults.length || !studentData) return { gradeRank: '---', classRank: '---' };
+
+    const uniqueResultsMap = new Map();
+    allGradeResults.forEach(r => {
+      const sid = r.studentId?._id?.toString() || r.studentId?.toString();
+      if (sid) uniqueResultsMap.set(sid, r);
+    });
+    const uniqueGradeResults = Array.from(uniqueResultsMap.values());
+
+    const sortedByGrade = uniqueGradeResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
+    const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === studentData._id?.toString());
+    
+    const currentSectionName = (studentData.sectionId?.sectionName || studentData.section || "").toString().trim().toLowerCase();
+    const sectionResults = uniqueGradeResults.filter(r => 
+      (r.sectionName || "").toString().trim().toLowerCase() === currentSectionName
+    );
+    const sortedBySection = sectionResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
+    const sectionRankIdx = sortedBySection.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === studentData._id?.toString());
+
+    const getRankSuffix = (n) => {
+      if (n === -1) return "---";
+      const i = n + 1;
+      const j = i % 10, k = i % 100;
+      if (j === 1 && k !== 11) return i + "st";
+      if (j === 2 && k !== 12) return i + "nd";
+      if (j === 3 && k !== 13) return i + "rd";
+      return i + "th";
+    };
+
+    return {
+      gradeRank: getRankSuffix(gradeRankIdx),
+      classRank: getRankSuffix(sectionRankIdx)
+    };
+  }, [allGradeResults, studentData]);
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-20">
 
@@ -594,13 +645,31 @@ const SExamManagement = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Class Ranking</p>
-                    <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Top 5% Performers</p>
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  {/* Grade Rank */}
+                  <div className="flex items-center gap-4 bg-white dark:bg-slate-900/60 rounded-[24px] px-6 py-4 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                    <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform duration-500">
+                      <Medal size={24} />
+                    </div>
+                    <div className="space-y-0.5 text-left">
+                      <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">RANK OUTCOME</p>
+                      <h4 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
+                        {gradeRank} <span className="text-[10px] text-slate-400 font-bold ml-1 uppercase tracking-tight">GRADE</span>
+                      </h4>
+                    </div>
                   </div>
-                  <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-emerald-500 border border-slate-800 shadow-xl shadow-slate-900/20">
-                    <Target size={28} />
+
+                  {/* Class Rank */}
+                  <div className="flex items-center gap-4 bg-white dark:bg-slate-900/60 rounded-[24px] px-6 py-4 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                    <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform duration-500">
+                      <Trophy size={24} />
+                    </div>
+                    <div className="space-y-0.5 text-left">
+                      <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">RANK OF CLASS</p>
+                      <h4 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
+                        {classRank} <span className="text-[10px] text-slate-400 font-bold ml-1 uppercase tracking-tight">SECTION</span>
+                      </h4>
+                    </div>
                   </div>
                 </div>
               </div>

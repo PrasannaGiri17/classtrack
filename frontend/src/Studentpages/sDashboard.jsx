@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   GraduationCap,
@@ -17,9 +18,24 @@ import {
   BookOpen,
   NotebookPen,
   ClipboardList,
-  Clock
+  Clock,
+  Calendar,
+  Medal,
+  Trophy
 } from 'lucide-react';
 import GMainC from '../AdminComponents/Dashboard/GMainC';
+import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
+import studentService from '../Api/studentService';
+import attendanceService from '../Api/attendanceService';
+import calendarService from '../Api/calendarService';
+import resultService from '../Api/resultService';
+import examService from '../Api/examService';
+import diaryService from '../Api/diaryService';
+import gradeService from '../Api/gradeService';
+import timetableService from '../Api/timetableService';
+import routineService from '../Api/routineService';
+import notificationService from '../Api/notificationService';
+import { getHolidayOnDate } from '../Utils/nepaliDateHelpers';
 
 // --- Helpers ---
 const RadialGauge = ({ title, subtitle, value, label, percent, color }) => {
@@ -28,13 +44,13 @@ const RadialGauge = ({ title, subtitle, value, label, percent, color }) => {
   const strokeDashoffset = circumference - (percent / 100) * circumference;
 
   return (
-    <div className="bg-white dark:bg-[#0b1220] p-5 lg:p-6 rounded-[32px] border border-slate-100 dark:border-white/5 shadow-lg transition-all relative overflow-hidden group/gauge">
+    <div className="bg-white dark:bg-slate-900 p-5 lg:p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-lg transition-all relative overflow-hidden group/gauge">
       {/* Decorative background pulse */}
       <div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none group-hover/gauge:bg-emerald-500/10 transition-colors duration-700" />
 
       <div className="relative z-10 flex flex-col items-center">
         <div className="w-full text-left mb-4">
-          <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-none uppercase">{title}</h3>
+          <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-none">{title}</h3>
           <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">{subtitle}</p>
         </div>
 
@@ -45,7 +61,7 @@ const RadialGauge = ({ title, subtitle, value, label, percent, color }) => {
               d="M 20 120 A 100 100 0 0 1 220 120"
               fill="none"
               stroke="#f1f5f9"
-              className="dark:stroke-slate-800/40"
+              className="dark:stroke-slate-800"
               strokeWidth="20"
               strokeLinecap="round"
             />
@@ -73,16 +89,7 @@ const RadialGauge = ({ title, subtitle, value, label, percent, color }) => {
 
 
 
-const homeworkData = [
-  { subject: 'MATHEMATICS', task: 'Solve Exercise 4.2 (Arithmetic Progression). Please show all steps for the sum of first n terms and verify with the formula. Prepare for a short test on this topic in the next period.' },
-  { subject: 'CALCULUS', task: 'Limits & Continuity Worksheet #5 - Focus on epsilon-delta proofs and vertical asymptotes. Complete all odd-numbered problems and the challenge section at the end.' },
-  { subject: 'GEOMETRY', task: 'Triangle Congruence Proofs (10th Edition). Complete the proofs for SSS, SAS, and ASA postulates using the two-column format as discussed in class.' },
-  { subject: 'ADVANCED ALGEBRA', task: 'Read Chapter 4: Quadratic Equations. Summarize the discriminant rules and solve the word problems on page 112 involving projectile motion.' },
-  { subject: 'PHYSICS', task: 'Numerical Problems: Newton\'s Laws' },
-  { subject: 'CHEMISTRY', task: 'Lab Report: Titration Analysis' },
-  { subject: 'ENGLISH', task: 'Essay: The Industrial Revolution Impact' },
-  { subject: 'COMPUTER SCIENCE', task: 'Implement Bubble Sort in Python' },
-];
+// Dynamic task data handle
 
 
 
@@ -117,11 +124,59 @@ const HomeworkCard = ({ hw }) => {
 };
 
 const SDashboard = () => {
+  const navigate = useNavigate();
+  const [announcements, setAnnouncements] = useState([]);
   const [selectedClass, setSelectedClass] = useState('All Classes');
   const [selectedHomeworkDate, setSelectedHomeworkDate] = useState('Today');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
+
+  const [termGPA, setTermGPA] = useState("0.00");
+  const [attendanceRate, setAttendanceRate] = useState(0);
+  const [gradeRank, setGradeRank] = useState("---");
+  const [classRank, setClassRank] = useState("---");
+
+  const [className, setClassName] = useState("");
+  const [sectionName, setSectionName] = useState("");
+  const [gradeNum, setGradeNum] = useState("");
+  const [holidays, setHolidays] = useState([]);
+  const [diaryEntries, setDiaryEntries] = useState([]);
+  const [isDiaryLoading, setIsDiaryLoading] = useState(false);
+  const [dateOptions, setDateOptions] = useState([]);
+  const [actualSelectedDate, setActualSelectedDate] = useState(new Date());
+
+  useEffect(() => {
+    const options = [];
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      let label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      if (i === 0) label = "Today";
+      if (i === 1) label = "Yesterday";
+      options.push({ label, date: d });
+    }
+    setDateOptions(options);
+    setSelectedHomeworkDate(options[0].label);
+    setActualSelectedDate(options[0].date);
+  }, []);
+
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const data = await notificationService.getNotifications();
+        if (Array.isArray(data)) {
+          setAnnouncements(data);
+        } else if (data && Array.isArray(data.data)) {
+          setAnnouncements(data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch announcements:", err);
+      }
+    };
+    fetchAnnouncements();
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -129,12 +184,119 @@ const SDashboard = () => {
         const role = localStorage.getItem("role");
         const studentId = localStorage.getItem("studentId");
         if (role === "student" && studentId) {
-          const res = await fetch(`http://localhost:7000/api/students/${studentId}`);
-          const data = await res.json();
+          const data = await studentService.getStudentById(studentId);
           if (data) {
             const name = `${data.firstName} ${data.lastName || ''}`.trim();
             setUserName(name);
             localStorage.setItem("userName", name);
+
+            const gNum = String(data.studentClass || data.gradeId?.gradeNumber || "");
+            setGradeNum(gNum);
+
+            let sectionInfo = null;
+            const sectionId = data.sectionId?._id || data.sectionId;
+            if (sectionId) {
+              const sectionRes = await gradeService.getSectionById(sectionId);
+              if (sectionRes) {
+                sectionInfo = sectionRes;
+                setClassName(`${sectionRes.gradeName} Section ${sectionRes.sectionName}`);
+                setSectionName(sectionRes.sectionName);
+              }
+            }
+
+            const allHolidays = await calendarService.getEvents().catch(() => []);
+            setHolidays((allHolidays || []).filter(e => e && (e.type?.toUpperCase() === 'HOLIDAY' || e.isPublicHoliday)));
+
+            // Fetch Yearly Attendance Rate
+            try {
+              const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+              const [currentBSYear] = todayBS.split('-').map(Number);
+              const yearlyData = await attendanceService.getStudentYearlyAttendance(data._id, currentBSYear || 2081);
+
+              if (yearlyData) {
+                const startAD = convertBStoAD(`${currentBSYear || 2081}-01-01`);
+                const endAD = new Date().toISOString().split('T')[0];
+
+                const holidaysList = await calendarService.getEvents(startAD, endAD);
+                const holidayDates = new Set(
+                  holidaysList
+                    .filter(e => e.type === 'HOLIDAY')
+                    .map(e => new Date(e.startDate).toISOString().split('T')[0])
+                );
+
+                let workingDaysCount = 0;
+                let cur = new Date(startAD);
+                const end = new Date(endAD);
+                while (cur <= end) {
+                  const dayOfWeek = cur.getDay(); // 6 is Saturday
+                  const dateStr = cur.toISOString().split('T')[0];
+                  if (dayOfWeek !== 6 && !holidayDates.has(dateStr)) {
+                    workingDaysCount++;
+                  }
+                  cur.setDate(cur.getDate() + 1);
+                }
+
+                if (workingDaysCount > 0) {
+                  setAttendanceRate(Math.round((yearlyData.present / workingDaysCount) * 100));
+                } else {
+                  setAttendanceRate(yearlyData.rate || 0);
+                }
+              }
+            } catch (e) {
+              console.warn("Failed to fetch dashboard attendance", e);
+            }
+
+            // Fetch Term GPA
+            try {
+              const examConfigData = await examService.getExamData();
+              let activeTerm = 'First Term';
+              if (examConfigData && examConfigData.termStatuses) {
+                const publishedTerms = examConfigData.termStatuses.filter(t => t.isPublished);
+                if (publishedTerms.length > 0) {
+                  activeTerm = publishedTerms[publishedTerms.length - 1].term;
+                }
+              }
+              const allGradeResults = await resultService.getResultsByGradeSectionTerm(data.gradeId?._id || data.classId, null, activeTerm);
+
+              if (allGradeResults && allGradeResults.length > 0) {
+                const uniqueResultsMap = new Map();
+                allGradeResults.forEach(r => {
+                  const sid = r.studentId?._id?.toString() || r.studentId?.toString();
+                  if (sid) uniqueResultsMap.set(sid, r);
+                });
+                const uniqueGradeResults = Array.from(uniqueResultsMap.values());
+
+                const sortedByGrade = uniqueGradeResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
+                const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
+
+                const currentSectionName = (sectionInfo?.sectionName || data.section || "").toString().trim().toLowerCase();
+                const sectionResults = uniqueGradeResults.filter(r =>
+                  (r.sectionName || "").toString().trim().toLowerCase() === currentSectionName
+                );
+                const sortedBySection = sectionResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
+                const sectionRankIdx = sortedBySection.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
+
+                const getRankSuffix = (n) => {
+                  if (n === -1) return "---";
+                  const i = n + 1;
+                  const j = i % 10, k = i % 100;
+                  if (j === 1 && k !== 11) return i + "st";
+                  if (j === 2 && k !== 12) return i + "nd";
+                  if (j === 3 && k !== 13) return i + "rd";
+                  return i + "th";
+                };
+
+                setGradeRank(getRankSuffix(gradeRankIdx));
+                setClassRank(getRankSuffix(sectionRankIdx));
+
+                const currentResult = allGradeResults.find(r => r.studentId?._id?.toString() === data._id?.toString() || r.studentId?.toString() === data._id?.toString());
+                if (currentResult && currentResult.summary && currentResult.summary.gpa) {
+                  setTermGPA(Number(currentResult.summary.gpa).toFixed(2));
+                }
+              }
+            } catch (e) {
+              console.warn("Failed to fetch dashboard GPA/Rankings", e);
+            }
           }
         }
       } catch (err) {
@@ -142,21 +304,76 @@ const SDashboard = () => {
       }
     };
 
-    if (userName === "Student" || userName === "User") {
-      fetchUserData();
-    }
+    fetchUserData();
   }, []);
 
+  const fetchDiary = useCallback(async () => {
+    if (!className || !gradeNum || !sectionName || !actualSelectedDate) return;
+    setIsDiaryLoading(true);
+    try {
+      const weekday = actualSelectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+
+      const [diaryRes, timetableRes] = await Promise.all([
+        diaryService.getDiariesByClass(className, actualSelectedDate).catch(() => []),
+        timetableService.getTimetable(gradeNum, sectionName, weekday).catch(() => null)
+      ]);
+
+      if (!timetableRes || !timetableRes.slots) {
+        setDiaryEntries([]);
+        return;
+      }
+
+      const merged = timetableRes.slots.map(slot => {
+        const assignment = timetableRes.assignments[slot.id];
+        if (!assignment) return null;
+
+        const diaryEntry = diaryRes.find(d => d.periodId.includes(slot.id));
+        let taskText = "";
+        if (diaryEntry?.homework && diaryEntry?.activity) {
+          taskText = `Activity: ${diaryEntry.activity} | HW: ${diaryEntry.homework}`;
+        } else if (diaryEntry?.homework) {
+          taskText = `HW: ${diaryEntry.homework}`;
+        } else if (diaryEntry?.activity) {
+          taskText = `Activity: ${diaryEntry.activity}`;
+        } else {
+          taskText = "No task logged for this session.";
+        }
+
+        return {
+          subject: assignment.subjectName,
+          task: taskText,
+          _id: diaryEntry?._id || `temp-${slot.id}`
+        };
+      }).filter(item => item !== null);
+
+      setDiaryEntries(merged);
+      setCurrentPage(1);
+    } catch (err) {
+      console.error("Failed to fetch diary:", err);
+    } finally {
+      setIsDiaryLoading(false);
+    }
+  }, [className, gradeNum, sectionName, actualSelectedDate]);
+
+  useEffect(() => {
+    fetchDiary();
+  }, [fetchDiary]);
+
+  const currentHoliday = useMemo(() => {
+    if (!holidays || !holidays.length) return null;
+    return getHolidayOnDate(actualSelectedDate, holidays);
+  }, [actualSelectedDate, holidays]);
+
   // Pagination Logic
-  const totalPages = Math.ceil(homeworkData.length / itemsPerPage);
+  const totalPages = Math.ceil(diaryEntries.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentHomework = homeworkData.slice(startIndex, startIndex + itemsPerPage);
+  const currentHomework = diaryEntries.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Welcome Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight ">
           Welcome back, <span className="text-emerald-500">{userName.split(' ')[0] || "Student"}</span>!
         </h1>
         <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
@@ -168,38 +385,64 @@ const SDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <RadialGauge
           title="Overall Performance"
-          subtitle="Term Academic GPA"
-          value="3.85"
-          percent={96.25}
+          subtitle="Last Exam Academic GPA"
+          value={termGPA}
+          percent={(parseFloat(termGPA) / 4.0) * 100 || 0}
           color="#10b981"
         />
         <RadialGauge
           title="Attendance Track"
           subtitle="Academic Year Presence"
-          value="92%"
-          percent={92}
+          value={`${attendanceRate}%`}
+          percent={attendanceRate}
           color="#10b981"
         />
-        <RadialGauge
-          title="Nothing for now"
-          subtitle=" working on it "
-          value="20%"
-          percent={20}
-          color="#10b981"
-        />
+        {/* Class Rank Section */}
+        <div className="bg-white dark:bg-slate-900 p-6 lg:p-7 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-lg flex flex-col transition-all group/rank">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-none">Class Position</h3>
+            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Last Exam Performance</p>
+          </div>
+
+          <div className="flex-1 flex items-center">
+            <div className="grid grid-cols-2 gap-2 w-full">
+              {/* Grade Rank */}
+              <div className="flex items-center gap-4 group/medal">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 transition-transform group-hover/medal:scale-110">
+                  <Medal size={30} />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-3xl font-black text-emerald-500 tracking-tighter tabular-nums leading-none">{gradeRank}</div>
+                  <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">In Grade</p>
+                </div>
+              </div>
+
+              {/* Class Rank */}
+              <div className="flex items-center gap-4 group/trophy">
+                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0 transition-transform group-hover/trophy:scale-110">
+                  <Trophy size={30} />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-3xl font-black text-purple-500 tracking-tighter tabular-nums leading-none">{classRank}</div>
+                  <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">In Class</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Routine & Homework Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Homework Diary - Expanded */}
-        <div className="lg:col-span-2 bg-white dark:bg-[#0b1220] p-8 rounded-[40px] border border-slate-100 dark:border-white/5 shadow-xl transition-all h-full flex flex-col">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-xl transition-all h-full flex flex-col">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500">
                 <NotebookPen size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">Homework Diary</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Homework Diary</h3>
                 <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2 italic shadow-emerald-500/5">Pending Subject Tasks</p>
               </div>
             </div>
@@ -208,61 +451,90 @@ const SDashboard = () => {
             <div className="relative group min-w-[140px]">
               <select
                 value={selectedHomeworkDate}
-                onChange={(e) => setSelectedHomeworkDate(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedHomeworkDate(val);
+                  const found = dateOptions.find(o => o.label === val);
+                  if (found) setActualSelectedDate(found.date);
+                }}
                 className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 focus:border-emerald-500/50 text-[10px] font-black text-slate-600 dark:text-slate-300 rounded-xl pl-4 pr-10 py-2.5 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm shadow-emerald-500/5"
               >
-                <option value="Today">Today</option>
-                <option value="Yesterday">Yesterday</option>
-                <option value="31st July">31st July</option>
-                <option value="30th July">30th July</option>
-                <option value="29th July">29th July</option>
-                <option value="28th July">28th July</option>
+                {dateOptions.map((opt, i) => (
+                  <option key={i} value={opt.label}>{opt.label}</option>
+                ))}
               </select>
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 flex-1">
-            {currentHomework.map((hw, idx) => (
-              <HomeworkCard key={idx} hw={hw} />
-            ))}
-          </div>
-
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-50 dark:border-slate-800/50">
-              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                {startIndex + 1}-{Math.min(startIndex + itemsPerPage, homeworkData.length)} of {homeworkData.length} Subjects
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 disabled:opacity-30 disabled:hover:text-slate-400 transition-all border border-slate-100 dark:border-slate-700"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded-lg text-[9px] font-black transition-all ${currentPage === i + 1
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
-                      }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 disabled:opacity-30 disabled:hover:text-slate-400 transition-all border border-slate-100 dark:border-slate-700"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
+          {isDiaryLoading ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-10">
+              <span className="text-xs font-bold text-slate-400 animate-pulse">Syncing class diary...</span>
             </div>
+          ) : currentHoliday ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 bg-red-50/50 dark:bg-red-900/10 rounded-[32px] border border-red-100 dark:border-red-900/20 shadow-sm p-4">
+              <div className="w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center text-red-500 shadow-lg shadow-red-500/10 mb-2">
+                <Calendar size={32} className="text-red-500" />
+              </div>
+              <span className="px-3 py-1 bg-red-500 text-white text-[9px] font-black tracking-widest rounded-full shadow-md shadow-red-500/20">Holiday</span>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{currentHoliday.holidayName || currentHoliday.title || "School Holiday"}</h3>
+              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 px-4">Operations suspended for this date.</p>
+            </div>
+          ) : (
+            <>
+              {diaryEntries.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 flex-1">
+                  {currentHomework.map((hw) => (
+                    <HomeworkCard key={hw._id} hw={hw} />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-12">
+                  <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/80 rounded-2xl flex items-center justify-center text-slate-300 border border-slate-100 dark:border-slate-800 mb-2">
+                    <BookOpen size={32} className="text-slate-300" />
+                  </div>
+                  <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">No Diary Entries</h4>
+                  <p className="text-[10px] font-bold text-slate-400 tracking-widest">No assigned tasks logged for this date.</p>
+                </div>
+              )}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-50 dark:border-slate-800/50">
+                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                    {startIndex + 1}-{Math.min(startIndex + itemsPerPage, diaryEntries.length)} of {diaryEntries.length} Subjects
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 disabled:opacity-30 disabled:hover:text-slate-400 transition-all border border-slate-100 dark:border-slate-700"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`w-8 h-8 rounded-lg text-[9px] font-black transition-all ${currentPage === i + 1
+                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 disabled:opacity-30 disabled:hover:text-slate-400 transition-all border border-slate-100 dark:border-slate-700"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -274,10 +546,10 @@ const SDashboard = () => {
 
       {/* Bottom Section: Recent Events & Upcoming */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 lg:p-10 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
-            <button className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
+            <button onClick={() => navigate('/student/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -295,40 +567,32 @@ const SDashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-950 p-8 rounded-[40px] border border-slate-100 dark:border-emerald-500/20 shadow-xl dark:shadow-2xl transition-all h-full flex flex-col relative overflow-hidden group">
-          <div className="relative z-10 flex flex-col h-full">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-[20px] flex items-center justify-center text-emerald-500 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-                <ClipboardList size={24} />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none uppercase">School Reminder</h3>
-                <p className="text-[10px] font-bold text-emerald-500/60 uppercase tracking-[0.2em] mt-2 italic shadow-emerald-500/5">Common Guidelines</p>
-              </div>
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Announcements</h3>
             </div>
-
-            <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-              {[
-                "Proper Uniform & ID Card Mandatory",
-                "Arrive 10 Minutes Before Bell",
-                "Maintain Lesson Diary Daily",
-                "Keep Campus & Classroom Clean",
-                "Respect Teachers & Fellow Students",
-                "Zero Tolerance for Bullying"
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 hover:border-emerald-500/40 transition-all duration-300 group/item">
-                  <div className="w-6 h-6 bg-emerald-500/20 rounded-xl flex items-center justify-center shrink-0 mt-0.5 group-hover/item:scale-110 transition-transform">
-                    <CheckCircle2 size={14} className="text-emerald-400" />
-                  </div>
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors leading-tight tracking-tight">{item}</span>
-                </div>
-              ))}
-            </div>
+            <button onClick={() => navigate('/student/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
-
-          {/* Subtle Decorative Elements */}
-          <div className="absolute top-[-20px] right-[-20px] w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-[-40px] left-[-20px] w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl"></div>
+          <div className="space-y-4 max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {announcements.map((item, idx) => (
+              <div key={item._id || item.id || idx} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.priority === 'urgent' ? 'bg-red-500' :
+                  item.priority === 'warning' ? 'bg-amber-500' :
+                    item.priority === 'important' ? 'bg-blue-500' : 'bg-slate-400'
+                  }`} />
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</h4>
+                </div>
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${item.priority === 'urgent' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+                  item.priority === 'warning' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+                    item.priority === 'important' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                      'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                  }`}>{item.priority || 'normal'}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -1,11 +1,13 @@
 const mongoose = require("mongoose");
+const { getCurrentNepaliYear } = require('../utils/nepaliYear');
 
 const resultSchema = new mongoose.Schema({
-  schoolId: { type: Number, required: true, index: true },
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-  gradeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Grade', required: true },
-  sectionName: { type: String, required: true },
-  term: { type: String, required: true }, // e.g., "Mid-Term 1"
+  schoolId:     { type: Number, required: true, index: true },
+  academicYear: { type: Number, default: getCurrentNepaliYear, index: true },
+  studentId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+  gradeId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Grade',   required: true },
+  sectionName:  { type: String, required: true },
+  term:         { type: String, required: true }, // e.g. "First Term", "First Mid Term"
   marks: [{
     subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
     theoryMarks: { type: Number, default: 0 },
@@ -20,8 +22,14 @@ const resultSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Pre-save hook to calculate total, percentage, etc.
+// Pre-save hook
 resultSchema.pre('save', function(next) {
+    // ── Always ensure academicYear is stamped ─────────────────────────────
+    if (!this.academicYear) {
+        this.academicYear = getCurrentNepaliYear();
+    }
+
+    // ── Recalculate summary from marks ────────────────────────────────────
     if (this.marks && this.marks.length > 0) {
         let total = 0;
         this.marks.forEach(m => {
@@ -30,8 +38,8 @@ resultSchema.pre('save', function(next) {
         this.summary.total = total;
         // Percentage calculation (assuming each subject is out of 100)
         this.summary.percentage = (total / (this.marks.length * 100)) * 100;
-        
-        // Simple GPA logic (customizable)
+
+        // GPA logic (4.0 scale)
         if (this.summary.percentage >= 90) this.summary.gpa = '4.0';
         else if (this.summary.percentage >= 80) this.summary.gpa = '3.5';
         else if (this.summary.percentage >= 70) this.summary.gpa = '3.0';

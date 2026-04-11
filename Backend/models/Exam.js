@@ -1,7 +1,9 @@
 const mongoose = require("mongoose");
+const { getCurrentNepaliYear } = require('../utils/nepaliYear');
 
 const examSchema = new mongoose.Schema({
-  schoolId: { type: Number, required: true, index: true },
+  schoolId:      { type: Number, required: true, index: true },
+  academicYear:  { type: Number, default: getCurrentNepaliYear, index: true },
   config: {
     termsCount: { type: Number, default: 3 },
     includeMidTerm: { type: Boolean, default: true },

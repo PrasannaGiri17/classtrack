@@ -70,7 +70,7 @@ const Sidebar = ({ activePage }) => {
     { key: 'routine', icon: Clock, label: 'Routine', path: '/student/routine' },
     { key: 'calendar', icon: Calendar, label: 'Calendar', path: '/student/calendar' },
     { key: 'exam', icon: FileText, label: 'Exam', path: '/student/exam' },
-    { key: 'notification', icon: Bell, label: 'Notification', path: '/student/notification' },
+    { key: 'Announcements', icon: Bell, label: 'Announcements', path: '/student/notification' },
   ];
 
   return (

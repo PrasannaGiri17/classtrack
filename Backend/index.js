@@ -34,6 +34,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const userRoutes = require("./routes/userRoutes");
 const khaltiPaymentRoutes = require("./routes/khaltiPayment");
 const esewaPaymentRoutes = require("./routes/esewaPayment");
+const flagRoutes = require("./routes/flagRoutes");
 
 
 
@@ -87,6 +88,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/payment/khalti", khaltiPaymentRoutes);
 app.use("/api/payment/esewa", esewaPaymentRoutes);
+app.use("/api/flags", flagRoutes);
 
 
 app.listen(port, () => {
