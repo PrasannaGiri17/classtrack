@@ -81,21 +81,25 @@ const CalendarPage = () => {
       const eventStart = new Date(event.startDate);
       const eventEnd = new Date(event.endDate);
 
-      // 1. Filter by viewed AD month
-      const isCorrectMonth = eventStart.getMonth() === currentDate.getMonth() &&
-                            eventStart.getFullYear() === currentDate.getFullYear();
-      
+      // Normalize to local date components for month comparison
+      const startYear = eventStart.getFullYear();
+      const startMonth = eventStart.getMonth();
+      const viewYear = currentDate.getFullYear();
+      const viewMonth = currentDate.getMonth();
+
+      const isCorrectMonth = startYear === viewYear && startMonth === viewMonth;
       if (!isCorrectMonth) return false;
 
       // 2. If viewing current month, only show future/today events
-      const isCurrentMonth = currentDate.getFullYear() === today.getFullYear() && 
-                            currentDate.getMonth() === today.getMonth();
+      const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
       
       if (isCurrentMonth) {
-        return eventEnd >= today;
+        // Normalize today and eventEnd to midnight local for accurate "from today" check
+        const eventEndLocal = new Date(eventEnd.getFullYear(), eventEnd.getMonth(), eventEnd.getDate());
+        const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        return eventEndLocal >= todayLocal;
       }
 
-      // 3. If past or future month, show all events of that month
       return true;
     })
     .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));

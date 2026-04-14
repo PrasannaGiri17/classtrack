@@ -36,7 +36,8 @@ const StudentSchema = new mongoose.Schema(
 
     rollNumber: { type: Number, default: null },
 
-    status: { type: String, enum: ["active", "inactive"], default: "active" },
+    status: { type: String, enum: ["active", "inactive", "graduated"], default: "active" },
+    graduationYear: { type: String, default: null }, // NEW: Tracking graduation cycle
   },
   { timestamps: true }
 );

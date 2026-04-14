@@ -15,20 +15,11 @@ import autoTable from 'jspdf-autotable';
 
 // --- Constants & Dummy Data ---
 const SECTIONS = ["A", "B", "C"];
-const YEARS = ["2025", "2026"];
-
-const ANALYTICS_GRADE_DATA = [
-  { grade: 'G5', average: 72 }, { grade: 'G6', average: 85 }, { grade: 'G7', average: 68 },
-  { grade: 'G8', average: 79 }, { grade: 'G9', average: 88 }, { grade: 'G10', average: 82 },
-];
-
-const ANALYTICS_SECTION_DATA = [
-  { section: 'Sec A', average: 84 }, { section: 'Sec B', average: 79 }, { section: 'Sec C', average: 72 },
-];
+const YEARS = ["2082", "2083", "2084"];
 
 const ExamManagement = () => {
   const [activeView, setActiveView] = useState('menu');
-  const [selectedYear, setSelectedYear] = useState('2025');
+  const [selectedYear, setSelectedYear] = useState(localStorage.getItem('resYear') || '2082');
 
   const [examData, setExamData] = useState(null);
   const [grades, setGrades] = useState([]);
@@ -36,23 +27,43 @@ const ExamManagement = () => {
   const [analyticsGrade, setAnalyticsGrade] = useState('10');
   const [analyticsSection, setAnalyticsSection] = useState('A');
 
-  const [resYear, setResYear] = useState(localStorage.getItem('resYear') || '2025');
+  const [resYear, setResYear] = useState(localStorage.getItem('resYear') || '2082');
   const [resPhase, setResPhase] = useState(localStorage.getItem('resPhase') || 'First Mid Term');
   const [resGrade, setResGrade] = useState(localStorage.getItem('resGrade') || '10');
   const [resSection, setResSection] = useState(localStorage.getItem('resSection') || 'A');
   const [resultSearch, setResultSearch] = useState('');
   const [activeResultIndex, setActiveResultIndex] = useState(0);
 
-  // Fetch Initial Data
+  // Sync Year
+  const handleYearChange = (year) => {
+    setResYear(year);
+    setSelectedYear(year);
+    localStorage.setItem('resYear', year);
+  };
+
+  useEffect(() => {
+    setResYear(selectedYear);
+    localStorage.setItem('resYear', selectedYear);
+  }, [selectedYear]);
+
+  // Fetch Initial Data - Whenever year changes
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [examData, gradesData] = await Promise.all([
-          examService.getExamData(),
+        const [eData, gradesData] = await Promise.all([
+          examService.getExamData(selectedYear),
           gradeService.getGrades()
         ]);
-        setExamData({ ...examData, allGrades: gradesData });
+        
+        // If no exam configuration exists for this year, initialize with defaults
+        const finalExamData = eData || {
+          config: { termsCount: 3, includeMidTerm: true, termDates: {} },
+          termStatuses: []
+        };
+
+        setExamData({ ...finalExamData, allGrades: gradesData });
         setGrades(gradesData.map(g => g.gradeNumber.toString()));
+        
         if (!localStorage.getItem('resGrade')) {
           if (gradesData.length > 0) {
             const firstGrade = gradesData[0];
@@ -68,7 +79,7 @@ const ExamManagement = () => {
 
         // Initialize resPhase from exam data config if not in storage
         if (!localStorage.getItem('resPhase')) {
-          const { includeMidTerm } = examData.config || { termsCount: 3, includeMidTerm: true };
+          const { includeMidTerm } = finalExamData.config || { termsCount: 3, includeMidTerm: true };
           const initialPhase = includeMidTerm ? 'First Mid Term' : 'First Term';
           setResPhase(initialPhase);
         }
@@ -77,7 +88,11 @@ const ExamManagement = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedYear]); // Re-fetch when the selected year changes
+
+  const handleControlYearChange = (year) => {
+    handleYearChange(year);
+  };
 
   const phases = useMemo(() => {
     if (!examData || !examData.config) return [];
@@ -129,7 +144,7 @@ const ExamManagement = () => {
           isAll 
             ? studentService.getStudents(resGrade)
             : studentService.getStudentsBySection(resGrade, sectionDoc._id),
-          resultService.getResultsByGradeSectionTerm(gradeDoc._id, isAll ? '' : resSection, resPhase)
+          resultService.getResultsByGradeSectionTerm(gradeDoc._id, isAll ? '' : resSection, resPhase, selectedYear) // Pass year
         ]);
         setRealStudents(studentsData);
         setRealResults(resultsData);
@@ -139,7 +154,7 @@ const ExamManagement = () => {
     };
 
     if (examData) fetchStudentsAndResults();
-  }, [resGrade, resSection, resPhase, examData]);
+  }, [resGrade, resSection, resPhase, examData, selectedYear]);
 
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -148,6 +163,38 @@ const ExamManagement = () => {
     localStorage.setItem('resGrade', resGrade);
     localStorage.setItem('resSection', resSection);
   }, [resYear, resPhase, resGrade, resSection]);
+
+  const [analyticsGradeData, setAnalyticsGradeData] = useState([]);
+  const [analyticsSectionData, setAnalyticsSectionData] = useState([]);
+
+  // Fetch Analytics
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const gradeDoc = examData?.allGrades?.find(g => g.gradeNumber.toString() === analyticsGrade);
+        const data = await resultService.getAnalytics(selectedYear, gradeDoc?._id, null, resPhase);
+        
+        // Transform gradeAverages: map _id to readable "G{grade}"
+        const transformedGrade = data.gradeAverages.map(item => ({
+          grade: `G${item.grade}`,
+          average: item.average
+        }));
+
+        // Transform sectionAverages: map section to "Sec {section}"
+        const transformedSection = data.sectionAverages.map(item => ({
+          section: `Sec ${item.section}`,
+          average: item.average
+        }));
+
+        setAnalyticsGradeData(transformedGrade);
+        setAnalyticsSectionData(transformedSection);
+      } catch (error) {
+        console.error("Failed to fetch analytics:", error);
+      }
+    };
+
+    if (examData) fetchAnalytics();
+  }, [selectedYear, resPhase, analyticsGrade, examData]);
 
   const filteredResults = useMemo(() => {
     // Find grade doc to get its subjects
@@ -229,7 +276,7 @@ const ExamManagement = () => {
     const newStatus = !currentStatus;
 
     try {
-      await examService.updateTermStatus(termName, newStatus);
+      await examService.updateTermStatus(termName, newStatus, selectedYear);
 
 
       // Optimistically update local state: flip the matching termStatus entry
@@ -263,7 +310,7 @@ const ExamManagement = () => {
     const newStatus = !currentStatus;
 
     try {
-      await examService.updatePublishStatus(termName, newStatus);
+      await examService.updatePublishStatus(termName, newStatus, selectedYear);
 
 
       setExamData(prev => {
@@ -369,7 +416,7 @@ const ExamManagement = () => {
     doc.setTextColor(100, 116, 139);
     doc.text("Academic Year:", labelX1, infoY + 26);
     doc.setTextColor(...accentColor);
-    doc.text("2082", valX1, infoY + 26);
+    doc.text(selectedYear, valX1, infoY + 26);
     
     doc.setTextColor(100, 116, 139);
     doc.text("Issue Date:", labelX2, infoY + 26);
@@ -507,10 +554,10 @@ const ExamManagement = () => {
               setAnalyticsGrade={setAnalyticsGrade}
               analyticsSection={analyticsSection}
               setAnalyticsSection={setAnalyticsSection}
-              analyticsGradeData={ANALYTICS_GRADE_DATA}
-              analyticsSectionData={ANALYTICS_SECTION_DATA}
-              resYear={resYear}
-              setResYear={setResYear}
+              analyticsGradeData={analyticsGradeData}
+              analyticsSectionData={analyticsSectionData}
+              resYear={selectedYear}
+              setResYear={handleControlYearChange}
               resPhase={resPhase}
               setResPhase={setResPhase}
               resGrade={resGrade}

@@ -94,10 +94,20 @@ const CustomNepaliHolidayCalendar = ({
         const startInfo = getNepaliDateInfo(firstDay);
         const endInfo = getNepaliDateInfo(lastDay);
 
-        const startMonth = NEPALI_MONTHS[startInfo.month - 1];
-        const endMonth = NEPALI_MONTHS[endInfo.month - 1];
+        const startMonth = NEPALI_MONTHS[startInfo.month - 1].toUpperCase();
+        const endMonth = NEPALI_MONTHS[endInfo.month - 1].toUpperCase();
+        const startYear = startInfo.year;
+        const endYear = endInfo.year;
 
-        return startMonth === endMonth ? startMonth : `${startMonth} - ${endMonth}`;
+        if (startMonth === endMonth) {
+            return `${startMonth} ${startYear}`;
+        }
+        
+        if (startYear === endYear) {
+            return `${startMonth} - ${endMonth} ${startYear}`;
+        }
+
+        return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
     }, [viewMonth, viewYear]);
 
     // Generate grid cells

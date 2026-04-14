@@ -37,6 +37,7 @@ const schoolSchema = new mongoose.Schema({
     platform: { type: String, enum: ['facebook', 'instagram', 'tiktok', 'twitter', 'youtube'], required: true },
     url: { type: String, required: true }
   }],
+  activeYear: { type: String, default: '2082 B.S.' }, // NEW: Tracking academic cycle
   admissionFee: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

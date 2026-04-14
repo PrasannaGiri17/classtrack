@@ -11,28 +11,31 @@ const getAuthHeaders = () => {
   };
 };
 
-const getExamData = async () => {
-    const response = await axios.get(API_URL, getAuthHeaders());
+const getExamData = async (academicYear) => {
+    const params = academicYear ? { params: { academicYear } } : {};
+    const response = await axios.get(API_URL, { ...getAuthHeaders(), ...params });
     return response.data;
 };
 
 const saveExamConfig = async (config) => {
+    // config should contain academicYear
     const response = await axios.post(`${API_URL}/config`, config, getAuthHeaders());
     return response.data;
 };
 
 const saveExamSchedule = async (scheduleData) => {
+    // scheduleData should contain academicYear
     const response = await axios.post(`${API_URL}/schedule`, scheduleData, getAuthHeaders());
     return response.data;
 };
 
-const updateTermStatus = async (term, isOpen) => {
-    const response = await axios.patch(`${API_URL}/term-status`, { term, isOpen }, getAuthHeaders());
+const updateTermStatus = async (term, isOpen, academicYear) => {
+    const response = await axios.patch(`${API_URL}/term-status`, { term, isOpen, academicYear }, getAuthHeaders());
     return response.data;
 };
 
-const updatePublishStatus = async (term, isPublished) => {
-    const response = await axios.patch(`${API_URL}/publish-status`, { term, isPublished }, getAuthHeaders());
+const updatePublishStatus = async (term, isPublished, academicYear) => {
+    const response = await axios.patch(`${API_URL}/publish-status`, { term, isPublished, academicYear }, getAuthHeaders());
     return response.data;
 };
 

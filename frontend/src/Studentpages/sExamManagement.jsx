@@ -26,16 +26,25 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 
+const YEARS = ["2082", "2083", "2084"];
+
 const SExamManagement = () => {
+  const [selectedYear, setSelectedYear] = useState(localStorage.getItem('studentResYear') || '2082');
   const [selectedTerm, setSelectedTerm] = useState('First Term');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isTermDropdownOpen, setIsTermDropdownOpen] = useState(false);
+  const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
   const [results, setResults] = useState([]);
   const [examConfig, setExamConfig] = useState(null);
   const [grades, setGrades] = useState([]);
   const [allGradeResults, setAllGradeResults] = useState([]);
+
+  // Sync year to storage
+  useEffect(() => {
+    localStorage.setItem('studentResYear', selectedYear);
+  }, [selectedYear]);
 
   // 1. Fetch Student Profile
   useEffect(() => {
@@ -53,18 +62,19 @@ const SExamManagement = () => {
     fetchStudentProfile();
   }, []);
 
-  // 2. Fetch Exam Config & Terms
+  // 2. Fetch Exam Config & Terms for Selected Year
   useEffect(() => {
     const fetchExams = async () => {
       try {
-        const data = await examService.getExamData();
+        const data = await examService.getExamData(selectedYear);
         setExamConfig(data);
       } catch (error) {
         console.error("Error fetching exams:", error);
       }
     };
     fetchExams();
-  }, []);
+  }, [selectedYear]);
+
   useEffect(() => {
     const fetchGrades = async () => {
       try {
@@ -77,20 +87,20 @@ const SExamManagement = () => {
     fetchGrades();
   }, []);
 
-  // 3. Fetch Results
+  // 3. Fetch Results for Selected Year
   useEffect(() => {
     const fetchResults = async () => {
       if (!studentData?._id) return;
       setIsLoading(true);
       try {
-        const data = await resultService.getStudentResults(studentData._id);
+        const data = await resultService.getStudentResults(studentData._id, selectedYear);
         setResults(data);
 
         // Fetch all grade results for ranking computation
         const gradeId = studentData.gradeId?._id || studentData.classId || studentData.studentClass;
         if (gradeId) {
           try {
-             const gradeTermData = await resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm);
+             const gradeTermData = await resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm, selectedYear);
              setAllGradeResults(gradeTermData || []);
           } catch(err) {
              console.warn("Failed to fetch grade results for ranking", err);
@@ -104,7 +114,7 @@ const SExamManagement = () => {
       }
     };
     fetchResults();
-  }, [studentData, selectedTerm]);
+  }, [studentData, selectedTerm, selectedYear]);
 
   const termsList = useMemo(() => {
     if (examConfig?.termStatuses) {
@@ -184,7 +194,7 @@ const SExamManagement = () => {
     doc.setTextColor(100, 116, 139);
     doc.text("Academic Year:", labelX1, infoY + 26);
     doc.setTextColor(...accentColor);
-    doc.text("2082", valX1, infoY + 26);
+    doc.text(selectedYear, valX1, infoY + 26);
     
     doc.setTextColor(100, 116, 139);
     doc.text("Issue Date:", labelX2, infoY + 26);
@@ -494,7 +504,7 @@ const SExamManagement = () => {
               </div>
               <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest uppercase">
                 <Calendar size={14} className="text-emerald-500" />
-                AY: 2082
+                AY: {selectedYear}
               </div>
             </div>
           </div>
@@ -507,50 +517,99 @@ const SExamManagement = () => {
         </div>
       </div>
 
-      {/* 2. Term Selector & Generate Button Row */}
+      {/* 2. Selectors Row */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-        <div className="space-y-2.5 w-full max-w-[280px] relative">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Select Examination Term</label>
-          <div className="relative">
-            <button
-              onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
-              className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
-            >
-              {selectedTerm}
-              <ChevronDown 
-                size={18} 
-                className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
-              />
-            </button>
-
-            {isTermDropdownOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-[60]" 
-                  onClick={() => setIsTermDropdownOpen(false)} 
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-2xl">
+          {/* Year Selector */}
+          <div className="space-y-2.5 w-full sm:w-[200px] relative">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Academic Year</label>
+            <div className="relative">
+              <button
+                onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
+                className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
+              >
+                {selectedYear} BS
+                <ChevronDown 
+                  size={18} 
+                  className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isYearDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
                 />
-                <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
-                  <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
-                    {termsList.map(term => (
-                      <button
-                        key={term}
-                        onClick={() => {
-                          setSelectedTerm(term);
-                          setIsTermDropdownOpen(false);
-                        }}
-                        className={`w-full px-5 py-3 text-[10px] font-black text-left rounded-xl transition-all uppercase tracking-widest ${
-                          selectedTerm === term 
-                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
-                        }`}
-                      >
-                        {term}
-                      </button>
-                    ))}
+              </button>
+
+              {isYearDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-[60]" 
+                    onClick={() => setIsYearDropdownOpen(false)} 
+                  />
+                  <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                    <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
+                      {YEARS.map(year => (
+                        <button
+                          key={year}
+                          onClick={() => {
+                            setSelectedYear(year);
+                            setIsYearDropdownOpen(false);
+                          }}
+                          className={`w-full px-5 py-3 text-[10px] font-black text-left rounded-xl transition-all uppercase tracking-widest ${
+                            selectedYear === year 
+                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
+                          }`}
+                        >
+                          {year} BS
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Term Selector */}
+          <div className="space-y-2.5 w-full sm:w-[280px] relative">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Examination Term</label>
+            <div className="relative">
+              <button
+                onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
+                className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
+              >
+                {selectedTerm}
+                <ChevronDown 
+                  size={18} 
+                  className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
+                />
+              </button>
+
+              {isTermDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-[60]" 
+                    onClick={() => setIsTermDropdownOpen(false)} 
+                  />
+                  <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                    <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
+                      {termsList.map(term => (
+                        <button
+                          key={term}
+                          onClick={() => {
+                            setSelectedTerm(term);
+                            setIsTermDropdownOpen(false);
+                          }}
+                          className={`w-full px-5 py-3 text-[10px] font-black text-left rounded-xl transition-all uppercase tracking-widest ${
+                            selectedTerm === term 
+                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
+                          }`}
+                        >
+                          {term}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

@@ -43,6 +43,7 @@ const SchedulingView = () => {
   // const [mappingSession, setMappingSession] = useState(SESSIONS[0]); // REMOVED
   const [mappingTerm, setMappingTerm] = useState("First Term");
   const [mappingGrade, setMappingGrade] = useState("");
+  const [mappingYear, setMappingYear] = useState(2082); // NEW: Manage yearly data
   const [slots, setSlots] = useState([]);
   const [isMappingSaved, setIsMappingSaved] = useState(false);
 
@@ -76,26 +77,57 @@ const SchedulingView = () => {
       }
     };
 
-    // Fetch Exam Config
+    fetchGrades();
+  }, []);
+
+  // Fetch Exam Config - Triggered by Academic Year change
+  useEffect(() => {
     const fetchExamData = async () => {
       try {
-        const data = await examService.getExamData();
+        setLoading(true);
+        const data = await examService.getExamData(mappingYear);
+        
+        // Always update examData, even if null
+        setExamData(data);
+
         if (data && data.config) {
           setYearSetup(data.config);
           setStartTime(data.config.globalStartTime || "09:00");
           setDuration(data.config.globalDuration || 120);
+
+          // Validate mappingTerm exists in new config
+          const validTerms = [];
+          for (let i = 0; i < data.config.termsCount; i++) {
+            const ord = ORDINALS[i] || `${i + 1}th`;
+            if (data.config.includeMidTerm) validTerms.push(`${ord} Mid Term`);
+            validTerms.push(`${ord} Term`);
+          }
+          if (!validTerms.includes(mappingTerm)) {
+            setMappingTerm(validTerms[0] || "First Term");
+          }
+        } else {
+          // Reset to defaults if no config for this year
+          const defaultSetup = {
+            termsCount: 3,
+            includeMidTerm: true,
+            termDates: {}
+          };
+          setYearSetup(defaultSetup);
+          setStartTime("09:00");
+          setDuration(120);
+          
+          // Reset mappingTerm to default first option
+          setMappingTerm("First Mid Term");
         }
-        // Store full exam data to access schedules later
-        setExamData(data);
+        setLoading(false);
       } catch (error) {
         console.error("Failed to fetch exam data", error);
-        // Don't show toast here as it might be empty initially
+        setLoading(false);
       }
     };
 
-    fetchGrades();
     fetchExamData();
-  }, []);
+  }, [mappingYear]);
 
   const [examData, setExamData] = useState(null);
 
@@ -133,18 +165,19 @@ const SchedulingView = () => {
       setSlots([]);
     }
     setIsMappingSaved(false);
-  }, [mappingGrade, mappingTerm, allGrades, examData]); // Re-run when mappingTerm changes too
+  }, [mappingGrade, mappingTerm, allGrades, examData]);
 
   const handleTemplateSave = async () => {
     try {
       await examService.saveExamConfig({
         ...yearSetup,
         globalStartTime: startTime,
-        globalDuration: duration
+        globalDuration: duration,
+        academicYear: mappingYear // Pass academic year
       });
       setIsTemplateSaved(true);
       // Refresh data to keep local state in sync
-      const data = await examService.getExamData();
+      const data = await examService.getExamData(mappingYear);
       setExamData(data);
       if (data && data.config) setYearSetup(data.config);
 
@@ -159,13 +192,14 @@ const SchedulingView = () => {
   const handleMappingSave = async () => {
     try {
       setLoading(true);
-      
+
       // 1. Update the universal term date mapping in global configuration
       const termDateSeq = slots.map(s => s.date);
       await examService.saveExamConfig({
         ...yearSetup,
         globalStartTime: startTime,
         globalDuration: duration,
+        academicYear: mappingYear,
         termDates: {
           ...(yearSetup.termDates || {}),
           [mappingTerm]: termDateSeq
@@ -173,7 +207,6 @@ const SchedulingView = () => {
       });
 
       // 2. Prepare the update batch for ALL grades
-      // This ensures that changing dates for one grade propagates to all existing schedules in the term
       for (const grade of allGrades) {
         const gradeNum = grade.gradeNumber.toString();
         let gradeEntries = [];
@@ -185,19 +218,16 @@ const SchedulingView = () => {
             date: s.date
           }));
         } else {
-          // For other grades, find their existing schedule
           const existing = examData?.schedules?.find(
             s => s.gradeNumber.toString() === gradeNum && s.term === mappingTerm
           );
-          
+
           if (existing && existing.entries) {
-            // Re-map existing subjects to the new date sequence by index
             gradeEntries = existing.entries.map((oldEntry, idx) => ({
               subjectId: oldEntry.subjectId._id || oldEntry.subjectId,
-              date: termDateSeq[idx] || (idx > 0 && termDateSeq[idx-1] ? getNextWorkingDate(termDateSeq[idx-1]) : '')
+              date: termDateSeq[idx] || (idx > 0 && termDateSeq[idx - 1] ? getNextWorkingDate(termDateSeq[idx - 1]) : '')
             })).filter(e => e.date);
           } else {
-            // If no existing schedule, skip (it will be default-filled next time the admin opens it)
             continue;
           }
         }
@@ -206,21 +236,21 @@ const SchedulingView = () => {
           await examService.saveExamSchedule({
             gradeNumber: gradeNum,
             term: mappingTerm,
-            entries: gradeEntries
+            entries: gradeEntries,
+            academicYear: mappingYear
           });
         }
       }
 
-      // 3. Refresh local data to get the newly saved schedules for all grades
-      const finalData = await examService.getExamData();
+      // 3. Refresh local data
+      const finalData = await examService.getExamData(mappingYear);
       setExamData(finalData);
       if (finalData && finalData.config) setYearSetup(finalData.config);
 
-      // 4. GENERATE AUTOMATED ANNOUNCEMENT & PDF ROUTINE TABLE
-      const currentYear = new Date().getFullYear().toString();
+      // 4. Notification
       const routine_table = {
         term: mappingTerm,
-        year: currentYear,
+        year: mappingYear.toString(),
         grades: allGrades.map(g => {
           const schedule = finalData?.schedules?.find(
             s => s.gradeNumber.toString() === g.gradeNumber.toString() && s.term === mappingTerm
@@ -231,7 +261,7 @@ const SchedulingView = () => {
               date: e.date.split('T')[0],
               day: new Date(e.date).toLocaleDateString('en-US', { weekday: 'long' }),
               subject: e.subjectId?.subjectName || 'N/A',
-              time: `${startTime} – ${parseInt(startTime) + Math.floor(duration/60)}:00 PM`
+              time: `${startTime} – ${parseInt(startTime) + Math.floor(duration / 60)}:00 PM`
             })) || []
           };
         }).filter(g => g.schedule.length > 0)
@@ -241,24 +271,24 @@ const SchedulingView = () => {
       const userData = userDataStr ? JSON.parse(userDataStr) : {};
 
       await notificationService.createNotification({
-        title: `Exam Routine – ${mappingTerm} ${currentYear}`,
-        message: `The official exam schedule for the ${mappingTerm} has been finalized. All students and staff can now check their specific grade-wise routines in the Academic Calendar on their dashboards.`,
+        title: `Exam Routine – ${mappingTerm} ${mappingYear}`,
+        message: `The official exam schedule for the ${mappingTerm} (${mappingYear}) has been finalized.`,
         priority: "important",
         targetGroup: "All School",
         sender: userData.fullName || "School Administration",
         senderId: userData._id || "ADMIN",
         senderType: "admin",
-        routine_table // Attached JSON data for portal-side rendering
+        routine_table
       });
 
       setIsMappingSaved(true);
-      toast({ type: 'success', message: `Dates synchronized and announcement published for ALL grades in ${mappingTerm}!` });
+      toast({ type: 'success', message: `Schedule published for ${mappingYear}!` });
       setTimeout(() => setIsMappingSaved(false), 3000);
       setLoading(false);
 
     } catch (error) {
       console.error("Failed to publish schedule:", error);
-      toast({ type: 'error', message: 'Failed to publish schedule or send announcement' });
+      toast({ type: 'error', message: 'Failed to publish schedule' });
       setLoading(false);
     }
   };
@@ -302,7 +332,7 @@ const SchedulingView = () => {
 
       // Re-calculate Day Sequence
       newSlots = newSlots.map((s, i) => ({ ...s, slotOrder: i + 1 }));
-      
+
       // Update the universal term date sequence in state
       setYearSetup(prev => ({
         ...prev,
@@ -371,8 +401,25 @@ const SchedulingView = () => {
         </div>
 
         <div className="p-8 lg:p-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
-            {/* Setup Exam Button replaced Grade Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-end">
+            {/* Year Selection Dropdown */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">Academic Year</label>
+              <div className="relative group">
+                <select
+                  value={mappingYear}
+                  onChange={(e) => setMappingYear(Number(e.target.value))}
+                  className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer"
+                >
+                  {[2082, 2083, 2084].map(y => (
+                    <option key={y} value={y}>{y} BS</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Setup Exam Button */}
             <div className="space-y-3">
               <button
                 onClick={() => setIsSetupModalOpen(true)}
@@ -409,7 +456,7 @@ const SchedulingView = () => {
           <div className="mt-10 flex flex-col md:flex-row items-center justify-between gap-6 pt-10 border-t border-slate-50 dark:border-slate-800">
             <div className="flex items-center gap-4">
               <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-emerald-500 font-black text-[10px] capitalize tracking-widest">
-                Template Active: {yearSetup.termsCount} Terms Plan
+                Template Active: {yearSetup.termsCount} Terms Plan ({mappingYear} BS)
               </div>
               <p className="text-[11px] font-bold text-slate-400 capitalize tracking-widest leading-none">
                 Global structure applied to all grade levels
@@ -443,7 +490,18 @@ const SchedulingView = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Session Dropdown REMOVED */}
+              <div className="relative group">
+                <select
+                  value={mappingYear}
+                  onChange={(e) => setMappingYear(Number(e.target.value))}
+                  className="appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-xs font-bold text-slate-700 dark:text-white capitalize outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
+                >
+                  {[2082, 2083, 2084].map(y => (
+                    <option key={y} value={y} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{y} BS</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none" />
+              </div>
 
               <div className="relative group">
                 <select

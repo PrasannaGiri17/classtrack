@@ -6,7 +6,13 @@ import {
   Clock,
   ChevronLeft,
   ArrowRight,
-  ChevronDown
+  ChevronDown,
+  Calendar,
+  ShieldCheck,
+  Mail,
+  X,
+  RefreshCcw,
+  Zap
 } from 'lucide-react';
 
 // Sub-components
@@ -21,6 +27,9 @@ import routineService from '../Api/routineService';
 import adminService from '../Api/adminService';
 import { toast } from '../MainSystemComponents/Toast';
 import { Loader2 } from 'lucide-react';
+import PortalPopup from '../MainSystemComponents/PortalPopup';
+import YearSwitchPopup from '../AdminComponents/SchoolManagement/YearSwitchPopup';
+
 
 
 const SchoolManagement = () => {
@@ -30,7 +39,9 @@ const SchoolManagement = () => {
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isSavingHours, setIsSavingHours] = useState(false);
   const [newSlot, setNewSlot] = useState({ type: 'subject', label: '', durationMinutes: 45, breakType: 'Short' });
+  const [isSwitchPopupOpen, setIsSwitchPopupOpen] = useState(false);
   const [adminSchoolId, setAdminSchoolId] = useState(localStorage.getItem("schoolId") ? Number(localStorage.getItem("schoolId")) : null);
+  const [currentAdminEmail, setCurrentAdminEmail] = useState("");
 
   // --- Shared Global State ---
   const [schoolConfig, setSchoolConfig] = useState({
@@ -71,16 +82,23 @@ const SchoolManagement = () => {
 
         console.log(`Fetching admin profile for adminId: ${adminId}`);
         const adminProfile = await adminService.getAdminById(adminId);
-        const schoolId = adminProfile?.schoolId;
-        if (schoolId) {
-          setAdminSchoolId(schoolId);
-          localStorage.setItem("schoolId", schoolId);
-          console.log(`Admin profile found, schoolId: ${schoolId}`);
+        let currentSchoolId = null;
+
+        if (adminProfile) {
+          if (adminProfile.schoolId) {
+            currentSchoolId = adminProfile.schoolId;
+            setAdminSchoolId(currentSchoolId);
+            localStorage.setItem("schoolId", currentSchoolId);
+            console.log(`Admin profile found, schoolId: ${currentSchoolId}`);
+          }
+          if (adminProfile.email) {
+            setCurrentAdminEmail(adminProfile.email);
+          }
         } else {
-          console.warn("Admin profile found but no schoolId associated.");
+          console.warn("Admin profile not found.");
         }
 
-        const effectiveSchoolId = schoolId || adminSchoolId;
+        const effectiveSchoolId = currentSchoolId || adminSchoolId;
         if (!effectiveSchoolId) {
           console.warn("No effective schoolId available to fetch data.");
           return;
@@ -552,7 +570,15 @@ const SchoolManagement = () => {
             <HubCard icon={Layers} color="bg-blue-500" title="Grade & Sections" desc="Define class hierarchies and active learning sections." onClick={() => setActiveView('grades')} />
             <HubCard icon={BookOpen} color="bg-amber-500" title="School Subjects" desc="Manage core mandatory subjects and specialized electives." onClick={() => setActiveView('curriculum')} />
             <HubCard icon={Clock} color="bg-indigo-600" title="Routine Structure" desc="Set universal school day frameworks and period skeletons." onClick={() => setActiveView('routine')} />
+            <HubCard icon={RefreshCcw} color="bg-rose-500" title="Next Year Switch" desc="Transition school records to the next academic cycle (2083)." onClick={() => setIsSwitchPopupOpen(true)} />
           </div>
+
+          <YearSwitchPopup 
+            isOpen={isSwitchPopupOpen} 
+            onClose={() => setIsSwitchPopupOpen(false)} 
+            currentYear={2082}
+            schoolEmail={currentAdminEmail || schoolConfig.schoolEmail}
+          />
         </div>
       ) : (
         <div className="max-w-full mx-auto animate-in slide-in-from-bottom-2 duration-300">
@@ -582,5 +608,7 @@ const HubCard = ({ icon: Icon, color, title, desc, onClick }) => (
     <div className="absolute top-8 right-8 text-slate-200 group-hover:text-emerald-500 transition-colors"><ArrowRight size={20} /></div>
   </button>
 );
+
+
 
 export default SchoolManagement;

@@ -625,8 +625,8 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
 
 const SubjectResultCard = ({ s }) => {
   const radius = 45;
-  const circumference = 2 * Math.PI * radius; 
-  const totalFullMarks = 100; 
+  const circumference = 2 * Math.PI * radius;
+  const totalFullMarks = 100;
   const overallPercent = ((s.theory + (s.practical || 0)) / totalFullMarks) * 100;
   const theoryDash = (s.theory / totalFullMarks) * circumference;
   const practicalDash = (s.practical / totalFullMarks) * circumference;
@@ -655,7 +655,7 @@ const SubjectResultCard = ({ s }) => {
 
             {/* Practical arc — indigo, 25% region, starts after theory zone */}
             {s.maxPractical > 0 && (
-            <circle
+              <circle
                 cx="55" cy="55" r={radius}
                 fill="none" stroke="#818cf8" strokeWidth="5"
                 strokeDasharray={`${practicalDash} ${circumference}`}
@@ -1003,7 +1003,7 @@ const StudentMePage = () => {
         gradeService.getGrades(),
         examService.getExamData()
       ]);
-      
+
       setExamConfig(examConfigData);
 
       if (examConfigData && examConfigData.termStatuses) {
@@ -1040,10 +1040,10 @@ const StudentMePage = () => {
       // Sort ALL grade results by percentage descending
       const sortedByGrade = uniqueGradeResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
       const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === student._id?.toString());
-      
+
       // Filter for current section only
       const currentSectionName = (student.sectionId?.sectionName || student.section || "").toString().trim().toLowerCase();
-      const sectionResults = uniqueGradeResults.filter(r => 
+      const sectionResults = uniqueGradeResults.filter(r =>
         (r.sectionName || "").toString().trim().toLowerCase() === currentSectionName
       );
       const sortedBySection = sectionResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
@@ -1203,8 +1203,8 @@ const StudentMePage = () => {
                                 setIsTermDropdownOpen(false);
                               }}
                               className={`w-full px-5 py-3 text-[11px] font-black text-left rounded-2xl transition-all uppercase tracking-widest ${selectedTerm === term
-                                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
+                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
                                 }`}
                             >
                               {term}

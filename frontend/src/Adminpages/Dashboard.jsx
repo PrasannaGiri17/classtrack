@@ -20,10 +20,12 @@ import attendanceService from '../Api/attendanceService';
 import calendarService from '../Api/calendarService';
 import resultService from '../Api/resultService';
 import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
+import { useAuth } from '../context/AuthContext';
 
 const NEPALI_MONTHS = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
 
 const DashboardPage = () => {
+  const { schoolId } = useAuth();
   const [selectedClass, setSelectedClass] = useState('All Classes');
   const [totalStudentsCount, setTotalStudentsCount] = useState(0);
   const [statsData, setStatsData] = useState([
@@ -39,7 +41,7 @@ const DashboardPage = () => {
       try {
         const [students, teachers, events, results] = await Promise.all([
           studentService.getStudents(),
-          teacherService.getAllTeachers(),
+          teacherService.getAllTeachers(schoolId),
           calendarService.getEvents(),
           resultService.getResultsByGradeSectionTerm()
         ]);
@@ -87,7 +89,7 @@ const DashboardPage = () => {
       }
     };
     fetchStats();
-  }, []);
+  }, [schoolId]);
 
   const calculateWeeklySummary = (attendanceRecords, holidays = []) => {
     const today = new Date();

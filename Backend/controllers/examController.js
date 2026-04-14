@@ -16,9 +16,16 @@ const buildTermNames = (termsCount, includeMidTerm) => {
 // @route   GET /api/exams
 exports.getExamData = async (req, res) => {
   try {
-    let exam = await Exam.findOne({ schoolId: req.schoolId });
+    const { academicYear } = req.query;
+    const filter = { schoolId: req.schoolId };
+    if (academicYear) filter.academicYear = Number(academicYear);
+
+    let exam = await Exam.findOne(filter);
     if (!exam) {
-      exam = new Exam({ schoolId: req.schoolId });
+      exam = new Exam({ 
+        schoolId: req.schoolId,
+        academicYear: academicYear ? Number(academicYear) : undefined
+      });
       await exam.save();
     }
 
@@ -58,11 +65,17 @@ exports.getExamData = async (req, res) => {
 // @route   POST /api/exams/config
 exports.saveExamConfig = async (req, res) => {
   try {
-    const { termsCount, includeMidTerm, globalStartTime, globalDuration, termDates } = req.body;
+    const { termsCount, includeMidTerm, globalStartTime, globalDuration, termDates, academicYear } = req.body;
 
-    let exam = await Exam.findOne({ schoolId: req.schoolId });
+    const filter = { schoolId: req.schoolId };
+    if (academicYear) filter.academicYear = Number(academicYear);
+
+    let exam = await Exam.findOne(filter);
     if (!exam) {
-      exam = new Exam({ schoolId: req.schoolId });
+      exam = new Exam({ 
+        schoolId: req.schoolId,
+        academicYear: academicYear ? Number(academicYear) : undefined
+      });
     }
 
     exam.config = {
@@ -84,11 +97,17 @@ exports.saveExamConfig = async (req, res) => {
 // @route   POST /api/exams/schedule
 exports.saveExamSchedule = async (req, res) => {
   try {
-    const { gradeNumber, term, entries } = req.body;
+    const { gradeNumber, term, entries, academicYear } = req.body;
 
-    let exam = await Exam.findOne({ schoolId: req.schoolId });
+    const filter = { schoolId: req.schoolId };
+    if (academicYear) filter.academicYear = Number(academicYear);
+
+    let exam = await Exam.findOne(filter);
     if (!exam) {
-      exam = new Exam({ schoolId: req.schoolId });
+      exam = new Exam({ 
+        schoolId: req.schoolId,
+        academicYear: academicYear ? Number(academicYear) : undefined
+      });
     }
 
     // Find if schedule exists for this grade and term
@@ -124,11 +143,17 @@ exports.saveExamSchedule = async (req, res) => {
 // @route   PATCH /api/exams/term-status
 exports.updateTermStatus = async (req, res) => {
   try {
-    const { term, isOpen } = req.body;
+    const { term, isOpen, academicYear } = req.body;
 
-    let exam = await Exam.findOne({ schoolId: req.schoolId });
+    const filter = { schoolId: req.schoolId };
+    if (academicYear) filter.academicYear = Number(academicYear);
+
+    let exam = await Exam.findOne(filter);
     if (!exam) {
-      exam = new Exam({ schoolId: req.schoolId });
+      exam = new Exam({ 
+        schoolId: req.schoolId,
+        academicYear: academicYear ? Number(academicYear) : undefined
+      });
     }
 
     const statusIndex = exam.termStatuses.findIndex(s => s.term === term);
@@ -150,11 +175,17 @@ exports.updateTermStatus = async (req, res) => {
 // @route   PATCH /api/exams/publish-status
 exports.updatePublishStatus = async (req, res) => {
   try {
-    const { term, isPublished } = req.body;
+    const { term, isPublished, academicYear } = req.body;
  
-    let exam = await Exam.findOne({ schoolId: req.schoolId });
+    const filter = { schoolId: req.schoolId };
+    if (academicYear) filter.academicYear = Number(academicYear);
+
+    let exam = await Exam.findOne(filter);
     if (!exam) {
-      exam = new Exam({ schoolId: req.schoolId });
+      exam = new Exam({ 
+        schoolId: req.schoolId,
+        academicYear: academicYear ? Number(academicYear) : undefined
+      });
     }
  
     const statusIndex = exam.termStatuses.findIndex(s => s.term === term);

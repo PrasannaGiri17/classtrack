@@ -185,6 +185,9 @@ const ClassroomPage = () => {
   // Filter pool students for the modal
   const filteredModalPool = useMemo(() => {
     return globalStudentPool.filter(s => {
+      // Exclude graduated students
+      if (s.status === 'graduated') return false;
+      
       const fullName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase();
       const sId = (s.studentId || "").toLowerCase();
       const query = modalSearchQuery.toLowerCase();

@@ -122,8 +122,8 @@ exports.getEvents = async (req, res) => {
       ];
     }
 
-    // Fetch Events, Holidays and Exam Data concurrently
-    const [events, dbHolidays, examData] = await Promise.all([
+    // Fetch Events, Holidays and All Exam Cycles concurrently
+    const [events, dbHolidays, examDocs] = await Promise.all([
       Event.find(query).sort({ startDate: 1 }),
       Holiday.find({ 
         $or: [
@@ -132,77 +132,79 @@ exports.getEvents = async (req, res) => {
           { schoolId: null }
         ]
       }),
-      Exam.findOne({ schoolId: req.schoolId }).populate('schedules.entries.subjectId')
+      Exam.find({ schoolId: req.schoolId }).populate('schedules.entries.subjectId')
     ]);
 
     // Map and filter Exams based on role
     let mappedExams = [];
-    if (examData && examData.schedules) {
-      if (role === 'student' && req.user.studentId) {
-        // Find the student's grade
-        const student = await Student.findById(req.user.studentId);
-        const studentClass = student ? student.studentClass : null;
+    for (const examData of examDocs) {
+      if (examData && examData.schedules) {
+        if (role === 'student' && req.user.studentId) {
+          // Find the student's grade
+          const student = await Student.findById(req.user.studentId);
+          const studentClass = student ? student.studentClass : null;
 
-        if (studentClass !== null) {
-          // Filter exams for this specific student's grade
+          if (studentClass !== null) {
+            // Filter exams for this specific student's grade
+            examData.schedules.forEach(schedule => {
+              if (Number(schedule.gradeNumber) === Number(studentClass)) {
+                schedule.entries.forEach(entry => {
+                  if (entry.date) {
+                    const entryDate = new Date(entry.date);
+                    // Apply date filter
+                    if ((from && to) && (entryDate < new Date(from) || entryDate > new Date(to))) return;
+
+                    mappedExams.push({
+                      _id: `exam-${entry._id}`,
+                      title: `Exam: ${entry.subjectId ? entry.subjectId.subjectName : 'Subject'}`,
+                      type: 'EXAMS',
+                      description: `${schedule.term} (${examData.academicYear}) - Day ${entry.slotOrder || ''}`,
+                      startDate: entryDate,
+                      endDate: entryDate,
+                      color: 'blue',
+                      audience: 'Students'
+                    });
+                  }
+                });
+              }
+            });
+          }
+        } else if (role === 'admin' || role === 'teacher') {
+          // Show "Exam Week" summary for each term
+          // Group all entries by Term to find start and end dates
+          const termSummary = {};
           examData.schedules.forEach(schedule => {
-            if (Number(schedule.gradeNumber) === Number(studentClass)) {
-              schedule.entries.forEach(entry => {
-                if (entry.date) {
-                  const entryDate = new Date(entry.date);
-                  // Apply date filter
-                  if ((from && to) && (entryDate < new Date(from) || entryDate > new Date(to))) return;
+            if (!termSummary[schedule.term]) {
+              termSummary[schedule.term] = { min: null, max: null };
+            }
+            schedule.entries.forEach(entry => {
+              if (entry.date) {
+                const d = new Date(entry.date);
+                if (!termSummary[schedule.term].min || d < termSummary[schedule.term].min) termSummary[schedule.term].min = d;
+                if (!termSummary[schedule.term].max || d > termSummary[schedule.term].max) termSummary[schedule.term].max = d;
+              }
+            });
+          });
 
-                  mappedExams.push({
-                    _id: `exam-${entry._id}`,
-                    title: `Exam: ${entry.subjectId ? entry.subjectId.subjectName : 'Subject'}`,
-                    type: 'EXAMS',
-                    description: `${schedule.term} - Day ${entry.slotOrder || ''}`,
-                    startDate: entryDate,
-                    endDate: entryDate,
-                    color: 'blue',
-                    audience: 'Students'
-                  });
-                }
+          Object.keys(termSummary).forEach(term => {
+            const { min, max } = termSummary[term];
+            if (min && max) {
+              // Apply date filter
+              if ((from && to) && (max < new Date(from) || min > new Date(to))) return;
+
+              mappedExams.push({
+                _id: `exam-week-${term.replace(/\s+/g, '-')}-${examData.academicYear}`,
+                title: `Exam Week: ${term}`,
+                type: 'EXAMS',
+                description: `Final assessment period for cycle ${examData.academicYear}`,
+                startDate: min,
+                endDate: max,
+                color: 'blue',
+                audience: role === 'admin' ? 'Admins' : 'Teachers'
               });
             }
           });
         }
-      } else if (role === 'admin' || role === 'teacher') {
-        // Show "Exam Week" summary for each term
-        // Group all entries by Term to find start and end dates
-        const termSummary = {};
-        examData.schedules.forEach(schedule => {
-          if (!termSummary[schedule.term]) {
-            termSummary[schedule.term] = { min: null, max: null };
-          }
-          schedule.entries.forEach(entry => {
-            if (entry.date) {
-              const d = new Date(entry.date);
-              if (!termSummary[schedule.term].min || d < termSummary[schedule.term].min) termSummary[schedule.term].min = d;
-              if (!termSummary[schedule.term].max || d > termSummary[schedule.term].max) termSummary[schedule.term].max = d;
-            }
-          });
-        });
-
-        Object.keys(termSummary).forEach(term => {
-          const { min, max } = termSummary[term];
-          if (min && max) {
-            // Apply date filter
-            if ((from && to) && (max < new Date(from) || min > new Date(to))) return;
-
-            mappedExams.push({
-              _id: `exam-week-${term.replace(/\s+/g, '-')}`,
-              title: `Exam Week: ${term}`,
-              type: 'EXAMS',
-              description: `Final assessment period for all classes`,
-              startDate: min,
-              endDate: max,
-              color: 'blue',
-              audience: role === 'admin' ? 'Admins' : 'Teachers'
-            });
-          }
-        });
       }
     }
 
@@ -211,12 +213,21 @@ exports.getEvents = async (req, res) => {
       .filter(h => h.gregorian_date) // Only process if gregorian_date exists
       .map(h => {
         try {
-          // Normalize "2025/4/14" or "2025-4-14" to "2025-04-14"
-          const cleanDate = h.gregorian_date.toString().replace(/\//g, '-');
-          const parts = cleanDate.split('-');
-          if (parts.length !== 3) return null;
+          let normalizedDate = "";
           
-          const normalizedDate = parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+          if (h.gregorian_date instanceof Date) {
+            normalizedDate = h.gregorian_date.toISOString().split('T')[0];
+          } else {
+            // Clean string: Normalize "2025/4/14" or "2025-4-14" to "2025-04-14"
+            const cleanDate = h.gregorian_date.toString().replace(/\//g, '-');
+            const parts = cleanDate.split('-');
+            if (parts.length === 3) {
+              normalizedDate = parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+            } else {
+              // Try parsing as raw date if split failed
+              normalizedDate = new Date(h.gregorian_date).toISOString().split('T')[0];
+            }
+          }
           
           return {
             ...h.toObject(),
@@ -226,7 +237,7 @@ exports.getEvents = async (req, res) => {
           return null;
         }
       })
-      .filter(h => h !== null)
+      .filter(h => h !== null && h.normalizedDate)
       .filter(h => {
         if (!from || !to) return true;
         return h.normalizedDate >= from && h.normalizedDate <= to;

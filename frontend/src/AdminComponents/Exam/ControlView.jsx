@@ -75,9 +75,21 @@ const ControlView = ({
         <div className="flex flex-col">
           {/* Section 1: Marking Portal */}
           <div className="p-10 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-3 mb-8">
-              <ClipboardCheck className="text-emerald-500" size={24} />
-              <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Marking Portal Control</h4>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+              <div className="flex items-center gap-3">
+                <ClipboardCheck className="text-emerald-500" size={24} />
+                <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Marking Portal Control</h4>
+              </div>
+              <div className="relative min-w-[120px]">
+                <select
+                  value={resYear}
+                  onChange={e => setResYear(e.target.value)}
+                  className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-5 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none pr-10 cursor-pointer shadow-sm"
+                >
+                  {years.map(y => <option key={y} value={y}>{y} BS Cycle</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500" />
+              </div>
             </div>
             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[32px] overflow-hidden border border-slate-100 dark:border-slate-800">
               <table className="w-full text-left">
@@ -134,7 +146,17 @@ const ControlView = ({
                 <FileBarChart className="text-emerald-500" size={24} />
                 <h4 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Performance Analytics</h4>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative min-w-[120px]">
+                  <select
+                    value={resYear}
+                    onChange={e => setResYear(e.target.value)}
+                    className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-5 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none pr-10 cursor-pointer shadow-sm"
+                  >
+                    {years.map(y => <option key={y} value={y}>{y} BS Cycle</option>)}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                </div>
                 <div className="relative">
                   <select value={analyticsGrade} onChange={(e) => setAnalyticsGrade(e.target.value)} className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-5 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none pr-10">
                     {grades.map(g => <option key={g} value={g}>Grade {g}</option>)}
@@ -170,6 +192,18 @@ const ControlView = ({
 
             <div className="flex flex-col xl:flex-row items-center justify-between gap-6 mb-8 p-6 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px]">
               <div className="flex flex-wrap items-center gap-4">
+                {/* Year Selection Dropdown */}
+                <div className="relative min-w-[110px]">
+                  <select
+                    value={resYear}
+                    onChange={e => setResYear(e.target.value)}
+                    className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none pr-10 cursor-pointer"
+                  >
+                    {years.map(y => <option key={y} value={y}>{y} BS</option>)}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                </div>
+
                 <div className="relative min-w-[140px]">
                   <select value={resPhase} onChange={e => setResPhase(e.target.value)} className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none pr-10 cursor-pointer">
                     {initialPhases.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}

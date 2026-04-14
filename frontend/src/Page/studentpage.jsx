@@ -42,6 +42,7 @@ import gradeService from '../Api/gradeService';
 import examService from '../Api/examService';
 import feeService from '../Api/feeService';
 import calendarService from '../Api/calendarService';
+import flagService from '../Api/flagService';
 import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
 import Loading from '../MainSystemComponents/Loading';
 
@@ -63,7 +64,7 @@ const calculateAge = (dob) => {
 const NEPALI_MONTHS = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
 
 const STUDENT_ME_INITIAL = {
-    flag: "yellow",
+    flag: "green",
     name: 'Cristiano Ronaldo',
     rollNo: '07',
     studentId: 'S-2024001',
@@ -94,7 +95,7 @@ const STUDENT_ME_INITIAL = {
         absent: 18
     },
     marksheet: {
-        termName: 'First Term Examination 2081',
+        termName: 'First Term Examination 2080',
         percentage: '86.6%',
         gradePoint: '3.8',
         overallGrade: 'A',
@@ -362,12 +363,12 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
             accent: 'bg-red-500',
             label: 'Red Flaged'
         },
-        yellow: {
+        amber: {
             banner: 'bg-amber-500 dark:bg-amber-600',
             badge: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
             icon: 'text-amber-500',
             accent: 'bg-amber-500',
-            label: 'Yellow Flaged'
+            label: 'Amber Flaged'
         },
         green: {
             banner: 'bg-emerald-600 dark:bg-emerald-700',
@@ -550,8 +551,8 @@ const SubjectResultCard = ({ s }) => {
     const circumference = 2 * Math.PI * radius;
     const totalFullMarks = 100;
     const overallPercent = ((s.theory + (s.practical || 0)) / totalFullMarks) * 100;
-    const theoryDash      = (s.theory    / totalFullMarks) * circumference;
-    const practicalDash   = (s.practical / totalFullMarks) * circumference;
+    const theoryDash = (s.theory / totalFullMarks) * circumference;
+    const practicalDash = (s.practical / totalFullMarks) * circumference;
 
     return (
         <div className="bg-slate-50 dark:bg-[#0b1220] rounded-[40px] p-8 border border-slate-200 dark:border-slate-800/60 shadow-xl flex flex-col items-center gap-8 group hover:border-emerald-500/30 transition-all duration-500 relative overflow-hidden">
@@ -776,7 +777,7 @@ const StudentPage = () => {
 
             // Filter for current section only (robust comparison)
             const currentSectionName = (sectionName || "").toString().trim().toLowerCase();
-            const sectionResults = uniqueGradeResults.filter(r => 
+            const sectionResults = uniqueGradeResults.filter(r =>
                 (r.sectionName || "").toString().trim().toLowerCase() === currentSectionName
             );
             const sortedBySection = sectionResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
@@ -854,10 +855,11 @@ const StudentPage = () => {
                 const startAD = convertBStoAD(`${curY}-01-01`);
                 const endAD = new Date().toISOString().split('T')[0];
 
-                const [studentRes, yearlyRes, holidaysList] = await Promise.all([
+                const [studentRes, yearlyRes, holidaysList, flagRes] = await Promise.all([
                     studentService.getStudentById(id),
                     attendanceService.getStudentYearlyAttendance(id, curY || 2081),
-                    calendarService.getEvents(startAD, endAD)
+                    calendarService.getEvents(startAD, endAD),
+                    flagService.getLatestFlag(id)
                 ]);
 
                 const data = studentRes;
@@ -905,7 +907,8 @@ const StudentPage = () => {
                     permanentAddress: data.Address,
                     dateOfBirth: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0].split('-').reverse().join('/') : null,
                     yearlyAttendance: finalYearly,
-                    feeStatus: finalFeeStatus
+                    feeStatus: finalFeeStatus,
+                    flag: flagRes?.flagColor || "green"
                 }));
 
                 await fetchResults(id, data.studentClass, data.sectionId?.sectionName, data.gradeId?._id);
@@ -986,44 +989,43 @@ const StudentPage = () => {
                                 <label className="absolute -top-2 left-4 px-1.5 bg-white dark:bg-slate-900 text-[8px] font-black text-slate-400 tracking-widest z-10 transition-colors group-focus-within/select:text-emerald-500">
                                     Academic Term
                                 </label>
-                            <div className="flex items-center relative">
-                                <button
-                                    onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
-                                    className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 text-sm font-black text-slate-700 dark:text-slate-200 outline-none transition-all cursor-pointer shadow-inner min-w-[200px] tracking-wider group"
-                                >
-                                    {selectedTerm}
-                                    <ChevronDown size={18} className={`text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`} />
-                                </button>
+                                <div className="flex items-center relative">
+                                    <button
+                                        onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
+                                        className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 text-sm font-black text-slate-700 dark:text-slate-200 outline-none transition-all cursor-pointer shadow-inner min-w-[200px] tracking-wider group"
+                                    >
+                                        {selectedTerm}
+                                        <ChevronDown size={18} className={`text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`} />
+                                    </button>
 
-                                {isTermDropdownOpen && (
-                                    <>
-                                        <div 
-                                            className="fixed inset-0 z-[60]" 
-                                            onClick={() => setIsTermDropdownOpen(false)} 
-                                        />
-                                        <div className="absolute top-full left-0 w-full mt-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
-                                            <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
-                                                {availableTerms.map(term => (
-                                                    <button
-                                                        key={term}
-                                                        onClick={() => {
-                                                            setSelectedTerm(term);
-                                                            setIsTermDropdownOpen(false);
-                                                        }}
-                                                        className={`w-full px-5 py-3 text-[11px] font-black text-left rounded-2xl transition-all uppercase tracking-widest ${
-                                                            selectedTerm === term 
-                                                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                                    {isTermDropdownOpen && (
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-[60]"
+                                                onClick={() => setIsTermDropdownOpen(false)}
+                                            />
+                                            <div className="absolute top-full left-0 w-full mt-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                                                <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
+                                                    {availableTerms.map(term => (
+                                                        <button
+                                                            key={term}
+                                                            onClick={() => {
+                                                                setSelectedTerm(term);
+                                                                setIsTermDropdownOpen(false);
+                                                            }}
+                                                            className={`w-full px-5 py-3 text-[11px] font-black text-left rounded-2xl transition-all uppercase tracking-widest ${selectedTerm === term
+                                                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                                                                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
-                                                        }`}
-                                                    >
-                                                        {term}
-                                                    </button>
-                                                ))}
+                                                                }`}
+                                                        >
+                                                            {term}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

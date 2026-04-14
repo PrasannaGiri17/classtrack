@@ -49,10 +49,17 @@ const StudentRecord = () => {
     }
   };
 
-  const filtered = Array.isArray(students) ? students.filter(s =>
-    `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    String(s.studentId || "").toLowerCase().includes(searchQuery.toLowerCase())
-  ) : [];
+  const filtered = Array.isArray(students) ? [...students]
+    .filter(s =>
+      `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(s.studentId || "").toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Sort graduated students to the bottom
+      if (a.status === 'graduated' && b.status !== 'graduated') return 1;
+      if (a.status !== 'graduated' && b.status === 'graduated') return -1;
+      return 0;
+    }) : [];
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const currentItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -198,8 +205,12 @@ const StudentRecord = () => {
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Assigned Grade</p>
                     <div className="flex flex-wrap justify-center gap-1.5">
-                      <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700">
-                        Class {s.studentClass}
+                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                        s.status === 'graduated'
+                          ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-700 shadow-sm"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-700"
+                      }`}>
+                        {s.status === 'graduated' ? 'GRADUATED' : `Class ${s.studentClass}`}
                       </span>
                     </div>
                   </div>
@@ -254,8 +265,12 @@ const StudentRecord = () => {
                         </div>
                       </td>
                       <td className="px-6 py-6">
-                        <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black tracking-widest text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700 whitespace-nowrap">
-                          Grade {s.studentClass}
+                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black tracking-widest border whitespace-nowrap ${
+                          s.status === 'graduated'
+                            ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-700"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-700"
+                        }`}>
+                          {s.status === 'graduated' ? 'GRADUATED' : `Grade ${s.studentClass}`}
                         </span>
                       </td>
                       <td className="px-6 py-6 text-center">

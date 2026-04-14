@@ -85,12 +85,15 @@ const DetailedCalendar = ({ currentDate, onMonthChange, events = [], mode = 'AD'
     return events.filter(e => {
       if (!e.startDate || !e.endDate) return false;
 
+      // Normalize start/end to 00:00:00 local for comparison
       const start = new Date(e.startDate);
       const end = new Date(e.endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(0, 0, 0, 0);
+      
+      const startLocal = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const endLocal = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const currentLocal = new Date(current.getFullYear(), current.getMonth(), current.getDate());
 
-      return current >= start && current <= end;
+      return currentLocal >= startLocal && currentLocal <= endLocal;
     });
   };
 

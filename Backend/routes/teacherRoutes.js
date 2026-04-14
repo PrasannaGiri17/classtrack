@@ -5,7 +5,7 @@ const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-router.get("/", teacherController.getAllTeachers);
+router.get("/", protect, teacherController.getAllTeachers);
 
 // IMPORTANT: put specific route before "/:id"
 router.get("/name/:name", teacherController.getTeacherByName);

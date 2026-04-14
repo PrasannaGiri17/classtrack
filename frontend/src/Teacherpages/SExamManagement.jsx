@@ -34,6 +34,7 @@ const ExamManagement = () => {
   const [teacherSubjects, setTeacherSubjects] = useState([]); // from teacher profile
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedYear, setSelectedYear] = useState(2082); // NEW: Academic Year selection
   const [examTerms, setExamTerms] = useState([]);      // from backend
   const [lockedTerms, setLockedTerms] = useState(new Set()); // terms where isOpen=false
   const [selectedTerm, setSelectedTerm] = useState('');
@@ -76,9 +77,9 @@ const ExamManagement = () => {
         setSectionMap(sMap);
         setGradeMap(gMap);
 
-        // Fetch exam config to build terms list
+        // Fetch exam config for selected year to build terms list
         try {
-          const examRes = await axios.get('http://localhost:7000/api/exams');
+          const examRes = await axios.get(`http://localhost:7000/api/exams?academicYear=${selectedYear}`);
           const examData = examRes.data;
           const { termsCount = 2, includeMidTerm = true } = examData?.config || {};
 
@@ -167,7 +168,7 @@ const ExamManagement = () => {
       }
     };
     init();
-  }, []);
+  }, [selectedYear]);
 
   // 2. Load students + existing results whenever filters change
   useEffect(() => {
@@ -190,7 +191,7 @@ const ExamManagement = () => {
         // Fetch both students and their existing results for this term
         const [studentsData, resultsData] = await Promise.all([
           studentService.getStudentsBySection(null, sectionId),
-          axios.get(`http://localhost:7000/api/results?gradeId=${gradeId}&sectionName=${section}&term=${selectedTerm}`)
+          axios.get(`http://localhost:7000/api/results?gradeId=${gradeId}&sectionName=${section}&term=${selectedTerm}&academicYear=${selectedYear}`)
         ]);
 
         const students = (Array.isArray(studentsData) ? studentsData : []).map(s => {
@@ -223,7 +224,7 @@ const ExamManagement = () => {
       }
     };
     fetchStudentsAndMarks();
-  }, [selectedClass, selectedTerm, selectedSubject, sectionMap, gradeMap, fullSubjects]);
+  }, [selectedClass, selectedTerm, selectedSubject, sectionMap, gradeMap, fullSubjects, selectedYear]);
 
   // 3. Persist selections to localStorage
   useEffect(() => {
@@ -291,6 +292,7 @@ const ExamManagement = () => {
           gradeId: gradeId,
           sectionName: section,
           term: selectedTerm,
+          academicYear: selectedYear, // Pass academic year
           marks: [{
             subjectId: subject.id,
             theoryMarks: Number(entry.theory) || 0,
@@ -305,7 +307,7 @@ const ExamManagement = () => {
 
       toast({
         type: 'success',
-        message: `Evaluation for G${gradeId.toString().slice(-4)} ${section} - ${selectedSubject} published successfully.`,
+        message: `Evaluation for G${gradeId.toString().slice(-4)} ${section} - ${selectedSubject} (${selectedYear}) published successfully.`,
         duration: 3000
       });
     } catch (err) {
@@ -337,13 +339,28 @@ const ExamManagement = () => {
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Mark Entry Portal</h1>
-            <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">Evaluation & Assessment Module</p>
+            <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">Evaluation & Assessment Module ({selectedYear} Cycle)</p>
           </div>
         </div>
       </div>
 
       {/* Control Panel */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-center bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all">
+        {/* Year Selector */}
+        <div className="xl:col-span-2 relative group">
+          <label className="absolute -top-2.5 left-5 bg-white dark:bg-slate-900 px-2 text-[9px] font-black text-emerald-600 tracking-widest z-10">Academic Year</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
+          >
+            {[2082, 2083, 2084].map(y => (
+              <option key={y} value={y}>{y} BS</option>
+            ))}
+          </select>
+          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+        </div>
+
         {/* Class Selector */}
         <div className="xl:col-span-3 relative group">
           <label className="absolute -top-2.5 left-5 bg-white dark:bg-slate-900 px-2 text-[9px] font-black text-emerald-600 tracking-widest z-10">Select Class</label>

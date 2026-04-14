@@ -244,7 +244,7 @@ exports.resetPassword = async (req, res) => {
 /* ---------- FORGOT PASSWORD (OTP FLOW) ---------- */
 exports.forgotPasswordOtp = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, type } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
 
     const user = await User.findOne({ email: email.trim() });
@@ -261,11 +261,19 @@ exports.forgotPasswordOtp = async (req, res) => {
     user.resetPasswordOtpAttempts = 0;
     await user.save();
 
+    let subject = "Your Password Reset OTP";
+    let bodyText = "You requested a password reset via OTP.";
+
+    if (type === "year_switch") {
+      subject = "Next Year Switch Confirmation OTP";
+      bodyText = "You requested to transition the school records to the next academic cycle.";
+    }
+
     await sendEmail({
       to: email.trim(),
-      subject: "Your Password Reset OTP",
+      subject,
       html: `
-        <p>You requested a password reset via OTP.</p>
+        <p>${bodyText}</p>
         <p>Your 6-digit verification code is: <strong>${otp}</strong></p>
         <p>This code will expire in 10 minutes.</p>
         <p>Do not share this code with anyone.</p>

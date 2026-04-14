@@ -5,13 +5,20 @@ const Student = require("../models/studentModel");
 // @route   POST /api/results
 exports.upsertResult = async (req, res) => {
   try {
-    const { studentId, gradeId, sectionName, term, marks } = req.body;
+    const { studentId, gradeId, sectionName, term, marks, academicYear } = req.body;
 
-    let result = await Result.findOne({ schoolId: req.schoolId,  studentId, term });
+    // Use academicYear to find the correct partitioned record
+    let result = await Result.findOne({ 
+      schoolId: req.schoolId, 
+      studentId, 
+      term, 
+      academicYear: academicYear || undefined // Result model pre-save will handle if not provided
+    });
 
     if (result) {
       result.gradeId = gradeId;
       result.sectionName = sectionName;
+      if (academicYear) result.academicYear = academicYear;
       
       // Merge marks: update if subject matches, otherwise push
       const incomingMarks = Array.isArray(marks) ? marks : [marks];
@@ -34,6 +41,7 @@ exports.upsertResult = async (req, res) => {
         gradeId,
         sectionName,
         term,
+        academicYear,
         marks: Array.isArray(marks) ? marks : [marks]
       });
       await result.save();
@@ -55,11 +63,12 @@ exports.upsertResult = async (req, res) => {
 // @route   GET /api/results
 exports.getResults = async (req, res) => {
   try {
-    const { gradeId, sectionName, term } = req.query;
+    const { gradeId, sectionName, term, academicYear } = req.query;
     const filter = { schoolId: req.schoolId };
     if (gradeId) filter.gradeId = gradeId;
     if (sectionName) filter.sectionName = sectionName;
     if (term) filter.term = term;
+    if (academicYear) filter.academicYear = academicYear;
 
     const results = await Result.find(filter)
       .populate('studentId')
@@ -77,11 +86,83 @@ exports.getResults = async (req, res) => {
 exports.getStudentResults = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const results = await Result.find({ schoolId: req.schoolId,  studentId })
+    const { academicYear } = req.query;
+
+    const filter = { schoolId: req.schoolId, studentId };
+    if (academicYear) filter.academicYear = academicYear;
+
+    const results = await Result.find(filter)
       .populate('gradeId')
       .populate('marks.subjectId');
     res.status(200).json(results);
   } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// @desc    Get Performance Analytics (Averages)
+// @route   GET /api/results/analytics
+exports.getAnalytics = async (req, res) => {
+  try {
+    const { academicYear, gradeId, sectionName, term } = req.query;
+    const schoolId = req.schoolId;
+
+    const match = { schoolId: Number(schoolId) };
+    if (academicYear) match.academicYear = Number(academicYear);
+    if (term) match.term = term;
+
+    // 1. Grade-wise Averages
+    const gradeAverages = await Result.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: "$gradeId",
+          average: { $avg: "$summary.percentage" }
+        }
+      },
+      {
+        $lookup: {
+          from: "grades", 
+          localField: "_id",
+          foreignField: "_id",
+          as: "gradeDetails"
+        }
+      },
+      { $unwind: "$gradeDetails" },
+      {
+        $project: {
+          grade: "$gradeDetails.gradeNumber",
+          average: { $round: ["$average", 1] }
+        }
+      },
+      { $sort: { grade: 1 } }
+    ]);
+
+    // 2. Section-wise Averages for a specific Grade
+    let sectionAverages = [];
+    if (gradeId) {
+      const sectionMatch = { ...match, gradeId: new (require('mongoose').Types.ObjectId)(gradeId) };
+      sectionAverages = await Result.aggregate([
+        { $match: sectionMatch },
+        {
+          $group: {
+            _id: "$sectionName",
+            average: { $avg: "$summary.percentage" }
+          }
+        },
+        {
+          $project: {
+            section: "$_id",
+            average: { $round: ["$average", 1] }
+          }
+        },
+        { $sort: { section: 1 } }
+      ]);
+    }
+
+    res.status(200).json({ gradeAverages, sectionAverages });
+  } catch (error) {
+    console.error("Analytics Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
