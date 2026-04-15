@@ -2,9 +2,9 @@ import axios from "./axiosConfig";
 
 const API_URL = "http://localhost:7000/api/attendance";
 
-const getAttendance = async (sectionId, year, month) => {
+const getAttendance = async (sectionId, year, month, teacherId) => {
   const response = await axios.get(API_URL, {
-    params: { sectionId, year, month }
+    params: { sectionId, year, month, teacherId }
   });
   return response.data;
 };
@@ -24,11 +24,17 @@ const getStudentYearlyAttendance = async (studentId, year) => {
   return response.data;
 };
 
+const getAvailableYears = async () => {
+  const response = await axios.get(`${API_URL}/available-years`);
+  return response.data;
+};
+
 const attendanceService = {
   getAttendance,
   saveAttendance,
   getStudentMonthlyAttendance,
-  getStudentYearlyAttendance
+  getStudentYearlyAttendance,
+  getAvailableYears
 };
 
 export default attendanceService;

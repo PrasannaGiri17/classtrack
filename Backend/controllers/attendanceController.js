@@ -6,38 +6,64 @@ const mongoose = require("mongoose");
 // Get attendance records for a specific section (or entire school), year, and month
 const getAttendance = async (req, res) => {
   try {
-    const { sectionId, year, month } = req.query;
+    const { sectionId, month, teacherId: queryTeacherId } = req.query;
+    const year = Number(req.query.year);
     const schoolId = Number(req.schoolId);
+    // Prefer teacherId from query, then from request (if teacher is logged in)
+    // For teachers, req.user.teacherId contains the reference to the Teacher profile
+    const teacherId = queryTeacherId || (req.user?.role === 'teacher' ? req.user.teacherId : null);
 
     if (!year || !month) {
       return res.status(400).json({ message: "year and month are required." });
     }
 
     let attendance;
+    const populateOptions = [
+      { path: "gradeId", select: "gradeNumber gradeName sections" },
+      { path: "attendanceData.studentId", select: "firstName lastName studentId profilePhoto" }
+    ];
+
     if (sectionId) {
-      attendance = await ClassroomAttendance.findOne({ sectionId, year, month })
-        .populate("attendanceData.studentId", "firstName lastName studentId profilePhoto");
-      
-      if (!attendance) {
-        return res.status(200).json({ attendanceData: [] });
-      }
-      return res.status(200).json(attendance);
+      attendance = await ClassroomAttendance.findOne({ schoolId, sectionId, year, month }).populate(populateOptions);
+    } else if (teacherId) {
+      // Find teacher-specific registry for that year/month
+      attendance = await ClassroomAttendance.findOne({ schoolId, teacherId, year, month }).populate(populateOptions);
     } else {
       // School-wide aggregation for Admin
-      const records = await ClassroomAttendance.find({ schoolId, year, month })
-        .populate("attendanceData.studentId", "firstName lastName studentId profilePhoto");
+      const records = await ClassroomAttendance.find({ schoolId, year, month }).populate(populateOptions);
 
       if (!records || records.length === 0) {
         return res.status(200).json({ attendanceData: [] });
       }
 
-      // Merge all attendanceData from all section-wise records into one flat array for the frontend
-      const mergedData = records.reduce((acc, current) => {
-        return acc.concat(current.attendanceData || []);
-      }, []);
-
+      const mergedData = records.reduce((acc, current) => acc.concat(current.attendanceData || []), []);
       return res.status(200).json({ attendanceData: mergedData });
     }
+
+    if (!attendance) {
+      return res.status(200).json({ attendanceData: [] });
+    }
+
+    // Process section name and ensure dailyStatus Maps are plain objects
+    const result = attendance.toObject({ virtuals: true });
+    
+    if (result.gradeId && result.sectionId) {
+       const section = result.gradeId.sections?.find(s => s._id.toString() === result.sectionId.toString());
+       result.sectionName = section?.sectionName;
+       result.gradeNumber = result.gradeId.gradeNumber;
+    }
+
+    // Ensure Map types are converted to plain objects for JSON serialization
+    if (result.attendanceData) {
+      result.attendanceData = result.attendanceData.map(item => {
+        if (item.dailyStatus instanceof Map) {
+          item.dailyStatus = Object.fromEntries(item.dailyStatus);
+        }
+        return item;
+      });
+    }
+
+    return res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -144,9 +170,29 @@ const getStudentYearlyAttendance = async (req, res) => {
     }
 };
 
+const getAvailableYears = async (req, res) => {
+  try {
+    const schoolId = Number(req.schoolId);
+    if (!schoolId) {
+      return res.status(400).json({ message: "School ID is required from session." });
+    }
+
+    const years = await ClassroomAttendance.distinct("year", { schoolId });
+    // Filter out null/undefined and sort descending
+    const sortedYears = (years || [])
+      .filter(y => y != null)
+      .sort((a, b) => b - a);
+
+    res.status(200).json(sortedYears);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getAttendance,
   saveAttendance,
   getStudentMonthlyAttendance,
-  getStudentYearlyAttendance
+  getStudentYearlyAttendance,
+  getAvailableYears
 };

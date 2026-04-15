@@ -4,7 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Phone, Mail, Globe, Users, BookOpen,
   GraduationCap, Award, Facebook, Instagram, Twitter,
-  Building2, User, ShieldCheck, CheckCircle2, Calendar, Bookmark, Quote, Trash2
+  Building2, User, ShieldCheck, CheckCircle2, Calendar, Bookmark, Quote, Trash2,
+  Clock, Download, FileText
 } from 'lucide-react';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import { toast } from '../MainSystemComponents/Toast';
@@ -61,8 +62,11 @@ const SuSchoolDetailPage = () => {
           studentCount: data.studentCount || 0,
           teacherCount: data.teacherCount || 0,
           gradeCount: data.gradeCount || 0,
+          gradeSpan: data.gradeSpan || { start: null, end: null },
           sectionCount: data.sectionCount || 0,
           wholeSchoolGPA: data.wholeSchoolGPA || 0,
+          operatingHours: data.operatingHours || { start: "09:00", end: "16:00" },
+          kycDocument: data.kycDocument,
 
           admin: data.admin ? {
             name: data.admin.name,
@@ -86,7 +90,6 @@ const SuSchoolDetailPage = () => {
             instagram: data.socialLinks?.find(s => s.platform === 'instagram')?.url || '#',
             tiktok: data.socialLinks?.find(s => s.platform === 'tiktok')?.url || '#',
           },
-          gradeGPA: [] // Placeholder
         });
         setLoading(false);
       } catch (error) {
@@ -135,10 +138,12 @@ const SuSchoolDetailPage = () => {
       {/* Back Button */}
       <button
         onClick={() => navigate('/super-admin/school')}
-        className="flex items-center gap-2 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors font-medium"
+        className="group flex items-center gap-3 px-6 py-2 rounded-full border border-slate-200 dark:border-slate-800/60 bg-white dark:bg-[#0f172a] hover:border-emerald-500/50 transition-all duration-300 shadow-sm w-fit"
       >
-        <ArrowLeft size={18} />
-        Back to Schools
+        <ArrowLeft size={18} className="text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 transition-colors" />
+        <span className="text-xs font-black tracking-[0.1em] text-slate-600 dark:text-slate-400 group-hover:text-emerald-500 transition-colors">
+          BACK TO LIST
+        </span>
       </button>
 
       {/* Header Section (Cover & Logo) */}
@@ -254,39 +259,58 @@ const SuSchoolDetailPage = () => {
               <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center text-purple-600 dark:text-purple-500 mb-3">
                 <BookOpen size={24} />
               </div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white">{school.gradeCount}</p>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-1">Grades</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                {school.gradeSpan?.start && school.gradeSpan?.end
+                  ? `${school.gradeSpan.start}-${school.gradeSpan.end}`
+                  : 'N/A'}
+              </p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-1">Grade</p>
             </div>
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-[24px] border border-slate-200 dark:border-slate-800/60 flex flex-col items-center justify-center text-center shadow-sm">
               <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-500 mb-3">
-                <Award size={24} />
+                <Clock size={24} />
               </div>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white">{school.wholeSchoolGPA.toFixed(2)}</p>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-1">Overall GPA</p>
+              <p className="text-xl font-bold text-slate-900 dark:text-white">
+                {school.operatingHours.start} - {school.operatingHours.end}
+              </p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-1">Operating Time</p>
             </div>
           </div>
 
-          {/* Grade by Grade GPA */}
+          {/* KYC Document Download */}
           <div className="bg-white dark:bg-[#0f172a] rounded-[24px] border border-slate-200 dark:border-slate-800/60 p-6 sm:p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <Award size={20} className="text-emerald-500" />
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Grade by Grade GPA</h2>
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-3">
+                <ShieldCheck size={20} className="text-emerald-500" />
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">KYC Document</h2>
+              </div>
+              {school.kycDocument && (
+                <button
+                  onClick={() => {
+                    // Assuming KYC documents are served from a specific path or are external URLs
+                    const url = school.kycDocument.startsWith('http')
+                      ? school.kycDocument
+                      : `http://localhost:7000/uploads/kyc/${school.kycDocument}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-[#00D084] hover:bg-[#00B875] text-white rounded-full text-sm font-bold transition-all shadow-lg shadow-[#00D084]/30 active:scale-95"
+                >
+                  <Download size={18} />
+                  Download
+                </button>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {school.gradeGPA.map((item, idx) => (
-                <div key={idx} className="bg-slate-50 dark:bg-[#1e293b] p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 flex flex-col items-center justify-center text-center">
-                  <span className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{item.grade}</span>
-                  <span className="text-xl font-bold text-slate-900 dark:text-white">{item.gpa.toFixed(2)}</span>
-                  {/* Visual indicator bar */}
-                  <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-3 overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full"
-                      style={{ width: `${(item.gpa / 4.0) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+            <div className="bg-slate-50 dark:bg-[#1e293b] p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#0f172a] flex items-center justify-center text-emerald-500 shadow-sm shrink-0">
+                <FileText size={24} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                  {school.kycDocument || 'No document uploaded'}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 uppercase tracking-wider font-bold">Principal Verification Document</p>
+              </div>
             </div>
           </div>
         </div>
@@ -295,44 +319,44 @@ const SuSchoolDetailPage = () => {
         <div className="space-y-6">
 
           {/* Admin Profile */}
-          <div className="bg-[#0f172a] rounded-[24px] border border-slate-800/60 p-6 sm:p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-8">
+          <div className="bg-[#0f172a] rounded-[24px] border border-slate-800/60 p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
               <ShieldCheck size={20} className="text-emerald-500" />
               <h2 className="text-xl font-bold text-white tracking-tight">School Administrator</h2>
             </div>
-            
-            <div className="flex flex-col sm:flex-row items-center sm:items-center gap-8">
+
+            <div className="flex items-center gap-5">
               <div className="relative group shrink-0">
                 <div className="absolute inset-0 bg-emerald-500 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
                 {school.admin.photo ? (
                   <img
                     src={school.admin.photo}
                     alt={school.admin.name}
-                    className="w-32 h-32 rounded-full object-cover border-2 border-slate-700/50 relative z-10 p-1 bg-slate-900 shadow-2xl shrink-0"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-slate-700/50 relative z-10 p-0.5 bg-slate-900 shadow-xl"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-32 h-32 rounded-full bg-[#1e293b] flex items-center justify-center text-slate-400 border-2 border-slate-700/50 relative z-10 shadow-2xl shrink-0">
-                    <User size={48} className="opacity-50" />
+                  <div className="w-20 h-20 rounded-full bg-[#1e293b] flex items-center justify-center text-slate-400 border-2 border-slate-700/50 relative z-10 shadow-xl">
+                    <User size={32} className="opacity-50" />
                   </div>
                 )}
-                <div className="absolute bottom-1 right-1 bg-emerald-500 text-white p-2.5 rounded-full shadow-lg z-20 border-2 border-[#0f172a]">
-                  <CheckCircle2 size={18} />
+                <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1.5 rounded-full shadow-lg z-20 border-2 border-[#0f172a]">
+                  <CheckCircle2 size={12} />
                 </div>
               </div>
 
-              <div className="flex-1 text-center sm:text-left py-2 min-w-0">
-                <h3 className="text-2xl font-bold text-white tracking-tight mb-2 truncate">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl font-bold text-white tracking-tight mb-1 truncate">
                   {school.admin.name}
                 </h3>
-                <div className="flex items-center justify-center sm:justify-start gap-4 group/link mt-1">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover/link:bg-emerald-500 group-hover/link:text-white transition-all shrink-0">
-                    <Mail size={16} />
+                <div className="flex items-center gap-3 group/link mt-1">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover/link:bg-emerald-500 group-hover/link:text-white transition-all shrink-0">
+                    <Mail size={14} />
                   </div>
-                  <div className="min-w-0 flex-1 overflow-hidden">
-                    <a 
-                      href={`mailto:${school.admin.email}`} 
-                      className="text-xs sm:text-sm text-slate-300 hover:text-emerald-400 transition-colors font-semibold truncate block"
+                  <div className="min-w-0 flex-1">
+                    <a
+                      href={`mailto:${school.admin.email}`}
+                      className="text-xs font-semibold text-slate-300 hover:text-emerald-400 transition-colors whitespace-nowrap overflow-hidden text-ellipsis block"
                       title={school.admin.email}
                     >
                       {school.admin.email}

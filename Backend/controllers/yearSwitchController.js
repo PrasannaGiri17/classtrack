@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const Student = require("../models/studentModel");
 const { School, Grade } = require("../models/School");
 const ClassroomNotice = require("../models/ClassroomNotice"); // NEW: For notice clearing
+const Discussion = require("../models/Discussion");
+const Comment = require("../models/Comment");
 const User = require("../models/UserModal");
 const bcrypt = require("bcryptjs");
 
@@ -102,7 +104,12 @@ exports.executeYearSwitch = async (req, res) => {
     // Wiping the board for the new academic session
     await ClassroomNotice.deleteMany({ schoolId: school_id });
 
-    // 3. Clear Student Monitors (classMonitorId) from Grade sections
+    // 3. Clear All Community Discussions & Comments
+    // Starting fresh for the new year
+    await Discussion.deleteMany({ schoolId: school_id });
+    await Comment.deleteMany({ schoolId: school_id });
+
+    // 4. Clear Student Monitors (classMonitorId) from Grade sections
     // Keep classTeacherId, roomNumber, etc. as requested.
     await Grade.updateMany(
       { schoolId: school_id },

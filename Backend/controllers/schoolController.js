@@ -1,6 +1,8 @@
-const { School } = require("../models/School");
+const { School, Grade } = require("../models/School");
 const User = require("../models/UserModal");
 const Admin = require("../models/AdminModel");
+const Student = require("../models/studentModel");
+const Teacher = require("../models/teacherModel");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 
@@ -9,8 +11,18 @@ const generateTempPassword = () => crypto.randomBytes(4).toString("hex");
 
 const getAllSchools = async (req, res) => {
   try {
-    const schools = await School.find();
-    res.status(200).json(schools);
+    const schools = await School.find().lean();
+    
+    // Aggregating counts for all schools
+    const schoolsWithStats = await Promise.all(schools.map(async (school) => {
+      const [studentCount, teacherCount] = await Promise.all([
+        Student.countDocuments({ schoolId: school.schoolId, status: 'active' }),
+        Teacher.countDocuments({ schoolId: school.schoolId })
+      ]);
+      return { ...school, studentCount, teacherCount };
+    }));
+
+    res.status(200).json(schoolsWithStats);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -27,8 +39,23 @@ const getSchoolById = async (req, res) => {
     // Find the primary admin for this school
     const admin = await Admin.findOne({ schoolId: school.schoolId }).lean();
     
+    // Dynamic Stats Aggregation
+    const [studentCount, teacherCount, gradeCount] = await Promise.all([
+      Student.countDocuments({ schoolId: school.schoolId, status: 'active' }),
+      Teacher.countDocuments({ schoolId: school.schoolId }),
+      Grade.countDocuments({ schoolId: school.schoolId })
+    ]);
+
+    // Count sections across all grades
+    const gradesWithSections = await Grade.find({ schoolId: school.schoolId }).select('sections').lean();
+    const sectionCount = gradesWithSections.reduce((acc, grade) => acc + (grade.sections?.length || 0), 0);
+
     res.status(200).json({
       ...school,
+      studentCount,
+      teacherCount,
+      gradeCount,
+      sectionCount,
       admin: admin ? {
         name: `${admin.firstName} ${admin.lastName}`,
         email: admin.email,

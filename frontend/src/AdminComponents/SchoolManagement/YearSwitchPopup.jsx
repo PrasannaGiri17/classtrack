@@ -128,7 +128,7 @@ const YearSwitchPopup = ({ isOpen, onClose, currentYear, schoolEmail }) => {
           </button>
 
           <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-none">Next Year Switch</h2>
-          <p className="text-xs font-black text-slate-500 uppercase tracking-widest mt-2 px-1">End current academic cycle & initialize new year</p>
+          <p className="text-xs font-black text-slate-500 uppercase tracking-widest mt-2 px-1">End current academic cycle, clear discussions & initialize new year</p>
         </div>
 
         <div className="px-12 pb-12 space-y-10">

@@ -1,10 +1,140 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Building2, MapPin, Phone, FileText, User, Mail, Users, Calendar, Globe, X, Check, Settings, Search, Trash2 } from 'lucide-react';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
 import { toast } from '../MainSystemComponents/Toast';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
+
+const SchoolCard = ({ school, navigate, handleDeleteClick }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverTimerRef = useRef(null);
+
+  const handleMouseEnter = () => {
+    hoverTimerRef.current = setTimeout(() => {
+      setIsHovered(true);
+    }, 300);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+    }
+    setIsHovered(false);
+  };
+
+  return (
+    <div
+      onClick={() => navigate(`/super-admin/school/${school.id}`)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className={`group relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all duration-300 overflow-hidden flex flex-col cursor-pointer ${isHovered ? 'shadow-xl -translate-y-1' : 'shadow-sm'
+        }`}
+    >
+      {/* Cover Image */}
+      <div className="h-48 w-full relative bg-slate-200 dark:bg-slate-800 overflow-hidden">
+        {school.coverImage ? (
+          <img
+            src={school.coverImage}
+            alt={`${school.name} cover`}
+            className={`w-full h-full object-cover transition-transform duration-700 ${isHovered ? 'scale-110' : ''}`}
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className={`w-full h-full flex items-center justify-center text-slate-400 transition-transform duration-700 ${isHovered ? 'scale-110' : ''}`}>
+            <Building2 size={48} opacity={0.5} />
+          </div>
+        )}
+        {/* Delete Button positioned on the cover image */}
+        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
+          <button
+            onClick={(e) => handleDeleteClick(e, school.id)}
+            className="p-1.5 bg-red-500/90 hover:bg-red-600 text-white rounded-full shadow-sm shadow-red-500/20 backdrop-blur-md transition-colors"
+            title="Delete School"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Logo overlapping the cover */}
+      <div className={`absolute top-40 left-6 w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-800 z-20 transition-transform duration-300 ${isHovered ? 'scale-110' : ''}`}>
+        {school.logo ? (
+          <img src={school.logo} alt={`${school.name} logo`} className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+        ) : (
+          <Building2 size={28} className="text-emerald-600 dark:text-emerald-400" />
+        )}
+      </div>
+
+      {/* Card Content */}
+      <div className="p-6 pt-10 flex-1 flex flex-col bg-white dark:bg-slate-900 relative z-0">
+        <h3 className={`text-xl font-bold transition-colors mb-2 ${isHovered ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+          {school.name}
+        </h3>
+        <div className="space-y-3 mt-4 flex-1">
+          <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
+            <MapPin size={18} className="shrink-0 mt-0.5 text-slate-400" />
+            <span className="leading-relaxed">{school.address}</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+            <Phone size={18} className="shrink-0 text-slate-400" />
+            <span>{school.contactNumber}</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+            <Phone size={18} className="shrink-0 text-emerald-400" />
+            <span>{school.otherNumber}</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+            <FileText size={18} className="shrink-0 text-slate-400" />
+            <span className="text-emerald-600 dark:text-emerald-400 cursor-pointer hover:underline font-medium">{school.kycDocument}</span>
+          </div>
+        </div>
+
+        {/* Expanded Details (Hidden by default, shown after 3s hover) */}
+        <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isHovered ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+          <div className="overflow-hidden">
+            <div className={`pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 space-y-3 transition-opacity duration-300 delay-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+                <Mail size={18} className="shrink-0 text-slate-400" />
+                <span>{school.email || 'contact@school.edu'}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+                <Globe size={18} className="shrink-0 text-slate-400" />
+                <span className="text-emerald-600 dark:text-emerald-400 cursor-pointer hover:underline">{school.website || 'www.school.edu'}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-300 pt-1">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <Users size={16} className="text-slate-400" />
+                    <div className="flex items-baseline gap-1">
+                      <span className={`font-bold transition-colors ${isHovered ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>
+                        {school.studentCount}
+                      </span>
+                      <span className="text-[10px] uppercase opacity-60 font-medium text-slate-500 dark:text-slate-400">Students</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <User size={16} className="text-slate-400" />
+                    <div className="flex items-baseline gap-1">
+                      <span className={`font-bold transition-colors ${isHovered ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>
+                        {school.teacherCount}
+                      </span>
+                      <span className="text-[10px] uppercase opacity-60 font-medium text-slate-500 dark:text-slate-400">Teachers</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-slate-400" />
+                  <span className="font-medium text-[11px]">Est. {school.establishedYear || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
 const SuSchoolsPage = () => {
@@ -32,7 +162,8 @@ const SuSchoolsPage = () => {
             logo: item.logo,
             email: item.email,
             website: item.website,
-            studentCount: 'N/A',
+            studentCount: item.studentCount || 0,
+            teacherCount: item.teacherCount || 0,
             establishedYear: item.establishedYear,
           }));
           setSchools(formatted);
@@ -60,7 +191,7 @@ const SuSchoolsPage = () => {
       try {
         const parsed = JSON.parse(draft);
         if (parsed && typeof parsed === 'object') {
-           setNewSchool(parsed);
+          setNewSchool(parsed);
         }
       } catch (e) {
         console.error("Error parsing school draft", e);
@@ -203,90 +334,12 @@ const SuSchoolsPage = () => {
       {/* List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {filteredSchools.map(school => (
-          <div
+          <SchoolCard
             key={school.id}
-            onClick={() => navigate(`/super-admin/school/${school.id}`)}
-            className="group relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col cursor-pointer"
-          >
-            {/* Cover Image */}
-            <div className="h-48 w-full relative bg-slate-200 dark:bg-slate-800 overflow-hidden">
-              {school.coverImage ? (
-                <img src={school.coverImage} alt={`${school.name} cover`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-400 transition-transform duration-700 group-hover:scale-110">
-                  <Building2 size={48} opacity={0.5} />
-                </div>
-              )}
-              {/* Delete Button positioned on the cover image */}
-              <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
-                <button
-                  onClick={(e) => handleDeleteClick(e, school.id)}
-                  className="p-1.5 bg-red-500/90 hover:bg-red-600 text-white rounded-full shadow-sm shadow-red-500/20 backdrop-blur-md transition-colors"
-                  title="Delete School"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Logo overlapping the cover */}
-            <div className="absolute top-40 left-6 w-16 h-16 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-md border border-slate-100 dark:border-slate-800 z-20 group-hover:scale-110 transition-transform duration-300">
-              {school.logo ? (
-                <img src={school.logo} alt={`${school.name} logo`} className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
-              ) : (
-                <Building2 size={28} className="text-emerald-600 dark:text-emerald-400" />
-              )}
-            </div>
-
-            {/* Card Content */}
-            <div className="p-6 pt-10 flex-1 flex flex-col bg-white dark:bg-slate-900 relative z-0">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{school.name}</h3>
-              <div className="space-y-3 mt-4 flex-1">
-                <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
-                  <MapPin size={18} className="shrink-0 mt-0.5 text-slate-400" />
-                  <span className="leading-relaxed">{school.address}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-                  <Phone size={18} className="shrink-0 text-slate-400" />
-                  <span>{school.contactNumber}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-                  <Phone size={18} className="shrink-0 text-emerald-400" />
-                  <span>{school.otherNumber}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-                  <FileText size={18} className="shrink-0 text-slate-400" />
-                  <span className="text-emerald-600 dark:text-emerald-400 cursor-pointer hover:underline font-medium">{school.kycDocument}</span>
-                </div>
-              </div>
-
-              {/* Expanded Details (Hidden by default, shown on hover) */}
-              <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-in-out">
-                <div className="overflow-hidden">
-                  <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 space-y-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
-                    <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-                      <Mail size={18} className="shrink-0 text-slate-400" />
-                      <span>{school.email || 'contact@school.edu'}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-                      <Globe size={18} className="shrink-0 text-slate-400" />
-                      <span className="text-emerald-600 dark:text-emerald-400 cursor-pointer hover:underline">{school.website || 'www.school.edu'}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-300 pt-1">
-                      <div className="flex items-center gap-2">
-                        <Users size={16} className="text-slate-400" />
-                        <span className="font-medium">{school.studentCount || 'N/A'} Students</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar size={16} className="text-slate-400" />
-                        <span className="font-medium">Est. {school.establishedYear || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            school={school}
+            navigate={navigate}
+            handleDeleteClick={handleDeleteClick}
+          />
         ))}
       </div>
 

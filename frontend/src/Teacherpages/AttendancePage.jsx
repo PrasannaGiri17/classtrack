@@ -9,13 +9,18 @@ import {
   Save,
   Users,
   Info,
-  Trophy
+  Trophy,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 import { toast } from '../MainSystemComponents/Toast';
 import attendanceService from '../Api/attendanceService';
 import studentService from '../Api/studentService';
 import gradeService from '../Api/gradeService';
 import calendarService from '../Api/calendarService';
+import schoolService from '../Api/schoolService';
 import Loading from '../MainSystemComponents/Loading';
 import { convertBStoAD, convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 import "@adhikarisaroj795/nepali-calendar-react/styles/nepalicalender.css";
@@ -39,6 +44,7 @@ const AttendancePage = () => {
   const [sectionInfo, setSectionInfo] = useState(null);
   const [attendanceRecords, setAttendanceRecords] = useState({});
   const [holidays, setHolidays] = useState([]); // Array of day numbers that are holidays
+  const [availableYears, setAvailableYears] = useState([]);
 
   const teacherId = localStorage.getItem("teacherId");
   const scrollRef = useRef(null);
@@ -89,22 +95,69 @@ const AttendancePage = () => {
   // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
-      if (!teacherId) return;
+      if (!teacherId || (!sectionInfo?.sectionId && selectedYear >= currentBSYear)) return;
       setIsLoading(true);
       try {
-        // 1. Get Section Info
-        const secData = await gradeService.getSectionByTeacherId(teacherId);
-        setSectionInfo(secData);
+        let studentList = [];
+        let attData = null;
+        let activeSectionId = sectionInfo?.sectionId;
 
-        if (secData?.sectionId) {
-          // 2. Get Students for this section
-          const studentList = await studentService.getStudentsByClassTeacher(teacherId);
-          setStudents(studentList || []);
+        // 1. Handle Historical Perspective (Past Years)
+        if (selectedYear < currentBSYear) {
+           // Fetch the teacher's specific registry for this year and month
+           attData = await attendanceService.getAttendance(null, selectedYear, selectedMonth, teacherId);
+           
+           // If we have records for this teacher in this historical period
+           if (attData && attData.attendanceData && attData.attendanceData.length > 0) {
+              setSectionInfo({
+                 gradeId: attData.gradeId,
+                 gradeNumber: attData.gradeNumber,
+                 gradeName: attData.gradeName,
+                 sectionId: attData.sectionId,
+                 sectionName: attData.sectionName,
+                 classRoomName: attData.classRoomName
+              });
+              activeSectionId = attData.sectionId;
+              
+              // Extract the student list. Handle both populated objects and raw IDs.
+              const rawStudentList = attData.attendanceData.map(a => a.studentId).filter(s => s);
+              
+              // If we have populated objects, use them. 
+              // Otherwise, we might need to fetch them from studentService if they are just IDs
+              if (rawStudentList.length > 0 && typeof rawStudentList[0] === 'object' && rawStudentList[0]._id) {
+                 studentList = rawStudentList;
+              } else if (rawStudentList.length > 0) {
+                 // They are likely strings (IDs). Fetch the full profile for each to show names.
+                 const fullProfiles = await Promise.all(
+                   rawStudentList.map(id => studentService.getStudentById(id).catch(() => null))
+                 );
+                 studentList = fullProfiles.filter(p => p);
+              }
 
-          // 3. Get Attendance Records
-          const attData = await attendanceService.getAttendance(secData.sectionId, selectedYear, selectedMonth);
+              if (studentList.length > 0) {
+                 setSectionInfo({
+                    gradeId: attData.gradeId,
+                    gradeNumber: attData.gradeNumber,
+                    gradeName: attData.gradeName,
+                    sectionId: attData.sectionId,
+                    sectionName: attData.sectionName,
+                    classRoomName: attData.classRoomName
+                 });
+                 activeSectionId = attData.sectionId;
+              }
+           }
+        } 
+        
+        // 2. Handle Current Perspective or Fallback (Current year or if no historical record exists)
+        if (studentList.length === 0) {
+           // Only fetch current assignment if we didn't find specific historical students
+           studentList = await studentService.getStudentsByClassTeacher(teacherId);
+           attData = await attendanceService.getAttendance(activeSectionId, selectedYear, selectedMonth, teacherId);
+        }
 
-          // 4. Get Holidays from Calendar
+        setStudents(studentList || []);
+
+        // 3. Get Holidays from Calendar
           const events = await calendarService.getEvents();
           const monthIndex = NEPALI_MONTHS.indexOf(selectedMonth) + 1;
           const monthlyHolidays = (events || [])
@@ -144,22 +197,26 @@ const AttendancePage = () => {
           // Map backend attendance to local state
           const initial = {};
           studentList.forEach(s => {
-            initial[s._id] = {};
-            const record = attData?.attendanceData?.find(a => a.studentId?._id === s._id || a.studentId === s._id);
+            const sId = String(s._id);
+            initial[sId] = {};
+            const record = attData?.attendanceData?.find(a => 
+              String(a.studentId?._id || a.studentId) === sId
+            );
+            
             if (record && record.dailyStatus) {
               const dailyStatus = record.dailyStatus;
               for (let d = 1; d <= daysInMonth; d++) {
-                initial[s._id][d] = dailyStatus[d] || null;
+                // Handle cases where keys might be strings or numbers
+                initial[sId][d] = dailyStatus[String(d)] || dailyStatus[d] || null;
               }
             } else {
               for (let d = 1; d <= daysInMonth; d++) {
-                initial[s._id][d] = null;
+                initial[sId][d] = null;
               }
             }
           });
           setAttendanceRecords(initial);
-        }
-      } catch (error) {
+        } catch (error) {
         console.error("Error fetching attendance data:", error);
         // Only show generic error if it wasn't a 404/empty state handled by the view guard
         if (error.response?.status !== 404) {
@@ -170,7 +227,35 @@ const AttendancePage = () => {
       }
     };
     fetchData();
-  }, [teacherId, selectedMonth, selectedYear, daysInMonth]);
+  }, [teacherId, sectionInfo?.sectionId, selectedMonth, selectedYear, daysInMonth]);
+
+  // Initialization Effect
+  useEffect(() => {
+    const init = async () => {
+      if (!teacherId) return;
+      try {
+        const secData = await gradeService.getSectionByTeacherId(teacherId);
+        setSectionInfo(secData);
+
+        const schoolId = localStorage.getItem("schoolId");
+        if (schoolId) {
+          const [schoolInfo, years] = await Promise.all([
+            schoolService.getSchoolById(schoolId),
+            attendanceService.getAvailableYears().catch(() => [])
+          ]);
+
+          if (schoolInfo?.activeYear) {
+            const yearText = String(schoolInfo.activeYear).split(' ')[0];
+            if (!isNaN(yearText)) setSelectedYear(parseInt(yearText));
+          }
+          setAvailableYears(years || []);
+        }
+      } catch (err) {
+        console.error("Initialization error:", err);
+      }
+    };
+    init();
+  }, [teacherId]);
 
 
 
@@ -196,8 +281,10 @@ const AttendancePage = () => {
     return false;
   };
 
+  const isReadOnly = selectedYear < currentBSYear;
+
   const toggleAttendance = (studentId, day) => {
-    if (holidays.includes(day) || isFutureDate(day)) return; // No attendance on holidays or future dates
+    if (isReadOnly || holidays.includes(day) || isFutureDate(day)) return; // No attendance on past years, holidays or future dates
 
     setAttendanceRecords(prev => {
       const currentStatus = prev[studentId][day];
@@ -327,12 +414,33 @@ const AttendancePage = () => {
             <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
           </div>
 
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all"
-          >
-            <Save size={18} /> Save Records
-          </button>
+          <div className="relative group">
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-600 dark:text-slate-300 outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all cursor-pointer min-w-[120px]"
+            >
+              {[...new Set([currentBSYear, ...availableYears])].sort((a, b) => b - a).map(y => (
+                <option key={y} value={y}>{y} BS</option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
+          </div>
+
+          {isReadOnly ? (
+            <div className="flex items-center gap-3 px-6 py-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm">
+              <Lock size={14} strokeWidth={3} />
+              Historical Registry (Read-Only)
+            </div>
+          ) : (
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all"
+            >
+              <Save size={18} strokeWidth={3} />
+              Save Records
+            </button>
+          )}
         </div>
       </div>
 

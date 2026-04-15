@@ -75,12 +75,28 @@ const ResetFirstLogin = () => {
       setPopupType("success");
       setPopupMessage("Password changed successfully.");
       
+      // Update AuthContext state and localStorage so App.js doesn't redirect back here
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const updatedUser = { ...storedUser, mustChangePassword: false };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      
+      // We need to trigger a re-render or state update if possible, 
+      // but since we navigate away, App.js will pick it up from localStorage if it reloads,
+      // or we can just hope the navigate triggers the right check.
+      // Actually, updating the state via AuthContext would be best.
+      // However, we are about to navigate.
+
       const role = localStorage.getItem("role");
       setTimeout(() => {
+        // Force a page reload or state sync if needed, but navigate should work if we updated localStorage
         if (role === "admin") {
-          navigate("/admin");
+          window.location.href = "/admin"; // Use window.location to ensure state is fresh
+        } else if (role === "teacher") {
+          window.location.href = "/teacher/dashboard";
+        } else if (role === "student") {
+          window.location.href = "/student/dashboard";
         } else {
-          navigate("/home");
+          window.location.href = "/home";
         }
       }, 1000);
     } catch (err) {

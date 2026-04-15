@@ -15,4 +15,7 @@ router.get("/student/:studentId/:year/:month", protect, attendanceController.get
 // Get specific student attendance for a year summary
 router.get("/student/:studentId/:year", protect, attendanceController.getStudentYearlyAttendance);
 
+// Get all years that have attendance records
+router.get("/available-years", protect, attendanceController.getAvailableYears);
+
 module.exports = router;

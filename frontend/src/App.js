@@ -74,6 +74,7 @@ function App() {
 
   const getRedirectPath = () => {
     if (token && user) {
+      if (user.mustChangePassword) return <Navigate to="/reset-first-login" />;
       if (user.role === "admin") return <Navigate to="/admin/dashboard" />;
       if (user.role === "teacher") return <Navigate to="/teacher/dashboard" />;
       if (user.role === "student") return <Navigate to="/student/dashboard" />;
@@ -125,9 +126,9 @@ function App() {
             </Route>
             
             <Route path="/admin" element={
-              token && user && user.role === "admin"
+              token && user && user.role === "admin" && !user.mustChangePassword
                 ? <AdminLayout />
-                : <Navigate to="/" replace />
+                : (user?.mustChangePassword ? <Navigate to="/reset-first-login" replace /> : <Navigate to="/" replace />)
             }>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
@@ -149,9 +150,9 @@ function App() {
         </Route>
 
         <Route path="/teacher" element={
-          token && user && user.role === "teacher"
+          token && user && user.role === "teacher" && !user.mustChangePassword
             ? <TeacherLayout />
-            : <Navigate to="/" replace />
+            : (user?.mustChangePassword ? <Navigate to="/reset-first-login" replace /> : <Navigate to="/" replace />)
         }>
           <Route index element={<Navigate to="/teacher/dashboard" replace />} />
           <Route path="dashboard" element={<TeacherDashboard />} />
@@ -172,9 +173,9 @@ function App() {
         </Route>
 
         <Route path="/student" element={
-          token && user && user.role === "student"
+          token && user && user.role === "student" && !user.mustChangePassword
             ? <StudentLayout />
-            : <Navigate to="/" replace />
+            : (user?.mustChangePassword ? <Navigate to="/reset-first-login" replace /> : <Navigate to="/" replace />)
         }>
           <Route index element={<Navigate to="/student/dashboard" replace />} />
           <Route path="dashboard" element={<SDashboard />} />
