@@ -22,6 +22,12 @@ router.post(
   studentFeeController.bulkGenerateFees
 );
 
+router.post(
+    "/admin/sync/:studentId",
+    restrictTo("admin"),
+    studentFeeController.syncSingleStudentLedger
+);
+
 // All fees status (listing for admin)
 router.get(
   "/admin/status",

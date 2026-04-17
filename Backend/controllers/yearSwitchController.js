@@ -120,7 +120,60 @@ exports.executeYearSwitch = async (req, res) => {
     school.activeYear = nextYear;
     await school.save();
 
-    // 5. Clear OTP after successful use
+    // 5. Generate Fees for the New Year
+    // This ensures students have their ledger ready for the new grade and new year
+    const [updatedSchool, allGrades] = await Promise.all([
+      School.findOne({ schoolId: school_id }),
+      Grade.find({ schoolId: school_id })
+    ]);
+
+    const NEPALI_MONTHS = [
+      "Baishakh", "Jestha", "Ashadh", "Shrawan", "Bhadra", "Ashwin",
+      "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
+    ];
+
+    const feeResults = { created: 0, failed: 0 };
+
+    for (const student of activeStudents) {
+      let studentGrade = allGrades.find(g => g.gradeNumber === student.studentClass);
+      
+      if (!studentGrade) {
+        feeResults.failed++;
+        continue;
+      }
+
+      const baseFee = studentGrade.monthlyFee || 0;
+      const admissionFee = updatedSchool.admissionFee || 0;
+
+      for (let i = 0; i < 12; i++) {
+        const feeData = {
+          schoolId: school_id,
+          school: updatedSchool._id,
+          student: student._id,
+          grade: studentGrade._id,
+          academicYear: nextYear,
+          monthIndex: i,
+          monthName: NEPALI_MONTHS[i],
+          baseFee: baseFee,
+          admissionFee: (i === 0) ? admissionFee : 0,
+          status: "UNPAID"
+        };
+
+        try {
+          // Use findOneAndUpdate with upsert: false to avoid duplicates if something went wrong
+          // or just create new if we are sure it's a new year.
+          // Given the unique index, a simple new StudentFee().save() is fine if we catch the error.
+          const newFee = new (require("../models/StudentFee"))(feeData);
+          await newFee.save();
+          feeResults.created++;
+        } catch (err) {
+          // If it already exists for some reason, just skip
+          if (err.code !== 11000) console.error(`Error generating fee for ${student.firstName}:`, err);
+        }
+      }
+    }
+
+    // 6. Clear OTP after successful use
     adminUser.resetPasswordOtp = null;
     adminUser.resetPasswordOtpExpires = null;
     await adminUser.save();
@@ -131,7 +184,8 @@ exports.executeYearSwitch = async (req, res) => {
       graduated_count: graduatedCount,
       new_active_year: nextYear,
       archived_year: currentYear,
-      classrooms_reset: true
+      classrooms_reset: true,
+      fees_generated: feeResults.created
     });
 
   } catch (error) {

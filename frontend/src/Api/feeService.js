@@ -82,9 +82,15 @@ const initiateEsewaPayment = async (paymentData) => {
     return response.data;
 };
 
+const syncStudentLedger = async (studentId, academicYear) => {
+    const response = await axios.post(`${API_URL}/admin/sync/${studentId}`, { academicYear }, getAuthHeaders());
+    return response.data;
+};
+
 const feeService = {
     generateYearlyFees,
     bulkGenerateFees,
+    syncStudentLedger,
     getAdminFeeStatus,
     getAdminFeeStatusWithSearch,
     getStudentFees,

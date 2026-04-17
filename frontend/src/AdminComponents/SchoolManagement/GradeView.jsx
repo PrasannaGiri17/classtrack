@@ -414,7 +414,7 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                     onChange={(e) => setTempRange({ ...tempRange, from: parseInt(e.target.value) })}
                     className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none dark:[color-scheme:dark]"
                   >
-                    {[...Array(13)].map((_, i) => <option key={i + 1} value={i + 1} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{i + 1}</option>)}
+                    {[...Array(10)].map((_, i) => <option key={i + 1} value={i + 1} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{i + 1}</option>)}
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
@@ -427,7 +427,7 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
                     onChange={(e) => setTempRange({ ...tempRange, to: parseInt(e.target.value) })}
                     className="w-full bg-slate-50 dark:bg-slate-800 border-none px-6 py-4 rounded-2xl text-base font-black outline-none cursor-pointer dark:text-white shadow-inner appearance-none dark:[color-scheme:dark]"
                   >
-                    {[...Array(13)].map((_, i) => <option key={i + 1} value={i + 1} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{i + 1}</option>)}
+                    {[...Array(10)].map((_, i) => <option key={i + 1} value={i + 1} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{i + 1}</option>)}
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>

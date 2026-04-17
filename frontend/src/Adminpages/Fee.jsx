@@ -53,8 +53,8 @@ const Fee = () => {
   const [extraFees, setExtraFees] = useState([{ title: '', amount: '' }]);
 
   const itemsPerPage = 8;
-  const currentAcademicYear = "2081/82"; // Should be dynamic in real app
-
+  const [currentAcademicYear, setCurrentAcademicYear] = useState("2081/82");
+  
   const { schoolId: authSchoolId } = useAuth();
 
   const getSchoolId = () => {
@@ -81,11 +81,15 @@ const Fee = () => {
       setIsLoading(true);
       const adminSchoolId = getSchoolId();
       const [schoolData, gradesData] = await Promise.all([
-        schoolService.getSchool(),
+        schoolService.getSchoolById(adminSchoolId),
         gradeService.getGrades(adminSchoolId)
       ]);
 
+      console.log("FEE_DEBUG: School Data:", schoolData);
       setAdmissionFee(String(schoolData?.admissionFee || 0));
+      if (schoolData?.activeYear) {
+        setCurrentAcademicYear(schoolData.activeYear);
+      }
       setGrades(gradesData || []);
 
       const config = {};
@@ -249,6 +253,13 @@ const Fee = () => {
   const getStatusBadge = (record) => {
     let status = record.feeStatus;
 
+    if (status === 'UNPAID' && record.dueAmount === 0) {
+      status = 'PAID';
+    } else if (status === 'UNPAID' && record.totalPaidAmount > 0) {
+      status = 'PARTIAL';
+    }
+    
+    // If there is debt but also some recent payment
     if (status === 'UNPAID' && record.unpaidMonths === 0 && record.totalDueAmount > 0) {
       status = 'PAID_TILL_NOW';
     }
@@ -441,7 +452,10 @@ const Fee = () => {
                           </td>
                           <td className="px-6 py-6">
                             <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                              {record.unpaidMonths > 0 ? `${record.unpaidMonths} months unpaid` : 'All paid'}
+                              {record.unpaidCount > 0 ? `${record.unpaidCount} months total` : 'All paid'}
+                              {record.unpaidCount > record.unpaidMonths && (
+                                <p className="text-[9px] font-bold text-red-400 mt-1 italic">Includes past year dues</p>
+                              )}
                             </span>
                           </td>
                           <td className="px-6 py-6">

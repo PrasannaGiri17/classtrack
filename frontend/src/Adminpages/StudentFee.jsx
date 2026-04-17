@@ -14,15 +14,15 @@ import {
     X,
     Tag,
     ChevronDown,
-    Users,
     Calendar,
-    ArrowRight
+    RefreshCcw
 } from 'lucide-react';
 import { toast } from '../MainSystemComponents/Toast';
 import PortalPopup from '../MainSystemComponents/PortalPopup';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import feeService from '../Api/feeService';
 import studentService from '../Api/studentService';
+import schoolService from '../Api/schoolService';
 
 const NEPALI_MONTHS = [
     'Baishakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin',
@@ -30,13 +30,15 @@ const NEPALI_MONTHS = [
 ];
 
 const StudentFee = () => {
-    const { id } = useParams(); // This is the student ObjectId in my implementation
+    const { id } = useParams();
     const navigate = useNavigate();
 
     const [studentInfo, setStudentInfo] = useState(null);
     const [feeRecords, setFeeRecords] = useState([]);
     const [summary, setSummary] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [activeYear, setActiveYear] = useState("2081/82");
 
     const [isExtraFeeModalOpen, setIsExtraFeeModalOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
@@ -45,26 +47,35 @@ const StudentFee = () => {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [confirmConfig, setConfirmConfig] = useState({ mode: '', record: null });
 
-    const currentAcademicYear = "2081/82";
-
     useEffect(() => {
         loadData();
     }, [id]);
-
     const loadData = async () => {
         setIsLoading(true);
         try {
-            // 1. Get student basic info
             const student = await studentService.getStudentById(id);
             setStudentInfo(student);
 
-            // 2. Get student fee records
-            const fees = await feeService.getStudentFees(id, currentAcademicYear);
-            setFeeRecords(fees);
+            const fees = await feeService.getStudentFees(id, 'all');
+            const sortedFees = [...fees].sort((a, b) => {
+                if (b.academicYear !== a.academicYear) {
+                    return b.academicYear.localeCompare(a.academicYear);
+                }
+                return a.monthIndex - b.monthIndex;
+            });
+            setFeeRecords(sortedFees);
 
-            // 3. Get student fee summary
-            const summ = await feeService.getFeeSummary(id, currentAcademicYear);
+            const summ = await feeService.getFeeSummary(id, 'all');
             setSummary(summ);
+
+            // Fetch school config for active year
+            const schoolId = localStorage.getItem("schoolId");
+            if (schoolId) {
+                const schoolData = await schoolService.getSchoolById(schoolId);
+                if (schoolData?.activeYear) {
+                    setActiveYear(schoolData.activeYear);
+                }
+            }
 
         } catch (error) {
             console.error(error);
@@ -83,7 +94,7 @@ const StudentFee = () => {
         const { record } = confirmConfig;
         try {
             await feeService.markAsPaid(record._id, {
-                paidAmount: record.totalAmount, // Full payment for simplicity in this flow
+                paidAmount: record.totalAmount, 
                 paymentMethod: "CASH",
                 paymentDate: new Date()
             });
@@ -91,7 +102,7 @@ const StudentFee = () => {
             toast({ type: 'success', message: `${record.monthName} fee marked as PAID.` });
             loadData();
         } catch (error) {
-            toast({ type: 'error', message: error.response?.data?.message || error.response?.data?.error || 'Payment update failed.' });
+            toast({ type: 'error', message: 'Payment update failed.' });
         } finally {
             setIsConfirmOpen(false);
         }
@@ -130,11 +141,24 @@ const StudentFee = () => {
                 await feeService.addExtraFee(selectedRecord._id, fee.title, fee.amount);
             }
 
-            toast({ type: 'success', message: `Extra fees added to ${selectedRecord.monthName}.` });
+            toast({ type: 'success', message: `Extra fees added.` });
             setIsExtraFeeModalOpen(false);
             loadData();
         } catch (error) {
             toast({ type: 'error', message: 'Failed to add extra fees.' });
+        }
+    };
+
+    const handleSyncLedger = async () => {
+        try {
+            setIsSyncing(true);
+            const res = await feeService.syncStudentLedger(id, activeYear);
+            toast({ type: 'success', message: res.message });
+            loadData();
+        } catch (error) {
+            toast({ type: 'error', message: 'Sync failed.' });
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -165,6 +189,120 @@ const StudentFee = () => {
         );
     };
 
+    const renderFeeRows = () => {
+        if (!feeRecords || feeRecords.length === 0) {
+            return (
+                <tr>
+                    <td colSpan={5} className="py-24 text-center">
+                        <div className="flex flex-col items-center gap-4 opacity-30">
+                            <Receipt size={48} className="text-slate-400" />
+                            <p className="text-[10px] font-black capitalize tracking-[0.3em]">No fee records found for this student.</p>
+                        </div>
+                    </td>
+                </tr>
+            );
+        }
+
+        let lastYear = null;
+        return (feeRecords || []).map((record) => {
+            const showYearHeader = record.academicYear !== lastYear;
+            lastYear = record.academicYear;
+
+            return (
+                <React.Fragment key={record._id}>
+                    {showYearHeader && (
+                        <tr className="bg-slate-50/80 dark:bg-slate-800/50 backdrop-blur-sm border-y border-slate-100 dark:border-slate-800">
+                            <td colSpan={5} className="pl-12 py-4">
+                                <div className="flex items-center gap-3">
+                                    <Calendar size={14} className="text-emerald-500" />
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Academic Year: {record.academicYear}</span>
+                                </div>
+                            </td>
+                        </tr>
+                    )}
+                    <tr className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors duration-300">
+                        <td className="pl-12 pr-6 py-6">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-black text-slate-900 dark:text-white lowercase tracking-tight capitalize">{record.monthName}</span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                    {record.grade?.gradeName || `Grade ${record.grade?.gradeNumber || studentInfo.studentClass}`}
+                                </span>
+                            </div>
+                        </td>
+                        <td className="px-6 py-6">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2 group/tip relative">
+                                    <span className="text-[11px] font-bold text-slate-500 line-clamp-1 max-w-[150px]">
+                                        Base: Rs.{record.baseFee || record.totalAmount}
+                                        {record.admissionFee > 0 && ` + Adm: Rs.${record.admissionFee}`}
+                                        {record.extraFees?.length > 0 && ` + ${record.extraFees.length} Extras`}
+                                    </span>
+                                    <div className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <ChevronDown size={12} />
+                                    </div>
+
+                                    <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl p-5 z-20 invisible group-hover/tip:visible opacity-0 group-hover/tip:opacity-100 transition-all">
+                                        <p className="text-[10px] font-black  text-slate-400 tracking-widest border-b pb-2 mb-3">Fee Details</p>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-xs font-bold"><span className="text-slate-500 dark:text-slate-400">Grade Fee</span><span className="text-slate-900 dark:text-white">Rs.{record.baseFee}</span></div>
+                                            {record.admissionFee > 0 && <div className="flex justify-between text-xs font-bold text-emerald-600"><span>Admission</span><span>+Rs.{record.admissionFee}</span></div>}
+                                            {record.extraFees?.map((ex, i) => (
+                                                <div key={i} className="flex justify-between text-xs font-bold text-blue-500"><span>{ex.title}</span><span>+Rs.{ex.amount}</span></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td className="px-6 py-6">
+                            <div className="flex flex-col">
+                                <span className="text-base font-black text-slate-900 dark:text-white tabular-nums tracking-tight">Rs. {record.totalAmount}</span>
+                                {record.paidAmount > 0 ? (
+                                    <span className="text-[10px] font-black text-emerald-500 capitalize flex items-center gap-1 mt-1">
+                                        <CheckCircle2 size={10} /> Paid {record.paidAmount}
+                                    </span>
+                                ) : (
+                                    <span className={`text-[10px] font-black capitalize tracking-widest mt-1 ${NEPALI_MONTHS.indexOf(record.monthName) >= NEPALI_MONTHS.indexOf('Falgun') ? 'text-emerald-500' : 'text-red-400'}`}>
+                                        {NEPALI_MONTHS.indexOf(record.monthName) >= NEPALI_MONTHS.indexOf('Falgun') ? 'DUE' : 'Not Paid Yet'}
+                                    </span>
+                                )}
+                            </div>
+                        </td>
+                        <td className="px-6 py-6">
+                            <div className="flex justify-center">
+                                {getStatusBadge(record)}
+                            </div>
+                        </td>
+                        <td className="pr-12 pl-6 py-6">
+                            <div className="flex gap-2 justify-center">
+                                {record.status !== 'PAID' ? (
+                                    <>
+                                        <button
+                                            onClick={() => handlePayAction(record)}
+                                            className="flex-1 max-w-[120px] py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black capitalize tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <CreditCard size={14} /> Mark Paid
+                                        </button>
+                                        <button
+                                            onClick={() => handleOpenExtraFeeModal(record)}
+                                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 border border-slate-200 dark:border-slate-800 transition-all active:scale-95"
+                                        >
+                                            <Plus size={18} />
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button className="flex-1 max-w-[140px] py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-xl text-[10px] font-black capitalize tracking-widest border border-slate-100 dark:border-slate-700 opacity-60 flex items-center justify-center gap-2">
+                                        <CheckCircle2 size={14} /> Payment Done
+                                    </button>
+                                )}
+                            </div>
+                        </td>
+                    </tr>
+                </React.Fragment>
+            );
+        });
+    };
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center py-40">
@@ -182,7 +320,6 @@ const StudentFee = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
-            {/* Header Profile Card */}
             <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors relative">
                 <div className="p-8 lg:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                     <div className="flex items-center gap-6">
@@ -191,6 +328,14 @@ const StudentFee = () => {
                             className="w-12 h-12 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 rounded-2xl transition-all shadow-sm active:scale-95"
                         >
                             <ArrowLeft size={20} />
+                        </button>
+                        <button
+                            onClick={handleSyncLedger}
+                            disabled={isSyncing}
+                            className="w-12 h-12 flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                            title="Sync Ledger with Current Grade"
+                        >
+                            <RefreshCcw size={20} className={isSyncing ? "animate-spin" : ""} />
                         </button>
                         <img
                             src={studentInfo.profilePhoto || `https://api.dicebear.com/7.x/initials/svg?seed=${studentInfo.firstName}`}
@@ -204,12 +349,13 @@ const StudentFee = () => {
                             <div className="flex items-center gap-3 mt-2">
                                 <p className="text-xs font-bold text-slate-400 tracking-widest">{studentInfo.studentId}</p>
                                 <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                                <p className="text-xs font-bold text-slate-400 tracking-widest">Class {studentInfo.studentClass}</p>
+                                <p className="text-xs font-bold text-slate-400 tracking-widest">
+                                    Current Class: {studentInfo.classId?.gradeName || `Grade ${studentInfo.studentClass}`}
+                                </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Parents */}
                     <div className="flex flex-wrap gap-8 md:gap-12 lg:gap-16">
                         <div className="space-y-2">
                             <p className="text-[10px] font-black text-slate-400 tracking-widest">Father</p>
@@ -225,14 +371,13 @@ const StudentFee = () => {
                 </div>
             </div>
 
-            {/* Summary Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white dark:bg-slate-900 rounded-[32px] p-8 flex items-center gap-6 border border-slate-100 dark:border-slate-800 shadow-sm group hover:border-emerald-500/20 transition-all">
                     <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-2xl flex items-center justify-center group-hover:scale-110 duration-500 transition-transform">
                         <Receipt size={24} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Yearly Target</p>
+                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Consolidated Yearly Target</p>
                         <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">Rs. {summary?.yearlyTotal || 0}</h3>
                     </div>
                 </div>
@@ -242,7 +387,7 @@ const StudentFee = () => {
                         <Wallet size={24} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Collected</p>
+                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Total Collected</p>
                         <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums text-emerald-500">Rs. {summary?.totalPaid || 0}</h3>
                     </div>
                 </div>
@@ -252,19 +397,18 @@ const StudentFee = () => {
                         <AlertTriangle size={24} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Outstanding</p>
+                        <p className="text-[10px] font-black text-slate-400 tracking-widest mb-1.5">Total Outstanding (All Years)</p>
                         <h3 className="text-2xl font-black text-red-500 tracking-tighter tabular-nums">Rs. {summary?.totalDue || 0}</h3>
                     </div>
                 </div>
             </div>
 
-            {/* Fee Table */}
             <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[900px] text-left">
                         <thead>
                             <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                                <th className="pl-12 pr-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Month</th>
+                                <th className="pl-12 pr-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Month & Grade</th>
                                 <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Breakdown</th>
                                 <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Total Fee</th>
                                 <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest text-center">Status</th>
@@ -272,90 +416,14 @@ const StudentFee = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {(feeRecords || []).map((record) => (
-                                <tr key={record._id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors duration-300">
-                                    <td className="pl-12 pr-6 py-6">
-                                        <span className="text-sm font-black text-slate-900 dark:text-white lowercase tracking-tight capitalize block">{record.monthName}</span>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex items-center gap-2 group/tip relative">
-                                                <span className="text-[11px] font-bold text-slate-500 line-clamp-1 max-w-[150px]">
-                                                    Base: Rs.{record.baseFee || record.totalAmount}
-                                                    {record.admissionFee > 0 && ` + Adm: Rs.${record.admissionFee}`}
-                                                    {record.extraFees?.length > 0 && ` + ${record.extraFees.length} Extras`}
-                                                </span>
-                                                <div className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <ChevronDown size={12} />
-                                                </div>
-
-                                                {/* Tooltip Content */}
-                                                <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl p-5 z-20 invisible group-hover/tip:visible opacity-0 group-hover/tip:opacity-100 transition-all">
-                                                    <p className="text-[10px] font-black  text-slate-400 tracking-widest border-b pb-2 mb-3">Fee Details</p>
-                                                    <div className="space-y-2">
-                                                        <div className="flex justify-between text-xs font-bold"><span className="text-slate-500 dark:text-slate-400">Grade Fee</span><span className="text-slate-900 dark:text-white">Rs.{record.baseFee || record.totalAmount}</span></div>
-                                                        {record.admissionFee > 0 && <div className="flex justify-between text-xs font-bold text-emerald-600"><span>Admission</span><span>+Rs.{record.admissionFee}</span></div>}
-                                                        {record.extraFees?.map((ex, i) => (
-                                                            <div key={i} className="flex justify-between text-xs font-bold text-blue-500"><span>{ex.title}</span><span>+Rs.{ex.amount}</span></div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <div className="flex flex-col">
-                                            <span className="text-base font-black text-slate-900 dark:text-white tabular-nums tracking-tight">Rs. {record.totalAmount}</span>
-                                            {record.paidAmount > 0 ? (
-                                                <span className="text-[10px] font-black text-emerald-500 capitalize flex items-center gap-1 mt-1">
-                                                    <CheckCircle2 size={10} /> Paid {record.paidAmount}
-                                                </span>
-                                            ) : (
-                                                <span className={`text-[10px] font-black capitalize tracking-widest mt-1 ${NEPALI_MONTHS.indexOf(record.monthName) >= NEPALI_MONTHS.indexOf('Falgun') ? 'text-emerald-500' : 'text-red-400'}`}>
-                                                    {NEPALI_MONTHS.indexOf(record.monthName) >= NEPALI_MONTHS.indexOf('Falgun') ? 'DUE' : 'Not Paid Yet'}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <div className="flex justify-center">
-                                            {getStatusBadge(record)}
-                                        </div>
-                                    </td>
-                                    <td className="pr-12 pl-6 py-6">
-                                        <div className="flex gap-2 justify-center">
-                                            {record.status !== 'PAID' ? (
-                                                <>
-                                                    <button
-                                                        onClick={() => handlePayAction(record)}
-                                                        className="flex-1 max-w-[120px] py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black capitalize tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <CreditCard size={14} /> Mark Paid
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleOpenExtraFeeModal(record)}
-                                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-500 border border-slate-200 dark:border-slate-800 transition-all active:scale-95"
-                                                    >
-                                                        <Plus size={18} />
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <button className="flex-1 max-w-[140px] py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-xl text-[10px] font-black capitalize tracking-widest border border-slate-100 dark:border-slate-700 opacity-60 flex items-center justify-center gap-2">
-                                                    <CheckCircle2 size={14} /> Payment Done
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {renderFeeRows()}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* Extra Fee Modal */}
             <PortalPopup isOpen={isExtraFeeModalOpen} onClose={() => setIsExtraFeeModalOpen(false)}>
-                <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 pointer-events-auto">
+                <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-2xl overflow-hidden pointer-events-auto">
                     <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
                         <div>
                             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none capitalize tracking-widest mb-2 flex items-center gap-3">
@@ -367,7 +435,7 @@ const StudentFee = () => {
                     </div>
 
                     <div className="p-10 space-y-6 max-h-[50vh] overflow-y-auto scrollbar-hide">
-                        {(extraFees || []).map((fee, index) => (
+                        {extraFees.map((fee, index) => (
                             <div key={index} className="flex items-end gap-3 group animate-in slide-in-from-top-2 duration-300">
                                 <div className="flex-1 space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1 flex items-center gap-2">

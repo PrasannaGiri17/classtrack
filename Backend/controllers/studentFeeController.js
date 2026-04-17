@@ -87,9 +87,12 @@ exports.getStudentFees = async (req, res) => {
     const { academicYear } = req.query;
 
     const query = { student: studentId };
-    if (academicYear) query.academicYear = academicYear;
+    if (academicYear && academicYear !== 'all') {
+      query.academicYear = academicYear;
+    }
 
     const fees = await StudentFee.find(query)
+      .populate("grade", "gradeName gradeNumber monthlyFee")
       .sort({ academicYear: -1, monthIndex: 1 });
 
     return res.json(fees);
@@ -133,23 +136,30 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
     console.log(`Found ${students.length} students out of ${totalStudents} total matching query.`);
 
     // 3. For each student, get their fee summary for the academic year
-    const ay = academicYear || "2081/82";
+    const school = await School.findOne({ schoolId: req.schoolId });
+    const ay = academicYear || school?.activeYear || "2081/82";
     
     const feeData = await Promise.all(students.map(async (student) => {
-        const fees = await StudentFee.find({ schoolId: req.schoolId,  student: student._id, academicYear: ay })
-            .sort({ monthIndex: 1 });
+        // FETCH ALL FEES for the student to support multi-year/grade debt tracking
+        const allFees = await StudentFee.find({ schoolId: req.schoolId, student: student._id })
+            .populate("grade", "gradeName gradeNumber")
+            .sort({ academicYear: -1, monthIndex: 1 });
             
-        const totalDue = fees.reduce((acc, f) => acc + (f.dueAmount || 0), 0);
-        const totalPaid = fees.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
-        // Priority: OVERDUE > UNPAID > PARTIAL > PAID > NO_RECORD
+        // Separate current academic year fees for status display if academic year is selected
+        const currentYearFees = allFees.filter(f => f.academicYear === ay);
+        
+        const totalDueGlobal = allFees.reduce((acc, f) => acc + (f.dueAmount || 0), 0);
+        const totalPaidGlobal = allFees.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
+        
+        // Priority for primary status badge (based on current year if possible, otherwise global)
+        const relevantFees = currentYearFees.length > 0 ? currentYearFees : allFees;
         const statusPriority = { OVERDUE: 0, UNPAID: 1, PARTIAL: 2, PAID: 3 };
-        const relevantFee = fees.length > 0
-          ? fees.sort((a, b) => (statusPriority[a.status] ?? 9) - (statusPriority[b.status] ?? 9))[0]
+        const relevantFee = relevantFees.length > 0
+          ? [...relevantFees].sort((a, b) => (statusPriority[a.status] ?? 9) - (statusPriority[b.status] ?? 9))[0]
           : null;
 
         const currentMonthIndex = NEPALI_MONTHS.indexOf('Falgun');
-        const legacyUnpaidMonths = fees.filter(f => f.status !== "PAID" && f.monthIndex < currentMonthIndex).length;
-        const totalUnpaidRaw = fees.filter(r => r.status !== "PAID").length;
+        const unpaidCount = allFees.filter(r => r.status !== "PAID").length;
 
         return {
           _id: student._id,
@@ -158,10 +168,10 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
           studentId: student.studentId,
           profilePhoto: student.profilePhoto,
           className: student.classId?.gradeName || (student.studentClass ? `Grade ${student.studentClass}` : "N/A"),
-          unpaidMonths: legacyUnpaidMonths,
-          totalDueAmount: totalDue,
-          totalPaidAmount: totalPaid,
-          feeStatus: fees.length === 0 ? "NO_RECORD" : (totalUnpaidRaw > 0 ? "UNPAID" : "PAID"),
+          unpaidMonths: allFees.filter(f => f.status !== "PAID" && f.academicYear === ay).length,
+          totalDueAmount: totalDueGlobal, // Global Outstanding Rs.
+          totalPaidAmount: totalPaidGlobal,
+          feeStatus: allFees.length === 0 ? "NO_RECORD" : (totalDueGlobal > 0 ? "UNPAID" : "PAID"),
           
           // Modern Payload Structure
           student: {
@@ -172,14 +182,14 @@ exports.getAllStudentsFeeStatus = async (req, res) => {
             profilePhoto: student.profilePhoto
           },
           grade: student.classId,
-          monthName: relevantFee ? relevantFee.monthName : "—",
+          monthName: relevantFee ? `${relevantFee.academicYear} - ${relevantFee.monthName}` : "—",
           academicYear: ay,
-          totalAmount: totalDue + totalPaid,
-          dueAmount: totalDue,
-          paidAmount: totalPaid,
+          totalAmount: totalDueGlobal + totalPaidGlobal,
+          dueAmount: totalDueGlobal,
+          paidAmount: totalPaidGlobal,
           status: relevantFee ? relevantFee.status : "NO_RECORD",
-          unpaidCount: totalUnpaidRaw,
-          totalMonths: fees.length,
+          unpaidCount: unpaidCount,
+          totalMonths: allFees.length,
           recordId: relevantFee ? relevantFee._id : null
         };
     }));
@@ -293,7 +303,10 @@ exports.getStudentFeeSummary = async (req, res) => {
         const { academicYear } = req.query;
 
         const query = { student: studentId };
-        if (academicYear) query.academicYear = academicYear;
+        // If specific academicYear is requested, filter by it, otherwise get all historical records
+        if (academicYear && academicYear !== 'all') {
+            query.academicYear = academicYear;
+        }
 
         const fees = await StudentFee.find(query);
 
@@ -331,7 +344,8 @@ exports.getMyFees = async (req, res) => {
             return res.status(400).json({ message: "User is not a student" });
         }
 
-        const ay = "2081/82"; // Default academic year
+        const school = await School.findOne({ schoolId: req.schoolId });
+        const ay = school?.activeYear || "2081/82"; // Use school's active year as default
         
         let fees = await StudentFee.find({ schoolId: req.schoolId,  student: studentId, academicYear: ay })
             .sort({ monthIndex: 1 });
@@ -402,16 +416,14 @@ exports.getFeeById = async (req, res) => {
 exports.bulkGenerateFees = async (req, res) => {
     try {
         const { academicYear } = req.body;
-        const ay = academicYear || "2081/82";
+        const school = await School.findOne({ schoolId: req.schoolId });
+        const ay = academicYear || school?.activeYear || "2081/82";
 
         // 1. Fetch all active students
         const students = await Student.find({ schoolId: req.schoolId,  status: "active" }).populate("classId");
         
-        // 2. Fetch School and Grades for configuration
-        const [school, grades] = await Promise.all([
-            School.findOne({ schoolId: req.schoolId }),
-            Grade.find({ schoolId: req.schoolId })
-        ]);
+        // 2. Fetch Grades for configuration
+        const grades = await Grade.find({ schoolId: req.schoolId });
 
         if (!school) return res.status(404).json({ message: "School configuration not found" });
 
@@ -431,7 +443,7 @@ exports.bulkGenerateFees = async (req, res) => {
             } 
             
             if (!studentGrade && student.studentClass) {
-                studentGrade = grades.find(g => g.gradeNumber === student.studentClass);
+                studentGrade = grades.find(g => Number(g.gradeNumber) === Number(student.studentClass));
             }
 
             if (!studentGrade) {
@@ -444,38 +456,35 @@ exports.bulkGenerateFees = async (req, res) => {
             const admissionFee = school.admissionFee || 0;
 
             for (let i = 0; i < 12; i++) {
-                const query = {
-                    schoolId: req.schoolId,
+                // Find existing record for this specific month/year
+                const existingRec = await StudentFee.findOne({
                     student: student._id,
                     monthIndex: i,
                     academicYear: ay
-                };
-
-                const updateData = {
-                    schoolId: req.schoolId,
-                    school: school._id,
-                    grade: studentGrade._id,
-                    monthName: NEPALI_MONTHS[i],
-                    baseFee: baseFee,
-                    admissionFee: (i === 0) ? admissionFee : 0
-                };
-
-                // We use findOneAndUpdate with upsert to either create or update existing month record
-                // This allows updating rates if they were changed
-                const existingRec = await StudentFee.findOne(query);
+                });
                 
                 if (existingRec) {
-                    // Only update if UNPAID - don't touch already paid records' base fee
+                    // Only update if UNPAID - we don't want to change the price of already paid months
                     if (existingRec.status === 'UNPAID' || existingRec.status === 'OVERDUE') {
+                        existingRec.grade = studentGrade._id;
                         existingRec.baseFee = baseFee;
                         existingRec.admissionFee = (i === 0) ? admissionFee : 0;
+                        // pre-save hook will recalculate totalAmount and dueAmount
                         await existingRec.save();
                         results.updated++;
                     }
                 } else {
+                    // Create new record
                     const newFee = new StudentFee({
-                        ...query,
-                        ...updateData,
+                        schoolId: req.schoolId,
+                        school: school._id,
+                        student: student._id,
+                        grade: studentGrade._id,
+                        academicYear: ay,
+                        monthIndex: i,
+                        monthName: NEPALI_MONTHS[i],
+                        baseFee: baseFee,
+                        admissionFee: (i === 0) ? admissionFee : 0,
                         status: "UNPAID"
                     });
                     await newFee.save();
@@ -492,5 +501,55 @@ exports.bulkGenerateFees = async (req, res) => {
     } catch (err) {
         console.error("BULK GEN ERROR:", err);
         return res.status(500).json({ message: "Server error", error: err.message });
+    }
+};
+
+exports.syncSingleStudentLedger = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const { academicYear } = req.body;
+        
+        const school = await School.findOne({ schoolId: req.schoolId });
+        const ay = academicYear || school?.activeYear || "2081/82";
+
+        const student = await Student.findById(studentId).populate("classId");
+        if (!student) return res.status(404).json({ message: "Student not found" });
+
+        const grades = await Grade.find({ schoolId: req.schoolId });
+
+        let studentGrade = null;
+        if (student.classId) {
+            studentGrade = grades.find(g => g._id.toString() === student.classId._id.toString());
+        } 
+        if (!studentGrade && student.studentClass) {
+            studentGrade = grades.find(g => Number(g.gradeNumber) === Number(student.studentClass));
+        }
+
+        if (!studentGrade) return res.status(400).json({ message: "No matching grade configuration for this student" });
+
+        const baseFee = studentGrade.monthlyFee || 0;
+        const admissionFee = school.admissionFee || 0;
+
+        let updated = 0;
+        for (let i = 0; i < 12; i++) {
+            const fee = await StudentFee.findOne({
+                student: student._id,
+                monthIndex: i,
+                academicYear: ay
+            });
+
+            if (fee && (fee.status === 'UNPAID' || fee.status === 'OVERDUE')) {
+                fee.grade = studentGrade._id;
+                fee.baseFee = baseFee;
+                fee.admissionFee = (i === 0) ? admissionFee : 0;
+                await fee.save();
+                updated++;
+            }
+        }
+
+        return res.json({ message: `Synced ${updated} months to Grade: ${studentGrade.gradeName}`, updatedCount: updated });
+    } catch (err) {
+        console.error("SYNC SINGLE STUDENT ERROR:", err);
+        return res.status(500).json({ message: "Server error" });
     }
 };

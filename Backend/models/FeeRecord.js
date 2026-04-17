@@ -8,9 +8,9 @@ const feeRecordSchema = new mongoose.Schema(
       ref: "Student",
       required: true,
     },
-    schoolId: {
-      type: Number, 
-      required: true,
+    grade: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Grade",
     },
     academicYear: {
       type: String,
