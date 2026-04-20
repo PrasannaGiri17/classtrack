@@ -2,6 +2,7 @@ const ClassroomAttendance = require("../models/ClassroomAttendance");
 const Student = require("../models/studentModel");
 const { Grade } = require("../models/School");
 const mongoose = require("mongoose");
+const { calculateAndSaveFlags } = require('../services/flagService');
 
 // Get attendance records for a specific section (or entire school), year, and month
 const getAttendance = async (req, res) => {
@@ -96,6 +97,9 @@ const saveAttendance = async (req, res) => {
     );
 
     res.status(200).json({ message: "Attendance saved successfully", attendance });
+
+    // Trigger flag recalculation in background to keep colors in sync
+    calculateAndSaveFlags(Number(req.schoolId)).catch(err => console.error("Auto flag update error:", err));
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

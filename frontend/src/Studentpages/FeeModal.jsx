@@ -99,11 +99,46 @@ const FeeModal = ({
                                             <Layers size={16} />
                                         </div>
                                         <div>
-                                            <p className="text-[9px] font-black text-slate-400 capitalize tracking-widest">Class Reference</p>
-                                            <p className="text-xs font-black text-slate-900 dark:text-white mt-1 tracking-wider">{studentInfo.class || "N/A"}</p>
+                                            <p className="text-[9px] font-black text-slate-400 capitalize tracking-widest">Grade Fee</p>
+                                            <p className="text-xs font-black text-slate-900 dark:text-white mt-1 tracking-wider">{studentInfo.class || "N/A"} - Rs. {studentInfo.monthlyFee || 0}</p>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Summary Details Breakdown */}
+                        <div className="pt-6 border-t border-slate-100/50 dark:border-slate-800/50 space-y-3">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fee Breakdown</h4>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[11px]">
+                                    <span className="text-slate-500 font-bold">Total Base Fee:</span>
+                                    <span className="text-slate-900 dark:text-white font-black">Rs. {selectedFees.reduce((s, f) => s + (f.baseFee || 0), 0).toLocaleString()}</span>
+                                </div>
+                                {selectedFees.some(f => f.admissionFee > 0) && (
+                                    <div className="flex justify-between text-[11px]">
+                                        <span className="text-slate-500 font-bold">Admissions:</span>
+                                        <span className="text-emerald-500 font-black">+ Rs. {selectedFees.reduce((s, f) => s + (f.admissionFee || 0), 0).toLocaleString()}</span>
+                                    </div>
+                                )}
+                                {selectedFees.some(f => f.extraFees?.length > 0) && (
+                                    <div className="flex justify-between text-[11px]">
+                                        <span className="text-slate-500 font-bold">Extra Fees:</span>
+                                        <span className="text-blue-500 font-black">+ Rs. {selectedFees.reduce((s, f) => s + (f.extraFees?.reduce((es, e) => es + e.amount, 0) || 0), 0).toLocaleString()}</span>
+                                    </div>
+                                )}
+                                {selectedFees.some(f => f.fine > 0) && (
+                                    <div className="flex justify-between text-[11px]">
+                                        <span className="text-slate-500 font-bold">Late Fines:</span>
+                                        <span className="text-red-500 font-black">+ Rs. {selectedFees.reduce((s, f) => s + (f.fine || 0), 0).toLocaleString()}</span>
+                                    </div>
+                                )}
+                                {selectedFees.some(f => f.discount > 0) && (
+                                    <div className="flex justify-between text-[11px]">
+                                        <span className="text-slate-500 font-bold">Discounts:</span>
+                                        <span className="text-emerald-500 font-black">- Rs. {selectedFees.reduce((s, f) => s + (f.discount || 0), 0).toLocaleString()}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -111,7 +146,7 @@ const FeeModal = ({
                         <div className="pt-6 border-t border-slate-100/50 dark:border-slate-800/50">
                             <div className="bg-slate-950 dark:bg-emerald-600 rounded-[30px] p-6 text-white relative overflow-hidden group shadow-2xl">
                                 <div className="relative z-10">
-                                    <p className="text-[9px] font-black text-white/40 capitalize tracking-[0.3em] mb-2">Total Payable Amount</p>
+                                    <p className="text-[9px] font-black text-white/40 capitalize tracking-[0.3em] mb-2">Total Combined Amount</p>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-sm font-black text-white/60">Rs.</span>
                                         <h2 className="text-2xl font-black tracking-tighter tabular-nums">{totalAmount.toLocaleString()}</h2>
@@ -133,11 +168,11 @@ const FeeModal = ({
                                     <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                                         <Calendar size={16} />
                                     </div>
-                                    <h4 className="text-sm font-black text-slate-900 dark:text-white capitalize tracking-widest">Selected Months</h4>
+                                    <h4 className="text-sm font-black text-slate-900 dark:text-white capitalize tracking-widest">Monthly Ledger</h4>
                                 </div>
                                 <div className="px-4 py-1.5 bg-transparent rounded-full border border-slate-100 dark:border-slate-800">
                                     <span className="text-[10px] font-black text-emerald-500 capitalize tracking-widest italic">
-                                        {selectedFees.length} Item{selectedFees.length !== 1 ? 's' : ''}
+                                        {selectedFees.length} Month{selectedFees.length !== 1 ? 's' : ''}
                                     </span>
                                 </div>
                             </div>
@@ -155,14 +190,17 @@ const FeeModal = ({
                                             </div>
                                             <div>
                                                 <h5 className="text-sm font-black text-slate-900 dark:text-white capitalize tracking-tighter">{fee.monthName}</h5>
-                                                <p className="text-[9px] font-black text-slate-400 capitalize mt-1 tracking-[0.2em]">Academic Fee Record</p>
+                                                <p className="text-[9px] font-black text-slate-400 capitalize mt-1 tracking-[0.2em]">{studentInfo.class} Fee Ledger</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-lg font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">Rs. {fee.dueAmount.toLocaleString()}</p>
                                             <div className="flex items-center gap-1 justify-end mt-1">
-                                                <Clock size={10} className="text-emerald-500" />
-                                                <span className="text-[8px] font-black text-emerald-500 capitalize tracking-widest">Instant Pay</span>
+                                                <div className="flex items-center gap-1">
+                                                    {(fee.admissionFee > 0 || fee.extraFees?.length > 0 || fee.fine > 0 || fee.discount > 0) && (
+                                                        <span className="text-[8px] font-black bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded ml-1 tracking-widest uppercase">Inc. Extras</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -199,7 +237,7 @@ const FeeModal = ({
                                 onClick={onConfirm}
                                 className="px-10 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[20px] font-black text-xs capitalize tracking-[0.4em] shadow-2xl shadow-emerald-500/30 hover:scale-[1.01] active:scale-95 transition-all flex items-center gap-4 group relative overflow-hidden"
                             >
-                                <span className="relative z-10 leading-tight">PROCCED</span>
+                                <span className="relative z-10 leading-tight">CONTINUE</span>
                                 <ChevronRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>

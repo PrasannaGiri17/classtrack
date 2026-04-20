@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   Hash,
   ChevronRight,
+  ChevronDown,
+  Filter,
   Info,
   X,
   CreditCard as CardIcon,
@@ -43,6 +45,7 @@ const SFeeManagement = () => {
   const [paymentGateway, setPaymentGateway] = useState('khalti');
   const [detailFee, setDetailFee] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState('');
   const [currentMonthIndex, setCurrentMonthIndex] = useState(10); // Default Falgun
   const [studentInfo, setStudentInfo] = useState({
     name: localStorage.getItem("userName") || "Student",
@@ -51,7 +54,8 @@ const SFeeManagement = () => {
     schoolId: localStorage.getItem("studentSchoolId") || "N/A",
     schoolName: localStorage.getItem("schoolName") || "N/A",
     academicYear: "2081/82",
-    avatarUrl: localStorage.getItem("userPhoto") || null
+    avatarUrl: localStorage.getItem("userPhoto") || null,
+    monthlyFee: 0
   });
 
   useEffect(() => {
@@ -100,7 +104,8 @@ const SFeeManagement = () => {
             section: sData.sectionId?.sectionName || "N/A",
             studentId: sData.studentId || prev.studentId,
             schoolId: sData.schoolId || prev.schoolId,
-            avatarUrl: sData.profilePhoto || prev.avatarUrl
+            avatarUrl: sData.profilePhoto || prev.avatarUrl,
+            monthlyFee: sData.gradeId?.monthlyFee || 0
           }));
         } catch (sErr) {
           console.error("Failed to fetch student profile", sErr);
@@ -109,29 +114,38 @@ const SFeeManagement = () => {
 
       // 2. Fetch Fees
       const data = await feeService.getMyFees();
-      setFees(data);
+      // Ensure data is sorted by academic year (desc) then month index (asc)
+      const sortedData = [...data].sort((a, b) => {
+        if (a.academicYear !== b.academicYear) {
+          return b.academicYear.localeCompare(a.academicYear);
+        }
+        return a.monthIndex - b.monthIndex;
+      });
+      setFees(sortedData);
 
-      if (data.length > 0) {
-        const year = data[0].academicYear;
+      if (sortedData.length > 0) {
+        // Set the most recent year as the reference
+        const latestYear = sortedData[0].academicYear;
         setStudentInfo(prev => ({
           ...prev,
-          academicYear: year
+          academicYear: latestYear
         }));
+        setSelectedYear(latestYear);
 
         if (shouldDownloadStatement) {
           const lastPaidIdsRaw = sessionStorage.getItem("lastPaidFees");
           if (lastPaidIdsRaw) {
             try {
               const lastPaidIds = JSON.parse(lastPaidIdsRaw);
-              const filteredData = data.filter(f => lastPaidIds.includes(f._id));
+              const filteredData = sortedData.filter(f => lastPaidIds.includes(f._id));
               generateFullStatement(filteredData, "Digital Fee Receipt");
               sessionStorage.removeItem("lastPaidFees");
             } catch (err) {
               console.error("Failed to parse last payment data", err);
-              generateFullStatement(data); // Fallback to all
+              generateFullStatement(sortedData);
             }
           } else {
-            generateFullStatement(data); // Fallback to all
+            generateFullStatement(sortedData);
           }
         }
       }
@@ -141,6 +155,16 @@ const SFeeManagement = () => {
       setIsLoading(false);
     }
   };
+
+  const groupedFees = useMemo(() => {
+    const groups = {};
+    fees.forEach((fee, originalIndex) => {
+      const year = fee.academicYear;
+      if (!groups[year]) groups[year] = [];
+      groups[year].push({ ...fee, originalIndex });
+    });
+    return groups;
+  }, [fees]);
 
   // --- Derived State ---
   const selectedFees = useMemo(() =>
@@ -461,14 +485,37 @@ const SFeeManagement = () => {
           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter uppercase mb-2">School Fee Ledger</h1>
           <p className="text-sm font-bold text-slate-400 tracking-widest uppercase">Digital Payment & Account Reconciliation</p>
         </div>
-        <button 
-          onClick={generateFullStatement}
-          className="flex items-center gap-3 px-8 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-widest shadow-xl hover:translate-y-[-4px] active:scale-95 transition-all group"
-        >
-          <Printer size={18} className="text-emerald-500 group-hover:scale-110 transition-transform" />
-          Print Account Statement
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="relative group min-w-[160px]">
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="w-full appearance-none pl-5 pr-10 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] text-[11px] font-black text-slate-500 dark:text-slate-400 tracking-widest uppercase focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all cursor-pointer shadow-xl"
+            >
+              {Object.keys(groupedFees).sort((a, b) => b.localeCompare(a)).map(year => {
+                const gradeName = groupedFees[year][0].grade?.gradeName || `Year: ${year}`;
+                return (
+                  <option key={year} value={year}>
+                    {gradeName}
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
+          </div>
+
+          <button 
+            onClick={() => generateFullStatement(fees)}
+            className="flex items-center gap-3 px-8 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-widest shadow-xl hover:translate-y-[-4px] active:scale-95 transition-all group"
+          >
+            <Printer size={18} className="text-emerald-500 group-hover:scale-110 transition-transform" />
+            <span className="hidden sm:inline">Print Account Statement</span>
+            <span className="sm:inline block md:hidden">Statement</span>
+          </button>
+        </div>
       </div>
+
+
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-12 items-start">
 
@@ -476,64 +523,80 @@ const SFeeManagement = () => {
         <div className="xl:col-span-2 space-y-10">
 
           {fees.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {fees.map((fee, idx) => {
-                const isSelected = selectedIndexes.includes(idx);
-                const isPaid = fee.status === 'PAID';
-                const isOverdue = fee.status === 'OVERDUE';
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+              {Object.keys(groupedFees).filter(year => year === selectedYear).map(year => (
+                <div key={year} className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {groupedFees[year].map((fee) => {
+                      const idx = fee.originalIndex;
+                      const isSelected = selectedIndexes.includes(idx);
+                      const isPaid = fee.status === 'PAID';
 
-                return (
-                  <div
-                    key={fee._id}
-                    onClick={() => !isPaid && toggleSelection(idx)}
-                    className={`
-                      group relative p-6 rounded-[32px] border transition-all duration-300 select-none cursor-pointer
-                      ${isPaid ? 'bg-slate-50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 opacity-60' : ''}
-                      ${isSelected ? 'bg-emerald-600 shadow-2xl shadow-emerald-600/30 border-emerald-400 scale-[1.03] text-white' : ''}
-                      ${!isPaid && !isSelected ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-emerald-500/40 hover:translate-y-[-4px]' : ''}
-                    `}
-                  >
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className={`text-lg font-black tracking-tighter capitalize ${isSelected ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-                          {fee.monthName}
-                        </h4>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDetailFee(fee);
-                            }}
-                            className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-500'}`}
-                          >
-                            <Info size={16} />
-                          </button>
-                          {isPaid && <CheckCircle2 size={16} className="text-emerald-500" />}
-                        </div>
-                      </div>
+                      return (
+                        <div
+                          key={fee._id}
+                          onClick={() => !isPaid && toggleSelection(idx)}
+                          className={`
+                            group relative p-6 rounded-[32px] border transition-all duration-300 select-none cursor-pointer
+                            ${isPaid ? 'bg-slate-50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 opacity-60' : ''}
+                            ${isSelected ? 'bg-emerald-600 shadow-2xl shadow-emerald-600/30 border-emerald-400 scale-[1.03] text-white' : ''}
+                            ${!isPaid && !isSelected ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-emerald-500/40 hover:translate-y-[-4px]' : ''}
+                          `}
+                        >
+                          <div className="flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className={`text-lg font-black tracking-tighter capitalize ${isSelected ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                                  {fee.monthName}
+                                </h4>
+                                <p className={`text-[9px] font-bold tracking-widest uppercase mt-0.5 ${isSelected ? 'text-emerald-100' : 'text-slate-400 dark:text-slate-500'}`}>
+                                  {fee.grade?.gradeName || studentInfo.class}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDetailFee(fee);
+                                  }}
+                                  className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-500'}`}
+                                >
+                                  <Info size={16} />
+                                </button>
+                                {isPaid && <CheckCircle2 size={16} className="text-emerald-500" />}
+                              </div>
+                            </div>
 
-                      <div>
-                        <p className={`text-[10px] font-black tracking-widest mb-1 ${isSelected ? 'text-emerald-100' : isPaid ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500 capitalize'}`}>
-                          {isPaid ? 'PAID AMOUNT' : 'DUE AMOUNT'}
-                        </p>
-                        <p className={`text-2xl font-black tabular-nums ${isSelected ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-                          Rs. {(isPaid ? fee.totalAmount : fee.dueAmount).toLocaleString()}
-                        </p>
-                      </div>
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <p className={`text-[10px] font-black tracking-widest ${isSelected ? 'text-emerald-100' : isPaid ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500 capitalize'}`}>
+                                  {isPaid ? 'PAID AMOUNT' : 'DUE AMOUNT'}
+                                </p>
+                                <p className={`text-[9px] font-bold ${isSelected ? 'text-emerald-200' : 'text-slate-400'}`}>
+                                  Base: Rs.{fee.baseFee}
+                                </p>
+                              </div>
+                              <p className={`text-2xl font-black tabular-nums ${isSelected ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                                Rs. {(isPaid ? fee.totalAmount : fee.dueAmount).toLocaleString()}
+                              </p>
+                            </div>
 
-                      {(() => {
-                        const tag = getFeeTagDetails(fee.monthName, isPaid, isSelected);
-                        if (!tag) return null;
-                        return (
-                          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[9px] font-black tracking-widest w-fit capitalize transition-colors ${tag.styling}`}>
-                            {tag.label}
+                            {(() => {
+                              const tag = getFeeTagDetails(fee.monthName, isPaid, isSelected);
+                              if (!tag) return null;
+                              return (
+                                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[9px] font-black tracking-widest w-fit capitalize transition-colors ${tag.styling}`}>
+                                  {tag.label}
+                                </div>
+                              );
+                            })()}
                           </div>
-                        );
-                      })()}
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="py-24 bg-white dark:bg-slate-900 rounded-[48px] border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center px-10">
@@ -574,6 +637,10 @@ const SFeeManagement = () => {
                 <div className="flex items-center gap-2">
                   <Hash size={14} className="text-emerald-500 flex-shrink-0" />
                   <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-widest capitalize whitespace-nowrap">{studentInfo.studentId}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Wallet size={14} className="text-emerald-500 flex-shrink-0" />
+                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-widest capitalize whitespace-nowrap">Rs. {studentInfo.monthlyFee}/mo</span>
                 </div>
               </div>
             </div>
@@ -692,6 +759,18 @@ const SFeeManagement = () => {
                 <span className="text-xs font-black text-blue-500 tabular-nums">+ Rs. {ex.amount}</span>
               </div>
             ))}
+            {detailFee?.fine > 0 && (
+              <div className="flex justify-between p-5 bg-red-50/40 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-800/20">
+                <span className="text-xs font-bold text-red-500 tracking-widest capitalize">Late Fine</span>
+                <span className="text-xs font-black text-red-500 tabular-nums">+ Rs. {detailFee.fine}</span>
+              </div>
+            )}
+            {detailFee?.discount > 0 && (
+              <div className="flex justify-between p-5 bg-emerald-50/40 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-800/20">
+                <span className="text-xs font-bold text-emerald-600 tracking-widest capitalize">Scholarship/Discount</span>
+                <span className="text-xs font-black text-emerald-600 tabular-nums">- Rs. {detailFee.discount}</span>
+              </div>
+            )}
 
             <div className="pt-8 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div>

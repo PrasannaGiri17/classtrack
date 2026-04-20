@@ -1,5 +1,5 @@
 // controllers/flagController.js
-const StudentFlag = require('../models/StudentFlag');
+const { StudentFlag } = require('../models/StudentFlag');
 const { calculateAndSaveFlags } = require('../services/flagService');
 
 /**

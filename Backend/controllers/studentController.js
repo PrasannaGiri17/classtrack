@@ -243,7 +243,8 @@ const getStudentById = async (req, res) => {
         populatedData.gradeId = {
           _id: grade._id,
           gradeName: grade.gradeName,
-          gradeNumber: grade.gradeNumber
+          gradeNumber: grade.gradeNumber,
+          monthlyFee: grade.monthlyFee
         };
 
         // Find the specific section to get its teacher

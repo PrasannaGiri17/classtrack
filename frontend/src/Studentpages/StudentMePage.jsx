@@ -390,6 +390,13 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
       accent: 'bg-red-500',
       label: 'FLAGGED PROFILE'
     },
+    amber: {
+      banner: 'bg-amber-500 dark:bg-amber-600',
+      badge: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
+      icon: 'text-amber-500',
+      accent: 'bg-amber-500',
+      label: 'WARNING STATUS'
+    },
     yellow: {
       banner: 'bg-amber-500 dark:bg-amber-600',
       badge: 'bg-amber-500/10 border-amber-500/20 text-amber-500',

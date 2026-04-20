@@ -1,305 +1,253 @@
 // services/flagService.js
 const ClassroomAttendance = require('../models/ClassroomAttendance');
 const Result = require('../models/Result');
-const StudentFlag = require('../models/StudentFlag');
+const { StudentFlag, resolveLastResultBasis, upsertStudentFlag } = require('../models/StudentFlag');
 const Student = require('../models/studentModel');
+const { Grade } = require('../models/School');
+const Holiday = require('../models/Holiday');
+const Exam = require('../models/Exam');
 
-const NEPALI_MONTHS = [
-  'Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashoj',
+const MONTH_MAP = {
+  'Baisakh': 1, 'Jestha': 2, 'Ashad': 3, 'Shrawan': 4, 'Bhadra': 5, 'Ashwin': 6,
+  'Kartik': 7, 'Mangsir': 8, 'Poush': 9, 'Magh': 10, 'Falgun': 11, 'Chaitra': 12
+};
+const MONTH_NAMES = [
+  null, 'Baisakh', 'Jestha', 'Ashad', 'Shrawan', 'Bhadra', 'Ashwin',
   'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
 ];
 
-// Converts a Nepali year + month name to a sortable numeric key
-function monthKey(year, monthName) {
-  const idx = NEPALI_MONTHS.indexOf(monthName);
-  if (idx === -1) return year * 100; // unknown month, put at start
-  return year * 100 + (idx + 1);    // 1-indexed
-}
-
-// Given termDates config and a term name, extracts the last date of that term
-function getTermLastDate(termDates, termName) {
-  const dates = termDates?.[termName];
-  if (!Array.isArray(dates) || dates.length === 0) return null;
-  // Sort descending and return the latest date string
-  return [...dates].sort().reverse()[0];
-}
-
-// Parse an AD date string "YYYY-MM-DD" into { year, month, day }
-function parseDate(dateStr) {
-  if (!dateStr) return null;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return { year: y, month: m, day: d };
-}
-
 /**
- * Calculate attendance percentage for a student over a range defined by
- * a set of Nepali months (e.g., ["Baisakh-2082", "Jestha-2082"])
- * monthsToInclude: array of { year: Number, month: String }
+ * Main service function: calculate and save flags for all active students.
  */
-async function getAttendancePct(studentId, schoolId, sectionId, monthsToInclude) {
-  try {
-    if (!monthsToInclude || monthsToInclude.length === 0) return 0;
-
-    let totalDays = 0;
-    let presentDays = 0;
-
-    for (const { year, month } of monthsToInclude) {
-      const attDoc = await ClassroomAttendance.findOne({
-        schoolId,
-        sectionId,
-        year,
-        month,
-      });
-      if (!attDoc) continue;
-
-      const studentRecord = attDoc.attendanceData.find(
-        (r) => r.studentId.toString() === studentId.toString()
-      );
-      if (!studentRecord || !studentRecord.dailyStatus) continue;
-
-      // dailyStatus is a Mongoose Map
-      const statusMap = studentRecord.dailyStatus instanceof Map
-        ? studentRecord.dailyStatus
-        : new Map(Object.entries(studentRecord.dailyStatus));
-
-      for (const [, status] of statusMap) {
-        if (status === 'P' || status === 'A') {
-          totalDays++;
-          if (status === 'P') presentDays++;
-        }
-      }
-    }
-
-    if (totalDays === 0) return 0;
-    return Math.round((presentDays / totalDays) * 100 * 100) / 100; // 2 decimal places
-  } catch (err) {
-    console.error('getAttendancePct error:', err);
-    return 0;
-  }
-}
-
-/**
- * Fetch mid-term and final-term scores (percentage) for a student
- */
-async function getTermScores(studentId, schoolId, midTermName, finalTermName) {
-  try {
-    const results = await Result.find({
-      studentId,
-      schoolId,
-      term: { $in: [midTermName, finalTermName].filter(Boolean) },
-    }).lean();
-
-    let midTermScore = 0;
-    let finalTermScore = 0;
-
-    for (const r of results) {
-      const pct = r.summary?.percentage ?? 0;
-      if (r.term === midTermName) midTermScore = pct;
-      if (r.term === finalTermName) finalTermScore = pct;
-    }
-
-    return { midTermScore, finalTermScore };
-  } catch (err) {
-    console.error('getTermScores error:', err);
-    return { midTermScore: 0, finalTermScore: 0 };
-  }
-}
-
-/**
- * Compute flag color and points from attendance % and weighted exam score
- */
-function computeFlag(attendancePct, weightedScore) {
-  const attendancePoints = attendancePct >= 85 ? 2 : attendancePct >= 70 ? 1 : 0;
-  const examPoints = weightedScore >= 60 ? 2 : weightedScore >= 40 ? 1 : 0;
-  const totalPoints = attendancePoints + examPoints;
-
-  let flagColor;
-  if (totalPoints >= 4) flagColor = 'green';
-  else if (totalPoints >= 2) flagColor = 'amber';
-  else flagColor = 'red';
-
-  return { flagColor, attendancePoints, examPoints, totalPoints };
-}
-
-/**
- * Determine which Nepali year+month combinations fall within a term date range.
- * startAD / endAD: AD date strings "YYYY-MM-DD"
- * We iterate from the academicYear start (Baisakh) up to the endAD month.
- * For simplicity we use the attendance docs that exist in the DB for that section.
- */
-async function getMonthsInRange(schoolId, sectionId, academicYear, startKeyExclusive, endKey) {
-  // Fetch all attendance docs for this section & year
-  const docs = await ClassroomAttendance.find({
-    schoolId,
-    sectionId,
-    year: academicYear,
-  })
-    .select('year month')
-    .lean();
-
-  const result = [];
-  for (const doc of docs) {
-    const key = monthKey(doc.year, doc.month);
-    if (key > startKeyExclusive && key <= endKey) {
-      result.push({ year: doc.year, month: doc.month });
-    }
-  }
-  return result;
-}
-
-/**
- * Build term pairs dynamically based on termsCount.
- * Returns array like:
- *  For 2 terms: [
- *    { pairName: "Term1", midTerm: "First Mid Term",  finalTerm: "First Term"  },
- *    { pairName: "Term2", midTerm: "Second Mid Term", finalTerm: "Second Term" },
- *  ]
- *  For 3 terms the pattern continues with Third Mid Term / Third Term, etc.
- */
-function buildTermPairs(termsCount, includeMidTerm) {
-  const ordinals = ['First', 'Second', 'Third', 'Fourth'];
-  const pairs = [];
-  for (let i = 0; i < termsCount; i++) {
-    const ord = ordinals[i] || `Term${i + 1}`;
-    pairs.push({
-      pairName: `Term${i + 1}`,
-      midTerm: includeMidTerm ? `${ord} Mid Term` : null,
-      finalTerm: `${ord} Term`,
-    });
-  }
-  return pairs;
-}
-
-/**
- * Main service function: calculate and save flags for all active students in a school
- */
-async function calculateAndSaveFlags(schoolId, academicYear) {
-  // 1. Fetch exam config
-  const Exam = require('../models/Exam');
-  const examDoc = await Exam.findOne({ schoolId }).lean();
-  if (!examDoc) throw new Error(`No exam config found for schoolId ${schoolId}`);
-
-  const termsCount = examDoc.config?.termsCount || 2;
-  const includeMidTerm = examDoc.config?.includeMidTerm !== false;
-  const termDates = examDoc.config?.termDates || {};
-
-  const termPairs = buildTermPairs(termsCount, includeMidTerm);
-
-  // 2. Build sortable end-of-term keys for attendance range slicing
-  //    We parse the last date of each final term to get an approximate Nepali month key.
-  //    Since termDates stores AD dates, we convert month index by looking at AD month.
-  //    Nepali year typically maps: Baisakh=Apr, Jestha=May, … so AD month m → Nepali month (m+8) mod 12.
-  //    We use a simplified mapping: just use the AD date's month index as a proxy for ordering.
-  function adDateToMonthKey(adDateStr, nepYear) {
-    const parsed = parseDate(adDateStr);
-    if (!parsed) return nepYear * 100;
-    // Rough Nepali month index: AD April (4) ≈ Baisakh (1)
-    const nepMonthIdx = ((parsed.month - 4 + 12) % 12) + 1; // 1-12
-    return nepYear * 100 + nepMonthIdx;
-  }
-
-  // 3. Fetch all active students
-  const students = await Student.find({ schoolId, status: 'active' })
-    .select('_id gradeId sectionId flag')
-    .lean();
-
+async function calculateAndSaveFlags(schoolId) {
   const summary = { processed: 0, errors: [] };
 
-  for (const student of students) {
-    try {
-      let prevEndKey = academicYear * 100; // before Baisakh of that year
+  try {
+    const examDoc = await Exam.findOne({ 
+      schoolId, 
+      'config.termDates': { $exists: true, $ne: {} } 
+    }).sort({ academicYear: -1 }).lean();
+    if (!examDoc) throw new Error(`No exam config found for schoolId ${schoolId}`);
 
-      for (const pair of termPairs) {
-        const finalTermLastDate = getTermLastDate(termDates, pair.finalTerm);
-        const endKey = finalTermLastDate
-          ? adDateToMonthKey(finalTermLastDate, academicYear)
-          : academicYear * 100 + 12; // fallback to Chaitra
+    const academicYear = examDoc.academicYear || 2083;
+    const termDates = examDoc.config?.termDates || {};
+    
+    // Sort and filter non-mid terms
+    // termDates format: { "First Term": ["2026-08-01", "2026-08-10"], ... }
+    const validTerms = Object.keys(termDates)
+      .filter(t => !t.toLowerCase().includes('mid'))
+      .sort((a, b) => {
+        const lastA = [...termDates[a]].sort().reverse()[0];
+        const lastB = [...termDates[b]].sort().reverse()[0];
+        return lastA.localeCompare(lastB);
+      });
 
-        // Attendance months in this term's range
-        const monthsForTerm = await getMonthsInRange(
-          schoolId,
-          student.sectionId,
-          academicYear,
-          prevEndKey,
-          endKey
-        );
+    if (validTerms.length === 0) throw new Error("No non-mid terms defined in exam config.");
 
-        // Attendance %
-        const attendancePct = await getAttendancePct(
-          student._id,
-          schoolId,
-          student.sectionId,
-          monthsForTerm
-        );
+    // Load Holidays for the year for quick exclusion
+    const holidayDocs = await Holiday.find({
+      nepali_date: { $regex: `^${academicYear}-` }
+    }).lean();
+    const holidaySet = new Set(holidayDocs.map(h => h.gregorian_date));
+    const bsToAdMap = {};
+    holidayDocs.forEach(h => { bsToAdMap[h.nepali_date] = h.gregorian_date; });
 
-        // Exam scores
-        const { midTermScore, finalTermScore } = await getTermScores(
-          student._id,
-          schoolId,
-          pair.midTerm,
-          pair.finalTerm
-        );
+    // Academic Year Start Anchor: Baisakh 1
+    const baisakh1BS = `${academicYear}-01-01`;
+    const baisakh1AD = bsToAdMap[baisakh1BS] || `${academicYear - 57}-04-14`;
+    const startDate = new Date(baisakh1AD);
+    startDate.setDate(startDate.getDate() + 1); // Start range from Baisakh 2
 
-        // Weighted score
-        let weightedScore;
-        if (pair.midTerm) {
-          weightedScore = midTermScore * 0.20 + finalTermScore * 0.80;
-        } else {
-          weightedScore = finalTermScore;
+    // Build Term Intervals (AD dates)
+    const termIntervals = [];
+    let currentStart = new Date(startDate);
+    currentStart.setHours(0, 0, 0, 0);
+
+    for (const term of validTerms) {
+      const dates = [...termDates[term]].sort();
+      const endADStr = dates[dates.length - 1]; 
+      const [ey, em, ed] = endADStr.split('-').map(Number);
+      const endDate = new Date(ey, em - 1, ed);
+      endDate.setHours(0, 0, 0, 0);
+      
+      termIntervals.push({
+        term,
+        start: new Date(currentStart),
+        end: new Date(endDate)
+      });
+      
+      // Next term starts the day AFTER this one ends
+      currentStart = new Date(endDate);
+      currentStart.setDate(currentStart.getDate() + 1);
+      currentStart.setHours(0, 0, 0, 0);
+    }
+
+    // Cache grade subject counts
+    const gradesData = await Grade.find({ schoolId }).lean();
+    const gradeSubjectCountMap = {};
+    gradesData.forEach(g => {
+      gradeSubjectCountMap[g._id.toString()] = g.subjects?.length || 0;
+    });
+
+    const students = await Student.find({ schoolId, status: 'active' }).lean();
+
+    for (const student of students) {
+      try {
+        const results = await Result.find({ studentId: student._id, schoolId }).lean();
+        const expected = gradeSubjectCountMap[student.gradeId?.toString()] || 0;
+        
+        const basisResult = resolveLastResultBasis(results, expected);
+        if (!basisResult) {
+          summary.processed++;
+          continue;
         }
 
-        // Flag computation
-        const { flagColor, attendancePoints, examPoints, totalPoints } = computeFlag(
+        // Find relevant interval
+        const interval = termIntervals.find(i => i.term === basisResult.term);
+        if (!interval) {
+          summary.processed++;
+          continue;
+        }
+
+        // Calculate Precise Attendance within Interval
+        const { attendancePct, count } = await calculatePreciseAttendance(
+          student._id,
+          schoolId,
+          student.sectionId,
+          interval.start,
+          interval.end,
+          holidaySet,
+          academicYear,
+          bsToAdMap
+        );
+
+        // Academic Percentage: Already provided in basisResult.summary.percentage 
+        // as per the new rules in StudentFlag model helpers.
+
+        // Upsert Flag
+        const updatedFlag = await upsertStudentFlag({
+          schoolId,
+          student,
+          result: basisResult,
           attendancePct,
-          weightedScore
-        );
+          attendanceMonths: [`${interval.term} range`]
+        });
 
-        // Upsert flag record
-        await StudentFlag.findOneAndUpdate(
-          {
-            studentId: student._id,
-            schoolId,
-            academicYear,
-            termPair: pair.pairName,
-          },
-          {
-            $set: {
-              gradeId: student.gradeId,
-              sectionId: student.sectionId,
-              attendancePct,
-              attendanceMonthsIncluded: monthsForTerm.map((m) => `${m.month}-${m.year}`),
-              midTermScore: midTermScore || 0,
-              finalTermScore: finalTermScore || 0,
-              weightedScore,
-              attendancePoints,
-              examPoints,
-              totalPoints,
-              flagColor,
-              generatedAt: new Date(),
-            },
-          },
-          { upsert: true, new: true }
-        );
+        // Update Student master flag
+        if (updatedFlag) {
+          await Student.findByIdAndUpdate(student._id, { flag: updatedFlag.flagColor });
+        }
 
-        // Update Student.flag with latest term's flag
-        await Student.findByIdAndUpdate(student._id, { flag: flagColor });
-
-        prevEndKey = endKey;
+        summary.processed++;
+      } catch (studentErr) {
+        console.error(`Flag error for student ${student._id}:`, studentErr);
+        summary.errors.push({ studentId: student._id, error: studentErr.message });
       }
-
-      summary.processed++;
-    } catch (err) {
-      console.error(`Flag error for student ${student._id}:`, err.message);
-      summary.errors.push({ studentId: student._id, error: err.message });
     }
+
+  } catch (err) {
+    console.error('calculateAndSaveFlags global error:', err);
+    throw err;
   }
 
   return summary;
 }
 
+/**
+ * Calculates attendance by iterating through working days in AD range
+ * and fetching the corresponding daily status from BS ClassroomAttendance.
+ */
+async function calculatePreciseAttendance(studentId, schoolId, sectionId, startAD, endAD, holidaySet, academicYear, bsToAdMap) {
+  let workingDaysCount = 0;
+  let presentDaysCount = 0;
+
+  // Pre-fetch all attendance for this section/year to avoid N queries in loop
+  const attendanceDocs = await ClassroomAttendance.find({
+    schoolId,
+    sectionId,
+    year: academicYear
+  }).lean();
+
+  // Map into a quick lookup: attendanceMap[monthName][dayNumber] = status
+  const attendanceMap = {};
+  attendanceDocs.forEach(doc => {
+    const studentData = doc.attendanceData.find(d => d.studentId.toString() === studentId.toString());
+    if (studentData && studentData.dailyStatus) {
+      if (!attendanceMap[doc.month]) attendanceMap[doc.month] = {};
+      // studentData.dailyStatus is a Map, convert to plain object if necessary or use .get
+      const statusObj = studentData.dailyStatus instanceof Map ? Object.fromEntries(studentData.dailyStatus) : studentData.dailyStatus;
+      Object.assign(attendanceMap[doc.month], statusObj);
+    }
+  });
+
+  // Construct AD -> BS Day/Month mapper for the range
+  // Anchor on Baisakh 1 of the academic year
+  const baisakh1BS = `${academicYear}-01-01`;
+  const baisakh1ADStr = bsToAdMap[baisakh1BS] || `${academicYear - 57}-04-14`;
+  const [bYear, bMonth, bDay] = baisakh1ADStr.split('-').map(Number);
+  const baisakh1AD = new Date(bYear, bMonth - 1, bDay);
+  baisakh1AD.setHours(0, 0, 0, 0);
+
+  // Iterating Day by Day
+  let cur = new Date(startAD);
+  cur.setHours(0, 0, 0, 0);
+  const endLimit = new Date(endAD);
+  endLimit.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  while (cur <= endLimit && cur <= today) {
+    const dateStr = cur.toISOString().split('T')[0];
+    const isSat = cur.getDay() === 6;
+    const isHoliday = holidaySet.has(dateStr);
+
+    if (!isSat && !isHoliday) {
+      workingDaysCount++;
+      
+      // BS Month/Day lookup
+      const bsDate = adToBS(cur, baisakh1AD); 
+      const monthName = MONTH_NAMES[bsDate.m];
+      const status = attendanceMap[monthName]?.[String(bsDate.d)];
+
+      if (status === 'P' || status === 'L') {
+        presentDaysCount++;
+      }
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  const attendancePct = workingDaysCount === 0 ? 0 : (presentDaysCount / workingDaysCount) * 100;
+  return { attendancePct, count: workingDaysCount };
+}
+
+/**
+ * Rough but stable AD to BS conversion based on Baisakh 1 anchor.
+ * This assumes standard local calendar month lengths if possible.
+ * For simplistic logic, we use standard BS month lengths:
+ * Baisakh (31), Jestha (31/32), Ashad (31/32)... 
+ * However, without a table, we'll just use a day-offset calculation.
+ */
+function adToBS(adDate, baisakh1AD) {
+  const d1 = new Date(adDate.getFullYear(), adDate.getMonth(), adDate.getDate());
+  const d2 = new Date(baisakh1AD.getFullYear(), baisakh1AD.getMonth(), baisakh1AD.getDate());
+  const diffDays = Math.round((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // BS month lengths table (rough average for Nepali calendar)
+  const lengths = [31, 31, 32, 32, 31, 30, 30, 30, 29, 30, 30, 30]; 
+  
+  let m = 1;
+  let d = diffDays + 1;
+  
+  for (let i = 0; i < lengths.length; i++) {
+    if (d <= lengths[i]) break;
+    d -= lengths[i];
+    m++;
+  }
+  
+  return { m, d };
+}
+
 module.exports = {
   calculateAndSaveFlags,
-  getAttendancePct,
-  getTermScores,
-  computeFlag,
 };

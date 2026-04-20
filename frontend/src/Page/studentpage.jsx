@@ -358,24 +358,31 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
     const flagThemes = {
         red: {
             banner: 'bg-red-600 dark:bg-red-700',
-            badge: 'bg-red-500/10 border-red-500/20 text-red-500',
+            badge: 'bg-red-500/10 text-red-500',
             icon: 'text-red-500',
             accent: 'bg-red-500',
-            label: 'Red Flaged'
+            label: 'Red Flagged'
         },
         amber: {
             banner: 'bg-amber-500 dark:bg-amber-600',
-            badge: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
+            badge: 'bg-amber-500/10 text-amber-500',
             icon: 'text-amber-500',
             accent: 'bg-amber-500',
-            label: 'Amber Flaged'
+            label: 'Yellow Flagged'
+        },
+        yellow: {
+            banner: 'bg-amber-500 dark:bg-amber-600',
+            badge: 'bg-amber-500/10 text-amber-500',
+            icon: 'text-amber-500',
+            accent: 'bg-amber-500',
+            label: 'Yellow Flagged'
         },
         green: {
             banner: 'bg-emerald-600 dark:bg-emerald-700',
-            badge: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500',
+            badge: 'bg-emerald-500/10 text-emerald-500',
             icon: 'text-emerald-500',
             accent: 'bg-emerald-500',
-            label: 'Green Flaged'
+            label: 'Green Flagged'
         }
     };
 
@@ -413,16 +420,63 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
     };
 
     return (
-        <div className="relative w-full bg-white dark:bg-[#0b1220] rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800/40 overflow-hidden transition-all group/card">
+        <div className="relative w-full bg-white dark:bg-[#0b1220] rounded-[40px] transition-all group/card">
             {/* 1. Header Banner */}
-            <div className={`h-10 md:h-12 w-full ${currentTheme.banner} relative overflow-hidden transition-colors duration-500`}>
-                <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
-                <div className="absolute top-[-50%] right-[-5%] w-48 h-48 bg-white/10 rounded-full blur-2xl" />
+            <div className={`h-10 md:h-12 w-full ${currentTheme.banner} relative rounded-t-[40px] transition-colors duration-500 group/banner cursor-help`}>
+                <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent rounded-t-[40px]" />
+
+                {/* Hover Tooltip - Academic Summary */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex gap-3 opacity-0 group-hover/banner:opacity-100 transition-all duration-500 pointer-events-none translate-y-2 group-hover/banner:translate-y-0 z-50">
+                    <div className="bg-[#1a2235]/95 backdrop-blur-xl border border-white/10 px-5 py-3 rounded-2xl shadow-2xl flex flex-col gap-1 min-w-[160px]">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Attendance</span>
+                        </div>
+                        <p className="text-xs font-black text-white whitespace-nowrap leading-tight mt-1">
+                            {student.yearlyAttendance?.present || 0} / {student.yearlyAttendance?.totalDays || 0} <span className="text-slate-400 font-bold ml-0.5">Days</span>
+                        </p>
+                    </div>
+
+                    <div className="bg-[#1a2235]/95 backdrop-blur-xl border border-white/10 px-5 py-3 rounded-2xl shadow-2xl flex flex-col gap-1 min-w-[160px]">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                {student.flagDetails?.academicYear} {student.flagDetails?.termPair || student.flagDetails?.term || 'Academic'}
+                            </span>
+                        </div>
+                        <p className="text-xs font-black text-white whitespace-nowrap leading-tight mt-1">
+                             {student.flagDetails?.termScore || student.flagDetails?.finalTermScore ? (((student.flagDetails.termScore || student.flagDetails.finalTermScore) / 100) * 4).toFixed(2) : "0.00"} <span className="text-slate-400 font-bold ml-0.5">GPA</span>
+                        </p>
+                    </div>
+
+                    <div className="bg-[#1a2235]/95 backdrop-blur-xl border border-white/10 px-5 py-3 rounded-2xl shadow-2xl flex flex-col gap-1 min-w-[120px]">
+                        <div className="flex items-center gap-2">
+                            <i className="fa-solid fa-circle-info text-[9px] text-slate-400"></i>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                Flag Logic
+                            </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 mt-1">
+                            <div className="flex justify-between items-center gap-4">
+                                <span className="text-[8px] text-slate-400 font-bold">Attendance:</span>
+                                <span className={`text-[9px] font-black ${student.flagDetails?.attendancePct >= 80 ? 'text-emerald-400' : student.flagDetails?.attendancePct >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
+                                    {student.flagDetails?.attendancePct?.toFixed(1)}%
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center gap-4">
+                                <span className="text-[8px] text-slate-400 font-bold">Academic:</span>
+                                <span className={`text-[9px] font-black ${student.flagDetails?.termScore >= 75 ? 'text-emerald-400' : student.flagDetails?.termScore >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
+                                    {student.flagDetails?.termScore?.toFixed(1)}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Back/Close Button */}
                 <button
                     onClick={() => navigate('/admin/student-record')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-white transition-all backdrop-blur-md border border-white/10 group/close z-10"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-white transition-all group/close z-10"
                     title="Back to Student Records"
                 >
                     <X size={14} className="transition-transform group-hover/close:rotate-90" />
@@ -474,7 +528,7 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
                         </div>
                     </div>
 
-                    <div className="bg-slate-50/50 dark:bg-white/5 backdrop-blur-md rounded-[32px] border border-slate-100 dark:border-white/10 px-8 py-5 flex items-center justify-between lg:min-w-[420px]">
+                    <div className="bg-slate-50/50 dark:bg-white/5 rounded-[32px] px-8 py-5 flex items-center justify-between lg:min-w-[420px]">
                         <div className="flex-1 flex flex-col items-center text-center min-w-fit">
                             <p className="text-[8px] font-black text-slate-400 tracking-widest mb-1.5">Gpa</p>
                             <p className={`text-2xl font-black ${currentTheme.icon} tracking-tight leading-none transition-colors`}>{student.lastTermGPA}</p>
@@ -896,6 +950,8 @@ const StudentPage = () => {
                     console.warn("Fee fetch failed", fe);
                 }
 
+                const latestFlag = Array.isArray(flagRes) ? flagRes[0] : (flagRes || null);
+                
                 setStudent(prev => ({
                     ...prev,
                     ...data,
@@ -908,7 +964,8 @@ const StudentPage = () => {
                     dateOfBirth: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0].split('-').reverse().join('/') : null,
                     yearlyAttendance: finalYearly,
                     feeStatus: finalFeeStatus,
-                    flag: flagRes?.flagColor || "green"
+                    flag: latestFlag?.flagColor || data.flag || "green",
+                    flagDetails: latestFlag
                 }));
 
                 await fetchResults(id, data.studentClass, data.sectionId?.sectionName, data.gradeId?._id);
@@ -980,7 +1037,7 @@ const StudentPage = () => {
                             </div>
                             <div>
                                 <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Latest Marksheet</h3>
-                                <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">{selectedTerm} Examination 2081</p>
+                                <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">{selectedTerm} Examination {student.flagDetails?.academicYear || 2081}</p>
                             </div>
                         </div>
 

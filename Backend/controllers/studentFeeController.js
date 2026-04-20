@@ -347,8 +347,9 @@ exports.getMyFees = async (req, res) => {
         const school = await School.findOne({ schoolId: req.schoolId });
         const ay = school?.activeYear || "2081/82"; // Use school's active year as default
         
-        let fees = await StudentFee.find({ schoolId: req.schoolId,  student: studentId, academicYear: ay })
-            .sort({ monthIndex: 1 });
+        let fees = await StudentFee.find({ schoolId: req.schoolId, student: studentId })
+            .populate("grade", "gradeName gradeNumber monthlyFee")
+            .sort({ academicYear: -1, monthIndex: 1 });
 
         // AUTOMATIC GENERATION: If no fees found, generate them on the fly
         if (fees.length === 0) {

@@ -77,13 +77,14 @@ const StudentRecord = () => {
   const getFlagColor = (flag) => {
     switch (flag) {
       case "red":
-        return "bg-red-500";
+        return "bg-red-500 shadow-lg shadow-red-500/20";
+      case "amber":
       case "yellow":
-        return "bg-yellow-500";
+        return "bg-amber-500 shadow-lg shadow-amber-500/20";
       case "green":
-        return "bg-[#22c55e]";
+        return "bg-emerald-500 shadow-lg shadow-emerald-500/20";
       default:
-        return "bg-gray-500";
+        return "bg-gray-400";
     }
   };
 

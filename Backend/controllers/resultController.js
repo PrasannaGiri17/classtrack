@@ -1,5 +1,6 @@
 const Result = require("../models/Result");
 const Student = require("../models/studentModel");
+const { calculateAndSaveFlags } = require('../services/flagService');
 
 // @desc    Save or Update Student Result
 // @route   POST /api/results
@@ -53,6 +54,9 @@ exports.upsertResult = async (req, res) => {
       .populate('marks.subjectId');
 
     res.status(200).json(populatedResult);
+
+    // Re-calculate flags for this school
+    calculateAndSaveFlags(Number(req.schoolId)).catch(err => console.error("Auto flag recalculation error:", err));
   } catch (error) {
     console.error("Error saving result:", error);
     res.status(500).json({ message: "Server error", error: error.message });
@@ -165,4 +169,11 @@ exports.getAnalytics = async (req, res) => {
     console.error("Analytics Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
+};
+
+module.exports = {
+  upsertResult: exports.upsertResult,
+  getResults: exports.getResults,
+  getStudentResults: exports.getStudentResults,
+  getAnalytics: exports.getAnalytics
 };

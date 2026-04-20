@@ -4,7 +4,7 @@ const Result = require("../models/Result");
 const Student = require("../models/studentModel");
 
 const schoolId = 2;
-const gradeId = "69be848b240908408563da82"; 
+const gradeId = "69be848b240908408563da83"; 
 const sectionName = "A";
 
 const subjects = [
@@ -17,7 +17,7 @@ const subjects = [
   "69be96324c8b4a0a9ba49a21"  // social
 ];
 
-const terms = ["First Mid Term", "First Term", "Second Mid Term", "Second Term"];
+const terms = ["First Mid Term", "First Term"];
 
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -62,8 +62,8 @@ async function seedResults() {
         const marks = gradeSubjects.map(subjectId => {
           return {
             subjectId: subjectId,
-            theoryMarks: getRandomInt(60, 75),
-            practicalMarks: getRandomInt(15, 25),
+            theoryMarks: getRandomInt(40, 75),
+            practicalMarks: getRandomInt(10, 25),
             remark: "Seeded"
           };
         });
