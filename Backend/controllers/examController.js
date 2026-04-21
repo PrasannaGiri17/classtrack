@@ -1,4 +1,5 @@
 const Exam = require('../models/Exam');
+const SchoolNotification = require('../models/SchoolNotification');
 const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
 
 // Build the canonical term names from config
@@ -165,6 +166,22 @@ exports.updateTermStatus = async (req, res) => {
     }
 
     await exam.save();
+
+    // --- Create School-Wide Notification (For Teachers) ---
+    const senderName = req.user?.name || "School Administration";
+    const title = `Marking Portal ${isOpen ? 'Opened' : 'Closed'} - ${term}`;
+    const message = isOpen 
+      ? `The marking portal for ${term} (${academicYear || 'Current'}) has been OPENED. Teachers can now enter student marks.`
+      : `The marking portal for ${term} (${academicYear || 'Current'}) has been CLOSED.`;
+
+    await new SchoolNotification({
+      schoolId: req.schoolId,
+      title,
+      message,
+      sender: senderName,
+      receiver: 'teacher'
+    }).save();
+
     res.json(exam);
   } catch (error) {
     console.error("Error updating term status:", error);
@@ -197,6 +214,22 @@ exports.updatePublishStatus = async (req, res) => {
     }
  
     await exam.save();
+
+    // --- Create School-Wide Notification (For Students) ---
+    const senderName = req.user?.name || "School Administration";
+    const title = `Results ${isPublished ? 'Published' : 'Hidden'} - ${term}`;
+    const message = isPublished 
+      ? `The official results for ${term} (${academicYear || 'Current'}) have been PUBLISHED. You can now view your academic report.`
+      : `The results for ${term} (${academicYear || 'Current'}) have been HIDDEN from public view.`;
+
+    await new SchoolNotification({
+      schoolId: req.schoolId,
+      title,
+      message,
+      sender: senderName,
+      receiver: 'student'
+    }).save();
+
     res.json(exam);
   } catch (error) {
     console.error("Error updating publish status:", error);

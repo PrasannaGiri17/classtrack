@@ -1,24 +1,39 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, Bell, Sun, Moon, Check, ArrowRight, User, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-// Mock student data for suggestions
-const STUDENT_POOL = [
-  { id: 's1', name: 'Cristiano Ronaldo', studentId: '2024001', grade: '10' },
-  { id: 's2', name: 'Luka Modric', studentId: '2024002', grade: '10' },
-  { id: 's3', name: 'Vinicius Junior', studentId: '2024003', grade: '9' },
-  { id: 's4', name: 'Jude Bellingham', studentId: '2024004', grade: '11' },
-  { id: 's5', name: 'Federico Valverde', studentId: '2024005', grade: '11' },
-  { id: 's6', name: 'Kylian Mbappe', studentId: '2024006', grade: '9' },
-  { id: 's7', name: 'Thibaut Courtois', studentId: '2024007', grade: '12' },
-];
+import { Search, Bell, Sun, Moon, Check, ArrowRight, User, X, Users, Building2, SquareUser } from 'lucide-react';
+import { FaRegUser } from "react-icons/fa6";
+import axios from 'axios';
 
 const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [allSchools, setAllSchools] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const searchRef = useRef(null);
+
+  // Fetch schools from backend
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('superAdminToken');
+        const response = await axios.get('http://localhost:7000/api/school', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        setAllSchools(response.data);
+      } catch (error) {
+        console.error("Error fetching schools for search:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSchools();
+  }, []);
 
   const getPageDisplayName = () => {
     const pageNames = {
@@ -57,12 +72,13 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const [, setUpdateTrigger] = useState(false);
 
   const suggestions = useMemo(() => {
-    if (searchQuery.trim().length < 3) return [];
-    return STUDENT_POOL.filter(s =>
+    if (searchQuery.trim().length < 2) return [];
+    return allSchools.filter(s =>
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.studentId.includes(searchQuery)
-    ).slice(0, 4); // Limit to 4 students as requested
-  }, [searchQuery]);
+      (s.address && s.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (s.schoolId && s.schoolId.toString().includes(searchQuery))
+    ).slice(0, 5);
+  }, [searchQuery, allSchools]);
 
   useEffect(() => {
     setShowSuggestions(suggestions.length > 0);
@@ -71,7 +87,7 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const handleSelectSuggestion = (id) => {
     setSearchQuery('');
     setShowSuggestions(false);
-    navigate(`/student-record`); // In a real app, this would be a specific student ID path
+    navigate(`/super-admin/school/${id}`);
   };
 
   const today = new Date();
@@ -96,11 +112,16 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500 transition-colors" />
           <input
             type="text"
-            placeholder="Search for students, teachers..."
+            placeholder="Search for School..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-11 bg-white dark:bg-slate-800 border border-emerald-100 dark:border-emerald-900/50 rounded-full pl-12 pr-10 text-sm font-medium text-slate-600 dark:text-slate-200 placeholder-slate-400 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-300 transition-all outline-none"
           />
+          {loading && (
+            <div className="absolute right-12 top-1/2 -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-emerald-500"></div>
+            </div>
+          )}
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
@@ -113,23 +134,27 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
         {/* Suggestion Dropdown */}
         {showSuggestions && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="px-5 py-3 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Matches</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">School Matches</span>
             </div>
             <div className="p-2">
-              {suggestions.map((student) => (
+              {suggestions.map((school) => (
                 <button
-                  key={student.id}
-                  onClick={() => handleSelectSuggestion(student.id)}
+                  key={school._id || school.schoolId}
+                  onClick={() => handleSelectSuggestion(school.schoolId || school._id)}
                   className="w-full flex items-center gap-4 p-3 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-all text-left group"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 font-black text-[10px] shrink-0">
-                    {student.name[0]}
+                  <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                    {school.logo ? (
+                      <img src={school.logo} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <Building2 size={24} className="text-emerald-600" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-emerald-600 transition-colors">{student.name}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ID: {student.studentId} • Grade {student.grade}</p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-emerald-600 transition-colors">{school.name}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ID: {school.schoolId} • {school.address || school.location || 'Location Not Set'}</p>
                   </div>
                   <ArrowRight size={14} className="text-slate-200 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
                 </button>
@@ -137,10 +162,14 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
             </div>
             <div className="p-3 bg-slate-50 dark:bg-slate-800/50 text-center border-t border-slate-50 dark:border-slate-800">
               <button
-                onClick={() => navigate('/super-admin/school')}
-                className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest hover:underline"
+                onClick={() => {
+                  setSearchQuery('');
+                  setShowSuggestions(false);
+                  navigate('/super-admin/school');
+                }}
+                className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-widest hover:underline"
               >
-                View Global Registry
+                View All Schools
               </button>
             </div>
           </div>
@@ -162,20 +191,15 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-2 transition-colors"></div>
 
         {/* User Profile */}
-        <button className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group">
-          <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
-            <img
-              src={localStorage.getItem("userPhoto") || "https://i.pinimg.com/736x/8b/27/ff/8b27ff4a7a6cefb81f33d8282b5dfaa7.jpg"}
-              alt="Profile"
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+        <button className="flex items-center gap-3 p-1.5 pr-4 rounded-none hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group">
+          <div className="w-12 h-12 rounded-none flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
+            <FaRegUser className="w-7 h-7 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 transition-colors" />
           </div>
           <div className="hidden sm:block">
             <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">
               {localStorage.getItem("suUserName") || "Super Admin"}
             </p>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase transition-colors">SUPERADMIN</p>
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase transition-colors">SUPER ADMIN</p>
           </div>
         </button>
       </div>

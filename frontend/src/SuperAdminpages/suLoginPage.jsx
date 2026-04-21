@@ -4,6 +4,7 @@ import { Mail, Lock, ShieldCheck, ArrowRight, LayoutDashboard, Users, BookOpen }
 
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import logo from '../Assests/classtrackofficallogo.png';
 
 
 const SuLoginPage = () => {
@@ -103,8 +104,8 @@ const SuLoginPage = () => {
 
         {/* Mobile Title (visible only on small screens) */}
         <div className="lg:hidden relative z-10 flex flex-col items-center justify-center h-full text-center px-6">
-          <div className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center mb-4">
-            <ShieldCheck className="text-teal-400 w-6 h-6" />
+          <div className="mb-4">
+            <img src={logo} alt="ClassTrack Logo" className="w-16 h-16 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-white">ClassTrack</h1>
           <p className="text-emerald-200 text-sm mt-1">Super Admin Portal</p>
@@ -120,8 +121,8 @@ const SuLoginPage = () => {
           {/* Logo & Header */}
           <div className="mb-10 text-center lg:text-left">
             <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-              <div className="w-10 h-10 bg-emerald-900 rounded-xl flex items-center justify-center shadow-md shadow-emerald-900/20">
-                <ShieldCheck className="text-white w-6 h-6" />
+              <div className="flex items-center justify-center">
+                <img src={logo} alt="ClassTrack Logo" className="w-12 h-12 object-contain" />
               </div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">ClassTrack</h1>
             </div>
@@ -208,8 +209,8 @@ const SuLoginPage = () => {
           {/* Footer Note */}
           <div className="mt-8 text-center">
             <p className="text-xs font-medium text-slate-400 flex items-center justify-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Access restricted to ClassTrack Super Admins only.
+
+
             </p>
           </div>
         </div>

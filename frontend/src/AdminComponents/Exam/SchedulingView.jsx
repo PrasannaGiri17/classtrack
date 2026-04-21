@@ -86,7 +86,7 @@ const SchedulingView = () => {
       try {
         setLoading(true);
         const data = await examService.getExamData(mappingYear);
-        
+
         // Always update examData, even if null
         setExamData(data);
 
@@ -115,7 +115,7 @@ const SchedulingView = () => {
           setYearSetup(defaultSetup);
           setStartTime("09:00");
           setDuration(120);
-          
+
           // Reset mappingTerm to default first option
           setMappingTerm("First Mid Term");
         }
@@ -390,7 +390,7 @@ const SchedulingView = () => {
                 <Settings size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight capitalize">Exam Routine Template (Global)</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight capitalize">Exam Routine Management</h3>
                 <p className="text-[10px] font-bold text-slate-400 capitalize tracking-widest mt-1">Configure annual structure & timing logic</p>
               </div>
             </div>
@@ -411,7 +411,7 @@ const SchedulingView = () => {
                   onChange={(e) => setMappingYear(Number(e.target.value))}
                   className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer"
                 >
-                  {[2082, 2083, 2084].map(y => (
+                  {[2080, 2081, 2082, 2083, 2084, 2085].map(y => (
                     <option key={y} value={y}>{y} BS</option>
                   ))}
                 </select>
@@ -458,9 +458,7 @@ const SchedulingView = () => {
               <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-emerald-500 font-black text-[10px] capitalize tracking-widest">
                 Template Active: {yearSetup.termsCount} Terms Plan ({mappingYear} BS)
               </div>
-              <p className="text-[11px] font-bold text-slate-400 capitalize tracking-widest leading-none">
-                Global structure applied to all grade levels
-              </p>
+
             </div>
 
             <button
@@ -496,7 +494,7 @@ const SchedulingView = () => {
                   onChange={(e) => setMappingYear(Number(e.target.value))}
                   className="appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-xs font-bold text-slate-700 dark:text-white capitalize outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
                 >
-                  {[2082, 2083, 2084].map(y => (
+                  {[2080, 2081, 2082, 2083, 2084, 2085].map(y => (
                     <option key={y} value={y} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{y} BS</option>
                   ))}
                 </select>

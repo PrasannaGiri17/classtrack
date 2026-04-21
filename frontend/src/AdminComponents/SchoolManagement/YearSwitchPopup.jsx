@@ -72,20 +72,20 @@ const YearSwitchPopup = ({ isOpen, onClose, currentYear, schoolEmail }) => {
       toast({ type: 'error', message: "Verification required." });
       return;
     }
-    
+
     const schoolId = localStorage.getItem("schoolId");
     if (!schoolId) {
-       toast({ type: 'error', message: "School context missing. Please refresh." });
-       return;
+      toast({ type: 'error', message: "School context missing. Please refresh." });
+      return;
     }
 
     setIsSwitching(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.post('http://localhost:7000/api/admins/year-switch', 
-        { 
-          verification_code: otp, 
-          school_id: Number(schoolId) 
+      const response = await axios.post('http://localhost:7000/api/admins/year-switch',
+        {
+          verification_code: otp,
+          school_id: Number(schoolId)
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -93,19 +93,19 @@ const YearSwitchPopup = ({ isOpen, onClose, currentYear, schoolEmail }) => {
       );
 
       if (response.data.success) {
-        toast({ 
-          type: 'success', 
+        toast({
+          type: 'success',
           message: `Cycle Successful! Promoted: ${response.data.promoted_count}, Graduated: ${response.data.graduated_count}`,
-          duration: 5000 
+          duration: 5000
         });
         // Reload page to reflect new year across system
         setTimeout(() => window.location.reload(), 2000);
       }
     } catch (error) {
       console.error(error);
-      toast({ 
-        type: 'error', 
-        message: error.response?.data?.message || "Critical transition failure." 
+      toast({
+        type: 'error',
+        message: error.response?.data?.message || "Critical transition failure."
       });
     } finally {
       setIsSwitching(false);
@@ -128,7 +128,6 @@ const YearSwitchPopup = ({ isOpen, onClose, currentYear, schoolEmail }) => {
           </button>
 
           <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-none">Next Year Switch</h2>
-          <p className="text-xs font-black text-slate-500 uppercase tracking-widest mt-2 px-1">End current academic cycle, clear discussions & initialize new year</p>
         </div>
 
         <div className="px-12 pb-12 space-y-10">

@@ -12,7 +12,7 @@ import gradeService from '../../Api/gradeService';
 const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncSections, gradeList, schoolName, schoolId }) => {
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [isLocked, setIsLocked] = useState(true); 
+  const [isLocked, setIsLocked] = useState(true);
   const [adminSchoolId, setAdminSchoolId] = useState(schoolId || localStorage.getItem("schoolId") ? Number(localStorage.getItem("schoolId")) : null);
 
   React.useEffect(() => {
@@ -49,9 +49,9 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
     }
   }, [adminSchoolId]);
 
-  const [tempRange, setTempRange] = useState({ 
-    from: range?.from || 1, 
-    to: range?.to || 10 
+  const [tempRange, setTempRange] = useState({
+    from: range?.from || 1,
+    to: range?.to || 10
   });
   const [syncCount, setSyncCount] = useState(1);
 
@@ -141,7 +141,7 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
       if (onUpdateSections) {
         onUpdateSections(editingGrade, pendingCount, adminSchoolId);
       }
-      
+
       toast({
         type: 'success',
         message: `Sections updated: Grade ${editingGrade} → ${pendingCount}`,
@@ -159,11 +159,11 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="space-y-2 text-center sm:text-left">
           <div className="flex flex-col gap-1">
-             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">Grades & Sections</h2>
-             <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">{schoolName || "Academic Institutional Context"}</p>
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">Grades & Sections</h2>
+            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">{schoolName || "Academic Institutional Context"}</p>
           </div>
           <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-lg px-4 py-2 mt-2 inline-flex">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Span:</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Grade:</span>
             <span className="text-xs font-bold text-emerald-600">
               {range.from && range.to ? `Grade ${range.from} — ${range.to}` : "No range defined"}
             </span>
@@ -244,11 +244,11 @@ const GradeView = ({ range, sectionMap, onUpdateRange, onUpdateSections, onSyncS
           </div>
           <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">No Grades Configured</h3>
           <p className="text-sm font-medium text-slate-400 dark:text-slate-500 text-center max-w-xs leading-relaxed mb-8 uppercase tracking-widest text-[10px]">
-             Your school's academic hierarchy is currently empty. Click "Define Academic Range" to initiate your system.
+            Your school's academic hierarchy is currently empty. Click "Define Academic Range" to initiate your system.
           </p>
           <button
-             onClick={() => setIsRangeModalOpen(true)}
-             className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2"
+            onClick={() => setIsRangeModalOpen(true)}
+            className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2"
           >
             <Plus size={16} /> Define Academic Range
           </button>

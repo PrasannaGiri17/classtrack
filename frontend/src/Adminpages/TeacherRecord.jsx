@@ -10,8 +10,14 @@ import {
   GraduationCap,
   AlertCircle,
   Pencil,
-  List
+  List,
+  Filter,
+  ChevronDown,
+  ArrowUpAZ,
+  ArrowDownZA,
+  Users
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CiGrid32 } from "react-icons/ci";
 import AddPopupTeacher from "../AdminComponents/Admin/AddPopupTeacher";
 import { toast } from "../MainSystemComponents/Toast";
@@ -31,6 +37,8 @@ const TeacherRecord = () => {
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all");
   const location = useLocation();
 
   // Listen for search state from Navbar
@@ -69,6 +77,18 @@ const TeacherRecord = () => {
     const search = searchTerm.toLowerCase();
 
     return fullName.includes(search) || code.includes(search) || subject.includes(search);
+  }).sort((a, b) => {
+    if (activeFilter === "grade-high") {
+      const aMax = Math.max(...(a.assignedGrades?.map(g => Number(g.gradeNumber)) || [0]));
+      const bMax = Math.max(...(b.assignedGrades?.map(g => Number(g.gradeNumber)) || [0]));
+      return bMax - aMax;
+    }
+    if (activeFilter === "grade-low") {
+      const aMin = Math.min(...(a.assignedGrades?.map(g => Number(g.gradeNumber)) || [100]));
+      const bMin = Math.min(...(b.assignedGrades?.map(g => Number(g.gradeNumber)) || [100]));
+      return aMin - bMin;
+    }
+    return 0;
   });
 
   const totalPages = Math.ceil(filteredTeachers.length / itemsPerPage) || 1;
@@ -104,19 +124,19 @@ const TeacherRecord = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-0 space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="bg-white dark:bg-slate-900 px-8 py-4 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-colors shrink-0">
-          <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-            <GraduationCap className="text-emerald-500 w-6 h-6" />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-2">
+        <div className="bg-white dark:bg-[#1e293b]/60 px-5 py-2.5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm dark:shadow-inner flex items-center gap-4 transition-all hover:bg-slate-50 dark:hover:bg-[#1e293b]/80 shrink-0">
+          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
+            <GraduationCap className="text-emerald-500 dark:text-emerald-400 w-5 h-5 shadow-[0_0_15px_rgba(52,211,153,0.3)]" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 tracking-widest mb-0.5 uppercase">Total Registry</p>
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-none">{teachers.length}</h2>
+            <p className="text-[9px] font-black text-slate-400 tracking-widest mb-0.5 uppercase">Teachers</p>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white leading-none">{teachers.length}</h2>
           </div>
         </div>
 
-        <div className="flex-1 relative">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+        <div className="flex-1 relative group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
           <input
             type="text"
             placeholder="Search by ID, name, or subject..."
@@ -125,43 +145,94 @@ const TeacherRecord = () => {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full pl-16 pr-8 py-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[28px] text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm dark:text-slate-200"
+            className="w-full pl-12 pr-6 py-3.5 bg-white dark:bg-[#1e293b]/40 border border-slate-100 dark:border-white/5 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm dark:shadow-inner text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
         </div>
 
-        {/* Grid / List Toggle Button */}
-        <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
+        <div className="flex items-center gap-2">
+          {/* New Filter Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={`flex items-center gap-2 px-4 py-3.5 rounded-2xl border transition-all duration-300 font-bold text-sm ${isFilterOpen || activeFilter !== "all"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:text-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.1)]"
+                : "bg-white dark:bg-[#1e293b]/60 border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1e293b]/80 shadow-sm"
+                }`}
+            >
+              <Filter size={18} />
+              <span className="hidden sm:inline">Filter</span>
+              <ChevronDown size={16} className={`transition-transform duration-300 ${isFilterOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            <AnimatePresence>
+              {isFilterOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#0f172a]/95 backdrop-blur-2xl border border-slate-100 dark:border-white/10 rounded-2xl shadow-2xl p-2 z-50 overflow-hidden"
+                  >
+                    {[
+                      { id: "all", label: "All Faculty", icon: Users, color: "text-slate-400" },
+                      { id: "grade-high", label: "Grade Asscending", icon: ArrowUpAZ, color: "text-emerald-400" },
+                      { id: "grade-low", label: "Grade Descending", icon: ArrowDownZA, color: "text-emerald-400" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => {
+                          setActiveFilter(opt.id);
+                          setIsFilterOpen(false);
+                          setCurrentPage(1);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${activeFilter === opt.id
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
+                          }`}
+                      >
+                        <opt.icon size={16} className={opt.color} />
+                        {opt.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="flex items-center gap-1 bg-white dark:bg-[#1e293b]/60 p-1 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm dark:shadow-inner shrink-0">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid'
+                ? 'bg-emerald-500/20 text-emerald-400 shadow-lg'
+                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                }`}
+            >
+              <CiGrid32 size={20} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'list'
+                ? 'bg-emerald-500/20 text-emerald-400 shadow-lg'
+                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                }`}
+            >
+              <List size={20} />
+            </button>
+          </div>
+
           <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2.5 rounded-[18px] transition-all ${
-              viewMode === 'grid' 
-                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-            }`}
+            onClick={() => {
+              setEditingTeacher(null);
+              setIsPopupOpen(true);
+            }}
+            className="px-6 py-3.5 bg-gradient-to-r from-emerald-500/90 to-emerald-600/90 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap shrink-0 uppercase tracking-wider"
           >
-            <CiGrid32 size={22} />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2.5 rounded-[18px] transition-all ${
-              viewMode === 'list' 
-                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-            }`}
-          >
-            <List size={22} />
+            <Plus size={18} /> <span className="hidden sm:inline">Add Teacher</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
-
-        <button
-          onClick={() => {
-            setEditingTeacher(null);
-            setIsPopupOpen(true);
-          }}
-          className="px-8 py-5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap shrink-0 uppercase"
-        >
-          <Plus size={22} /> Add Teacher
-        </button>
       </div>
 
       {/* Data View */}
@@ -179,17 +250,17 @@ const TeacherRecord = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {currentTeachers.length > 0 ? (
             currentTeachers.map((teacher) => (
-              <div 
-                key={teacher._id} 
+              <div
+                key={teacher._id}
                 className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 group relative flex flex-col"
                 onClick={() => navigate(`/admin/teacher/${teacher._id}`)}
               >
                 {/* Delete Button */}
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteClick(teacher);
-                  }} 
+                  }}
                   className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white transition-all hover:bg-red-500 rounded-xl z-10 opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 size={16} />
@@ -336,7 +407,7 @@ const TeacherRecord = () => {
       )}
 
       {/* Pagination Footer */}
-      {!loading && !error && (
+      {!loading && !error && filteredTeachers.length > 0 && (
         <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-[28px] border border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] uppercase">Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredTeachers.length)} of {filteredTeachers.length}</p>
           <div className="flex items-center gap-3 flex-wrap">

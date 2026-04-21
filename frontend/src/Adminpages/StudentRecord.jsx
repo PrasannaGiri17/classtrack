@@ -2,7 +2,12 @@ import React, { useState } from "react";
 import api from '../Utils/axiosInstance';
 import { useSchoolFetch } from '../Utils/useSchoolFetch';
 import { useLocation, useNavigate } from "react-router-dom";
-import { Users, Search, Trash2, Plus, ChevronLeft, ChevronRight, Loader2, AlertCircle, Pencil, List } from "lucide-react";
+import { 
+  Users, Search, Trash2, Plus, ChevronLeft, ChevronRight, 
+  Loader2, AlertCircle, Pencil, List, Filter, ChevronDown, 
+  ArrowUpAZ, ArrowDownZA, Flag 
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CiGrid32 } from "react-icons/ci";
 import { AddPopupStudent } from "../AdminComponents/Admin/AddPopupStudent";
 import ConfirmDialog from "../MainSystemComponents/ConfirmDialog";
@@ -21,6 +26,8 @@ const StudentRecord = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, studentId: null, studentName: "" });
   const [currentPage, setCurrentPage] = useState(1);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all");
   const itemsPerPage = 8;
   const location = useLocation();
 
@@ -51,12 +58,22 @@ const StudentRecord = () => {
   };
 
   const filtered = Array.isArray(students) ? [...students]
-    .filter(s =>
-      `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(s.studentId || "").toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter(s => {
+      const matchesSearch = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(s.studentId || "").toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesFlag = activeFilter === "red" || activeFilter === "amber" || activeFilter === "green" 
+        ? s.flag === activeFilter 
+        : true;
+
+      return matchesSearch && matchesFlag;
+    })
     .sort((a, b) => {
-      // Sort graduated students to the bottom
+      // Apply active filter sorting
+      if (activeFilter === "grade-asc") return Number(a.studentClass) - Number(b.studentClass);
+      if (activeFilter === "grade-desc") return Number(b.studentClass) - Number(a.studentClass);
+
+      // Default sorting: graduated students to the bottom
       if (a.status === 'graduated' && b.status !== 'graduated') return 1;
       if (a.status !== 'graduated' && b.status === 'graduated') return -1;
       return 0;
@@ -93,19 +110,19 @@ const StudentRecord = () => {
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-0 space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="bg-white dark:bg-slate-900 px-8 py-4 rounded-[28px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-colors shrink-0">
-          <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center">
-            <Users className="text-emerald-500 w-6 h-6" />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-2">
+        <div className="bg-white dark:bg-[#1e293b]/60 px-5 py-2.5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm dark:shadow-inner flex items-center gap-4 transition-all hover:bg-slate-50 dark:hover:bg-[#1e293b]/80 shrink-0">
+          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
+            <Users className="text-emerald-500 dark:text-emerald-400 w-5 h-5 shadow-[0_0_15px_rgba(52,211,153,0.3)]" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 tracking-widest mb-0.5 uppercase">Total Registry</p>
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-none">{students.length}</h2>
+            <p className="text-[9px] font-black text-slate-400 tracking-widest mb-0.5 uppercase">Students</p>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white leading-none">{students.length}</h2>
           </div>
         </div>
 
-        <div className="flex-1 relative">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+        <div className="flex-1 relative group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
           <input
             type="text"
             placeholder="Search student records..."
@@ -114,44 +131,105 @@ const StudentRecord = () => {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full pl-16 pr-8 py-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[28px] text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm dark:text-slate-200"
+            className="w-full pl-12 pr-6 py-3.5 bg-white dark:bg-[#1e293b]/40 border border-slate-100 dark:border-white/5 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm dark:shadow-inner text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
         </div>
 
-        {/* Grid / List Toggle Button */}
-        <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
+        <div className="flex items-center gap-2">
+          {/* New Filter Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={`flex items-center gap-2 px-4 py-3.5 rounded-2xl border transition-all duration-300 font-bold text-sm ${
+                isFilterOpen || activeFilter !== "all"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:text-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.1)]"
+                : "bg-white dark:bg-[#1e293b]/60 border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1e293b]/80 shadow-sm"
+              }`}
+            >
+              <Filter size={18} />
+              <span className="hidden sm:inline">Filter</span>
+              <ChevronDown size={16} className={`transition-transform duration-300 ${isFilterOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            <AnimatePresence>
+              {isFilterOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#0f172a]/95 backdrop-blur-2xl border border-slate-100 dark:border-white/10 rounded-2xl shadow-2xl p-2 z-50 overflow-hidden"
+                  >
+                    {[
+                      { id: "all", label: "All Students", icon: Users, color: "text-slate-400" },
+                      { id: "grade-asc", label: "Grade Ascending", icon: ArrowUpAZ, color: "text-emerald-400" },
+                      { id: "grade-desc", label: "Grade Descending", icon: ArrowDownZA, color: "text-emerald-400" },
+                      { id: "red", label: "Red Flag", color: "bg-red-500" },
+                      { id: "amber", label: "Yellow Flag", color: "bg-amber-500" },
+                      { id: "green", label: "Green Flag", color: "bg-emerald-500" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => {
+                          setActiveFilter(opt.id);
+                          setIsFilterOpen(false);
+                          setCurrentPage(1);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                          activeFilter === opt.id
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        {opt.icon ? (
+                          <opt.icon size={16} className={opt.color} />
+                        ) : (
+                          <div className={`w-3.5 h-3.5 rounded-[4px] ${opt.color} shadow-lg ring-2 ring-white/5`} />
+                        )}
+                        {opt.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Grid / List Toggle Button */}
+          <div className="flex items-center gap-1 bg-white dark:bg-[#1e293b]/60 p-1 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm dark:shadow-inner shrink-0">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid'
+                ? 'bg-emerald-500/20 text-emerald-400 shadow-lg'
+                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                }`}
+            >
+              <CiGrid32 size={20} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2.5 rounded-xl transition-all ${viewMode === 'list'
+                ? 'bg-emerald-500/20 text-emerald-400 shadow-lg'
+                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                }`}
+            >
+              <List size={20} />
+            </button>
+          </div>
+
           <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2.5 rounded-[18px] transition-all ${
-              viewMode === 'grid' 
-                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-            }`}
+            onClick={() => {
+              setPopupMode("add");
+              setSelectedStudent(null);
+              setIsPopupOpen(true);
+            }}
+            className="px-6 py-3.5 bg-gradient-to-r from-emerald-500/90 to-emerald-600/90 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap shrink-0 uppercase tracking-wider"
           >
-            <CiGrid32 size={22} />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2.5 rounded-[18px] transition-all ${
-              viewMode === 'list' 
-                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-            }`}
-          >
-            <List size={22} />
+            <Plus size={18} /> <span className="hidden sm:inline">Add Student</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
-
-        <button
-          onClick={() => {
-            setPopupMode("add");
-            setSelectedStudent(null);
-            setIsPopupOpen(true);
-          }}
-          className="px-8 py-5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-[28px] font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap shrink-0 uppercase"
-        >
-          <Plus size={22} /> Add Student
-        </button>
       </div>
 
       {/* Data View */}
@@ -169,17 +247,17 @@ const StudentRecord = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {currentItems.length > 0 ? (
             currentItems.map((s, index) => (
-              <div 
-                key={s._id} 
+              <div
+                key={s._id}
                 className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 group relative flex flex-col"
                 onClick={() => navigate(`/admin/student/${s._id}`)}
               >
                 {/* Delete Button */}
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteClick(s);
-                  }} 
+                  }}
                   className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white transition-all hover:bg-red-500 rounded-xl z-10 opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 size={16} />
@@ -206,11 +284,10 @@ const StudentRecord = () => {
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Assigned Grade</p>
                     <div className="flex flex-wrap justify-center gap-1.5">
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
-                        s.status === 'graduated'
-                          ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-700 shadow-sm"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-700"
-                      }`}>
+                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${s.status === 'graduated'
+                        ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-700 shadow-sm"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-700"
+                        }`}>
                         {s.status === 'graduated' ? 'GRADUATED' : `Class ${s.studentClass}`}
                       </span>
                     </div>
@@ -266,11 +343,10 @@ const StudentRecord = () => {
                         </div>
                       </td>
                       <td className="px-6 py-6">
-                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black tracking-widest border whitespace-nowrap ${
-                          s.status === 'graduated'
-                            ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-700"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-700"
-                        }`}>
+                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black tracking-widest border whitespace-nowrap ${s.status === 'graduated'
+                          ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-700"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-700"
+                          }`}>
                           {s.status === 'graduated' ? 'GRADUATED' : `Grade ${s.studentClass}`}
                         </span>
                       </td>
@@ -317,7 +393,7 @@ const StudentRecord = () => {
       )}
 
       {/* Pagination Footer */}
-      {!loading && !error && (
+      {!loading && !error && filtered.length > 0 && (
         <div className="w-full px-8 py-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-[28px] border border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-[0.2em]">Record {currentPage} of {totalPages}</p>
           <div className="flex items-center gap-3">

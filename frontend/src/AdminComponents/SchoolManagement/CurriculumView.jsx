@@ -166,10 +166,10 @@ const CurriculumView = ({
     <div className="space-y-10">
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
-           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
-             School Subjects
-           </h2>
-           <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">{schoolName || "Academic Curriculum Context"}</p>
+          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
+            School Subjects
+          </h2>
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">{schoolName || "Academic Curriculum Context"}</p>
         </div>
       </div>
 
@@ -177,7 +177,7 @@ const CurriculumView = ({
         {/* LEFT COLUMN: CORE SUBJECTS */}
         <div className="lg:col-span-5 space-y-4 flex flex-col">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-            Global Core Academic Subjects
+            All Core Academic Subjects
           </p>
 
           <div className="grid grid-cols-1 gap-2">
@@ -233,7 +233,7 @@ const CurriculumView = ({
         {/* RIGHT COLUMN: ELECTIVES (Specialized) */}
         <div className="lg:col-span-7 space-y-4 flex flex-col">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-            Global Specialized Subjects (All Grades)
+            All Specialized Subjects (All Grades)
           </p>
 
           <div className="grid grid-cols-1 gap-2">
@@ -272,7 +272,7 @@ const CurriculumView = ({
               className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/10 transition-all active:scale-[0.98]"
             >
               <Plus size={16} strokeWidth={3} />
-              New Specialized Subject
+              Add Specialized Subject
             </button>
 
             <button

@@ -210,18 +210,6 @@ const ControlView = ({
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 </div>
-                <div className="relative min-w-[110px]">
-                  <select value={resGrade} onChange={e => setResGrade(e.target.value)} className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none pr-10 cursor-pointer">
-                    {grades.map(g => <option key={g} value={g}>Grade {g}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                </div>
-                <div className="relative min-w-[110px]">
-                  <select value={resSection} onChange={e => setResSection(e.target.value)} className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none pr-10 cursor-pointer">
-                    {sections.map(s => <option key={s} value={s}>Sec {s}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                </div>
               </div>
 
               <div className="flex items-center gap-4 w-full xl:w-auto">
@@ -356,6 +344,7 @@ const ControlView = ({
                 <p className="text-[11px] font-black text-slate-400 tracking-tight">No student records found matching the filters</p>
               </div>
             )}
+            {/* 
             <div className="mt-12 pt-12 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between mb-10 px-4">
                 <div className="flex items-center gap-3">
@@ -418,7 +407,6 @@ const ControlView = ({
                         key={student.id}
                         className={`relative bg-white dark:bg-slate-900 border rounded-[40px] p-8 flex flex-col md:flex-row items-center justify-between gap-6 transition-all duration-300 cursor-default ${isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-lg' : glowClass} hover:translate-x-2`}
                       >
-                        {/* Rank Indicator - Standalone Medals */}
                         <div className="absolute -top-4 -left-4 z-20 flex items-center justify-center">
                           {medalIcon ? (
                             <span className="text-6xl leading-none drop-shadow-xl animate-in zoom-in-50 duration-500">{medalIcon}</span>
@@ -467,11 +455,9 @@ const ControlView = ({
                 )}
               </div>
             </div>
+            */}
 
-            <div className="mt-12 flex items-center justify-center gap-3 text-slate-400 opacity-40">
-              <ShieldCheck size={14} />
-              <p className="text-[9px] font-bold tracking-tight">Institutional Integrity Record • Tamper-proof Certified</p>
-            </div>
+
           </div>
         </div>
       </div>

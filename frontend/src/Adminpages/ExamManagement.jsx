@@ -15,7 +15,8 @@ import autoTable from 'jspdf-autotable';
 
 // --- Constants & Dummy Data ---
 const SECTIONS = ["A", "B", "C"];
-const YEARS = ["2082", "2083", "2084"];
+const CURRENT_YEAR = new Date().getFullYear() + (new Date().getMonth() + 1 > 4 || (new Date().getMonth() + 1 === 4 && new Date().getDate() >= 14) ? 57 : 56);
+const YEARS = Array.from({ length: 5 }, (_, i) => (CURRENT_YEAR - 2 + i).toString()); // Generates current year +/- 2 years
 
 const ExamManagement = () => {
   const [activeView, setActiveView] = useState('menu');
@@ -129,22 +130,13 @@ const ExamManagement = () => {
   const [realStudents, setRealStudents] = useState([]);
   const [realResults, setRealResults] = useState([]);
 
-  // Fetch Students & Results when filters change
+  // Fetch Students & Results when term/year change (Global for preview)
   useEffect(() => {
     const fetchStudentsAndResults = async () => {
-      // Find grade doc to get section details
-      const gradeDoc = examData?.allGrades?.find(g => g.gradeNumber.toString() === resGrade);
-      const isAll = resSection === 'All';
-      const sectionDoc = isAll ? null : gradeDoc?.sections?.find(s => s.sectionName === resSection);
-
-      if (!gradeDoc || (!isAll && !sectionDoc)) return;
-
       try {
         const [studentsData, resultsData] = await Promise.all([
-          isAll 
-            ? studentService.getStudents(resGrade)
-            : studentService.getStudentsBySection(resGrade, sectionDoc._id),
-          resultService.getResultsByGradeSectionTerm(gradeDoc._id, isAll ? '' : resSection, resPhase, selectedYear) // Pass year
+          studentService.getStudents(), // Fetch all students globally
+          resultService.getResultsByGradeSectionTerm('', '', resPhase, selectedYear) // Fetch all results for term globally
         ]);
         setRealStudents(studentsData);
         setRealResults(resultsData);
@@ -154,7 +146,7 @@ const ExamManagement = () => {
     };
 
     if (examData) fetchStudentsAndResults();
-  }, [resGrade, resSection, resPhase, examData, selectedYear]);
+  }, [resPhase, examData, selectedYear]);
 
   // Save filters to localStorage whenever they change
   useEffect(() => {
@@ -200,11 +192,27 @@ const ExamManagement = () => {
     // Find grade doc to get its subjects
     const gradeDoc = examData?.allGrades?.find(g => g.gradeNumber.toString() === resGrade);
 
-    // Combine students with their results (if any)
-    const combined = realStudents.map(student => {
-      const result = realResults.find(r => (r.studentId?._id || r.studentId) === student._id);
+    // Merge realStudents with students found in realResults (handles historical records)
+    const baseStudents = [...realStudents];
+    realResults.forEach(r => {
+      const studentObj = r.studentId;
+      if (studentObj && !baseStudents.some(s => (s._id || s) === (studentObj._id || studentObj))) {
+        baseStudents.push(studentObj);
+      }
+    });
 
-      // Initialize marks with all grade subjects
+    // Combine students with their results (if any)
+    const combined = baseStudents.map(student => {
+      const result = realResults.find(r => (r.studentId?._id || r.studentId) === (student._id || student));
+
+      // Resolve the student's grade data (either from result or current enrollment)
+      const currentGradeNum = student.studentClass?.toString();
+      const resultGradeNum = result?.gradeId?.gradeNumber?.toString();
+      const targetGradeNum = resultGradeNum || currentGradeNum;
+
+      const gradeDoc = examData?.allGrades?.find(g => g.gradeNumber.toString() === targetGradeNum);
+
+      // Initialize marks with grade subjects
       const marksObj = {};
       if (gradeDoc && gradeDoc.subjects) {
         gradeDoc.subjects.forEach(gs => {
@@ -235,8 +243,8 @@ const ExamManagement = () => {
         name: `${student.firstName} ${student.lastName}`,
         image: student.profilePhoto,
         phase: resPhase,
-        grade: resGrade,
-        section: resSection,
+        grade: targetGradeNum || 'N/A',
+        section: result?.sectionName || student.sectionId?.sectionName || 'N/A',
         marks: marksObj,
         total: result?.summary?.total || 0,
         percentage: parseFloat(result?.summary?.percentage || 0).toFixed(2),

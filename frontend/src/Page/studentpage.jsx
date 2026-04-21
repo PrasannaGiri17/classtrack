@@ -49,9 +49,13 @@ import Loading from '../MainSystemComponents/Loading';
 // --- Helpers ---
 
 const calculateAge = (dob) => {
-    if (!dob) return null;
-    const [d, m, y] = dob.split('/');
+    if (!dob || dob === '---') return null;
+    const parts = dob.split('/');
+    if (parts.length !== 3) return null;
+    const [d, m, y] = parts.map(Number);
+    if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
     const birth = new Date(y, m - 1, d);
+    if (isNaN(birth.getTime())) return null;
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const mDiff = today.getMonth() - birth.getMonth();
@@ -116,7 +120,8 @@ const STUDENT_ME_INITIAL = {
         upcomingMonth: '---',
         upcomingAmount: 0,
         pendingMonthsCount: 0,
-        totalDueAmount: 0
+        totalDueAmount: 0,
+        totalPaidAmount: 0
     }
 };
 
@@ -225,7 +230,7 @@ const AttendanceSummaryCard = ({ yearly, studentId }) => {
                         <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight leading-none">Attendance Summary</h3>
                         <p className="text-[10px] font-semibold text-slate-400 mt-1 flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                            Academic Year 2081
+                            Academic Year 2083
                         </p>
                     </div>
                 </div>
@@ -445,7 +450,7 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
                             </span>
                         </div>
                         <p className="text-xs font-black text-white whitespace-nowrap leading-tight mt-1">
-                             {student.flagDetails?.termScore || student.flagDetails?.finalTermScore ? (((student.flagDetails.termScore || student.flagDetails.finalTermScore) / 100) * 4).toFixed(2) : "0.00"} <span className="text-slate-400 font-bold ml-0.5">GPA</span>
+                            {student.flagDetails?.termScore || student.flagDetails?.finalTermScore ? (((student.flagDetails.termScore || student.flagDetails.finalTermScore) / 100) * 4).toFixed(2) : "0.00"} <span className="text-slate-400 font-bold ml-0.5">GPA</span>
                         </p>
                     </div>
 
@@ -566,7 +571,7 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
                         <p className="text-[9px] font-black text-slate-400 tracking-widest">Date Of Birth</p>
                         <p className="text-sm font-black text-slate-800 dark:text-white tracking-tight">
                             {student.dateOfBirth || '---'}
-                            {student.dateOfBirth && calculateAge(student.dateOfBirth) !== null && (
+                            {student.dateOfBirth && calculateAge(student.dateOfBirth) !== null && !isNaN(calculateAge(student.dateOfBirth)) && (
                                 <span className="text-emerald-500"> ({calculateAge(student.dateOfBirth)})</span>
                             )}
                         </p>
@@ -789,12 +794,15 @@ const StudentPage = () => {
     const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [examConfig, setExamConfig] = useState(null);
+    const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
     const [isTermDropdownOpen, setIsTermDropdownOpen] = useState(false);
+    const [selectedRecord, setSelectedRecord] = useState(null); // { year, gradeId, gradeNumber }
+    const [availableRecords, setAvailableRecords] = useState([]);
 
-    const fetchResults = async (studentId, currentClass, sectionName, gradeId) => {
+    const fetchResults = async (studentId, currentClass, sectionName, gradeId, year) => {
         try {
             const [allGradeResults, grades, examConfig] = await Promise.all([
-                resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm),
+                resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm, year),
                 gradeService.getGrades(),
                 examService.getExamData()
             ]);
@@ -909,11 +917,12 @@ const StudentPage = () => {
                 const startAD = convertBStoAD(`${curY}-01-01`);
                 const endAD = new Date().toISOString().split('T')[0];
 
-                const [studentRes, yearlyRes, holidaysList, flagRes] = await Promise.all([
+                const [studentRes, yearlyRes, holidaysList, flagRes, allResults] = await Promise.all([
                     studentService.getStudentById(id),
                     attendanceService.getStudentYearlyAttendance(id, curY || 2081),
                     calendarService.getEvents(startAD, endAD),
-                    flagService.getLatestFlag(id)
+                    flagService.getLatestFlag(id),
+                    resultService.getStudentResults(id)
                 ]);
 
                 const data = studentRes;
@@ -943,7 +952,8 @@ const StudentPage = () => {
                             upcomingMonth: feeRes.upcomingMonth || "N/A",
                             upcomingAmount: feeRes.upcomingAmount || 0,
                             pendingMonthsCount: feeRes.unpaidCount || 0,
-                            totalDueAmount: feeRes.totalDue || 0
+                            totalDueAmount: feeRes.totalDue || 0,
+                            totalPaidAmount: feeRes.totalPaid || 0
                         };
                     }
                 } catch (fe) {
@@ -951,7 +961,43 @@ const StudentPage = () => {
                 }
 
                 const latestFlag = Array.isArray(flagRes) ? flagRes[0] : (flagRes || null);
-                
+
+                // Process historical records for dropdown
+                const recordsMap = new Map();
+                allResults.forEach(res => {
+                    const rGradeId = res.gradeId?._id?.toString() || res.gradeId?.toString();
+                    if (rGradeId) {
+                        const key = `${res.academicYear}-${rGradeId}`;
+                        if (!recordsMap.has(key)) {
+                            recordsMap.set(key, {
+                                year: res.academicYear,
+                                gradeId: rGradeId,
+                                gradeNumber: res.gradeId?.gradeNumber || "Unknown"
+                            });
+                        }
+                    }
+                });
+
+                // Add current academic record if not present
+                const curGradeId = data.classId?._id?.toString() || data.classId?.toString();
+                if (curGradeId) {
+                    const currentKey = `${curY || 2081}-${curGradeId}`;
+                    if (!recordsMap.has(currentKey)) {
+                        recordsMap.set(currentKey, {
+                            year: curY || 2081,
+                            gradeId: curGradeId,
+                            gradeNumber: data.studentClass
+                        });
+                    }
+                }
+
+                const recordsList = Array.from(recordsMap.values()).sort((a, b) => b.year - a.year || b.gradeNumber - a.gradeNumber);
+                setAvailableRecords(recordsList);
+
+                // Default selection is current record or first record
+                const initialRecord = recordsList.find(r => r.year === (curY || 2081)) || recordsList[0] || null;
+                setSelectedRecord(initialRecord);
+
                 setStudent(prev => ({
                     ...prev,
                     ...data,
@@ -960,7 +1006,7 @@ const StudentPage = () => {
                     grade: data.studentClass,
                     section: data.sectionId?.sectionName || "",
                     classTeacher: data.sectionId?.classTeacherId ? `${data.sectionId.classTeacherId.firstName} ${data.sectionId.classTeacherId.lastName || ""}` : "Unassigned",
-                    permanentAddress: data.Address,
+                    permanentAddress: data.Address || data.permanentAddress || data.address || "---",
                     dateOfBirth: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0].split('-').reverse().join('/') : null,
                     yearlyAttendance: finalYearly,
                     feeStatus: finalFeeStatus,
@@ -968,7 +1014,8 @@ const StudentPage = () => {
                     flagDetails: latestFlag
                 }));
 
-                await fetchResults(id, data.studentClass, data.sectionId?.sectionName, data.gradeId?._id);
+                // Remove redundant call as useEffect will handle it
+                // await fetchResults(id, data.studentClass, data.sectionId?.sectionName, data.gradeId?._id, curY || 2081);
             }
             setIsLoaded(true);
         } catch (err) {
@@ -980,7 +1027,13 @@ const StudentPage = () => {
 
     useEffect(() => {
         if (id) fetchStudent();
-    }, [id, refreshTrigger, selectedTerm]);
+    }, [id, refreshTrigger]);
+
+    useEffect(() => {
+        if (id && selectedRecord && selectedTerm) {
+            fetchResults(id, selectedRecord.gradeNumber, student.section, selectedRecord.gradeId, selectedRecord.year);
+        }
+    }, [id, selectedRecord, selectedTerm, student.section]);
 
     const handleUpdateStudent = async (updatedFields) => {
         try {
@@ -1024,7 +1077,7 @@ const StudentPage = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <GuardianInfoCard student={student} />
-                    <FeeStatusCard feeStatus={student.feeStatus} />
+                    <FeeStatusCard feeStatus={student.feeStatus} studentId={id} />
                 </div>
 
                 <AttendanceSummaryCard yearly={student.yearlyAttendance} studentId={id} />
@@ -1042,6 +1095,51 @@ const StudentPage = () => {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {/* Academic Year Dropdown */}
+                            <div className="relative group/select">
+                                <label className="absolute -top-2 left-4 px-1.5 bg-white dark:bg-slate-900 text-[8px] font-black text-slate-400 tracking-widest z-10 transition-colors group-focus-within/select:text-emerald-500">
+                                    Academic Year
+                                </label>
+                                <div className="flex items-center relative">
+                                    <button
+                                        onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
+                                        className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-4 text-sm font-black text-slate-700 dark:text-slate-200 outline-none transition-all cursor-pointer shadow-inner min-w-[160px] tracking-wider group"
+                                    >
+                                        {selectedRecord ? `Grade ${selectedRecord.gradeNumber} (${selectedRecord.year})` : "No Record"}
+                                        <ChevronDown size={18} className={`text-slate-400 group-hover:text-emerald-500 transition-all ${isYearDropdownOpen ? 'rotate-180' : 'rotate-0'}`} />
+                                    </button>
+
+                                    {isYearDropdownOpen && (
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-[60]"
+                                                onClick={() => setIsYearDropdownOpen(false)}
+                                            />
+                                            <div className="absolute top-full left-0 w-full mt-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                                                <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
+                                                    {availableRecords.map((rec, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                setSelectedRecord(rec);
+                                                                setIsYearDropdownOpen(false);
+                                                            }}
+                                                            className={`w-full px-5 py-3 text-[11px] font-black text-left rounded-2xl transition-all uppercase tracking-widest ${selectedRecord?.year === rec.year && selectedRecord?.gradeId === rec.gradeId
+                                                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
+                                                                }`}
+                                                        >
+                                                            Grade {rec.gradeNumber} ({rec.year})
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Academic Term Dropdown */}
                             <div className="relative group/select">
                                 <label className="absolute -top-2 left-4 px-1.5 bg-white dark:bg-slate-900 text-[8px] font-black text-slate-400 tracking-widest z-10 transition-colors group-focus-within/select:text-emerald-500">
                                     Academic Term
@@ -1164,7 +1262,8 @@ const GuardianInfoCard = ({ student }) => {
 
 const SkeletonBlock = ({ height }) => (<div className={`w-full ${height} bg-slate-200 dark:bg-slate-800/50 rounded-[40px]`} />);
 
-const FeeStatusCard = ({ feeStatus }) => {
+const FeeStatusCard = ({ feeStatus, studentId }) => {
+    const navigate = useNavigate();
     return (
         <div className="bg-white dark:bg-[#0b1220] rounded-[40px] border border-slate-100 dark:border-white/5 shadow-xl p-6 lg:p-8 transition-all relative overflow-hidden group/card shadow-indigo-500/5 h-full flex flex-col justify-between">
             {/* Decorative background elements */}
@@ -1182,38 +1281,39 @@ const FeeStatusCard = ({ feeStatus }) => {
                             <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 tracking-widest mt-0.5">Status Overview</p>
                         </div>
                     </div>
-                    {feeStatus.totalDueAmount > 0 && (
-                        <div className="px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-[9px] font-black tracking-widest shadow-lg shadow-red-500/5 animate-pulse">
-                            Due Balance
-                        </div>
-                    )}
+
+                    <button
+                        onClick={() => navigate(`/admin/fee/student/${studentId}`)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0 tracking-widest"
+                    >
+                        Full Fee Record
+                        <ArrowRight size={13} />
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
-                    <div className="bg-slate-50 dark:bg-white/[0.03] p-4 lg:p-5 rounded-2xl border border-slate-200 dark:border-white/[0.08] transition-all hover:border-indigo-300 dark:hover:border-indigo-500/30 group/item">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                                <Calendar size={12} className="text-indigo-400" />
-                                <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-widest">Upcoming ({feeStatus?.upcomingMonth || '---'})</span>
-                            </div>
+                    {/* Total Payments Card */}
+                    <div className="bg-emerald-50 dark:bg-emerald-500/[0.06] p-4 lg:p-5 rounded-2xl border border-emerald-200 dark:border-emerald-500/20 transition-all hover:bg-emerald-100/50 dark:hover:bg-emerald-500/[0.1] group/item">
+                        <div className="flex items-center gap-2 mb-3">
+                            <ShieldCheck size={12} className="text-emerald-500" />
+                            <span className="text-[9px] font-black text-emerald-500/60 tracking-widest">Total Payments</span>
                         </div>
-                        <p className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight tabular-nums">
-                            <span className="text-lg font-bold text-slate-400 dark:text-slate-500 mr-1">Rs.</span>
-                            {(feeStatus?.upcomingAmount || 0).toLocaleString()}
+                        <p className="text-3xl font-black text-emerald-500 leading-none tracking-tight tabular-nums">
+                            <span className="text-lg font-bold text-emerald-500/40 mr-1">Rs.</span>
+                            {(feeStatus?.totalPaidAmount || 0).toLocaleString()}
                         </p>
-
                     </div>
 
+                    {/* Total Dues Card */}
                     <div className="bg-red-50 dark:bg-red-500/[0.06] p-4 lg:p-5 rounded-2xl border border-red-200 dark:border-red-500/20 transition-all hover:bg-red-100/50 dark:hover:bg-red-500/[0.1] group/item">
                         <div className="flex items-center gap-2 mb-3">
-                            <ShieldCheck size={12} className="text-red-500" />
+                            <AlertCircle size={12} className="text-red-500" />
                             <span className="text-[9px] font-black text-red-500/60 tracking-widest">Total Dues</span>
                         </div>
                         <p className="text-3xl font-black text-red-500 leading-none tracking-tight tabular-nums">
                             <span className="text-lg font-bold text-red-500/40 mr-1">Rs.</span>
                             {(feeStatus?.totalDueAmount || 0).toLocaleString()}
                         </p>
-
                     </div>
                 </div>
             </div>

@@ -140,7 +140,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
     try {
       const schoolId = Number(localStorage.getItem("adminSchoolId") || localStorage.getItem("schoolId") || 1);
       const newClassNum = Number(formData.class);
-      
+
       const payload = {
         firstName, lastName,
         fatherName: formData.fatherName, fatherPhone: formData.fatherPhone,
@@ -154,7 +154,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
       if (isEditMode && studentData) {
         // Find the full grade object for the selected class number
         const newGradeObj = grades.find(g => Number(g.gradeNumber) === newClassNum);
-        
+
         // If the grade number has changed from the original record
         if (newClassNum !== Number(studentData.studentClass)) {
           console.log(`Grade changed from ${studentData.studentClass} to ${newClassNum}. Updating classId and resetting section.`);
@@ -224,7 +224,7 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
               </div>
               <div className="space-y-1.5">
                 <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1 uppercase">Full Name</label>
-                <input name="name" required onChange={handleChange} value={formData.name} placeholder="Cristiano Ronaldo" className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold dark:text-white shadow-inner" />
+                <input name="name" required onChange={handleChange} value={formData.name} placeholder="Student Full Name" className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold dark:text-white shadow-inner" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">

@@ -209,7 +209,7 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
               </div>
               <div className="space-y-1.5">
                 <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1 uppercase">Full Legal Name</label>
-                <input name="name" required onChange={handleChange} value={formData.name} placeholder="Cristiano Ronaldo" className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold dark:text-white shadow-inner" />
+                <input name="name" required onChange={handleChange} value={formData.name} placeholder="Enter Full Name" className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold dark:text-white shadow-inner" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1 uppercase">Date of Birth</label>

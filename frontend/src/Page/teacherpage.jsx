@@ -505,20 +505,21 @@ const TeacherPage = () => {
 
                                     <div className="md:col-span-1 space-y-3">
                                         <label className="text-[10px] font-bold text-slate-400 ml-1">Assigned Grades</label>
-                                        <div className="flex flex-wrap gap-3">
-                                            {classes.map((cls) => (
-                                                <button
-                                                    key={cls}
-                                                    type="button"
-                                                    className={`px-6 py-3 rounded-2xl text-[10px] font-black transition-all border cursor-default ${formData.class.includes(cls)
-                                                        ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20"
-                                                        : "bg-white dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-800"
-                                                        }`}
-                                                    disabled
-                                                >
-                                                    Grade {cls}
-                                                </button>
-                                            ))}
+                                        <div className="flex flex-wrap gap-2">
+                                            {formData.class.length > 0 ? (
+                                                formData.class.map((cls) => (
+                                                    <div
+                                                        key={cls}
+                                                        className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-500 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 rounded-xl text-[10px] font-black"
+                                                    >
+                                                        Grade {cls}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 text-slate-400 rounded-xl text-[10px] font-bold italic border border-slate-100 dark:border-slate-800">
+                                                    No Grades Assigned
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 

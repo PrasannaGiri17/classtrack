@@ -289,14 +289,6 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded, isStudentView, studentId
             </div>
           </div>
 
-          {/* Smart Notification Banner */}
-          <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-[24px] border border-emerald-100 dark:border-emerald-900/30">
-            <AlertCircle className="text-emerald-500 shrink-0" size={20} />
-            <p className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 leading-relaxed uppercase tracking-wider">
-              Smart Notification Enabled: Push alerts will be broadcasted to all enrolled users
-              24h prior to the start date.
-            </p>
-          </div>
         </form>
 
         {/* Footer */}

@@ -411,7 +411,7 @@ const ClassroomPage = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="py-24 text-center">
+                    <td colSpan={4} className="py-24 text-center">
                       <div className="flex flex-col items-center gap-3 text-slate-400">
                         {isLoading ? (
                           <Loader2 size={40} className="animate-spin text-emerald-500 opacity-50" />
