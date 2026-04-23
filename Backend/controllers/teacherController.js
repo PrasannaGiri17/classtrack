@@ -173,6 +173,7 @@ const addTeacher = async (req, res) => {
       password: tempPassword,
       role: "teacher",
       teacherId: teacher._id,
+      name: `${teacher.firstName} ${teacher.lastName}`,
       mustChangePassword: true,
     });
 

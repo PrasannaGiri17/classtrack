@@ -45,6 +45,10 @@ const SAssignmentsContent = () => {
   const [isResubmitConfirmOpen, setIsResubmitConfirmOpen] = useState(false);
   const [resubmitTargetId, setResubmitTargetId] = useState(null);
 
+  // Folder Navigation State
+  const [currentFolder, setCurrentFolder] = useState(null);
+  const [folderPath, setFolderPath] = useState([]);
+
   // Accordion/Layout State
   const [isOpenSectionExpanded, setIsOpenSectionExpanded] = useState(true);
   const [isClosedSectionExpanded, setIsClosedSectionExpanded] = useState(true);
@@ -96,7 +100,7 @@ const SAssignmentsContent = () => {
 
       const [assignmentData, resourceData] = await Promise.all([
         assignmentService.getStudentAssignments(gradeStr, sectionName, studentId),
-        contentService.getStudentResources(gradeStr, sectionName)
+        contentService.getStudentResources(gradeStr, sectionName, currentFolder?._id || 'root')
       ]);
 
       setAssignments(Array.isArray(assignmentData) ? assignmentData : []);
@@ -117,11 +121,11 @@ const SAssignmentsContent = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentFolder]);
 
   useEffect(() => {
     fetchStudentBoard();
-  }, [fetchStudentBoard]);
+  }, [fetchStudentBoard, currentFolder]);
 
   const handleOpenSubmit = (id) => {
     setSelectedAssignmentId(id);
@@ -430,50 +434,121 @@ return (
         </div>
       </div>
     ) : (
-      <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors h-auto">
-        <div className="w-full overflow-x-auto scrollbar-hide">
-          <table className="w-full min-w-[1000px] text-left">
-            <thead>
-              <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Resource Name</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Teacher</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Subject</th>
-                <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Shared On</th>
-                <th className="pr-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Download</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-              {resources.map((r) => (
-                <tr key={r._id || r.id} className="group hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-all cursor-pointer">
-                  <td className="pl-12 pr-6 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${r.type === 'folder' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
-                        {r.type === 'folder' ? <Folder size={18} /> : r.type === 'link' ? <LinkIcon size={18} /> : <FileText size={18} />}
-                      </div>
-                      <a href={r.fileUrl || r.url} download={r.name} className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 transition-colors">{r.name}</a>
-                    </div>
-                  </td>
-                  <td className="px-6 py-6 font-bold text-slate-500">
-                    <div className="flex items-center gap-2">
-                      <User size={14} className="text-slate-400" />
-                      <span className="text-xs font-bold text-slate-500">
-                        {r.teacherId ? `${r.teacherId.firstName || ''} ${r.teacherId.lastName || ''}` : (r.teacherName || 'Instructor')}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-6">
-                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/10">{r.subject}</span>
-                  </td>
-                  <td className="px-6 py-6 text-xs font-bold text-slate-500">{new Date(r.sharedOn).toLocaleDateString()}</td>
-                  <td className="pr-12 py-6">
-                    <div className="flex items-center justify-end">
-                      <a href={r.fileUrl || r.url} download={r.name} className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-500 rounded-lg transition-all"><DownloadIcon size={16} /></a>
-                    </div>
-                  </td>
+      <div className="space-y-4 animate-in fade-in duration-500">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-3">
+            {currentFolder && (
+              <button
+                onClick={() => {
+                  const newPath = [...folderPath];
+                  newPath.pop();
+                  setFolderPath(newPath);
+                  setCurrentFolder(newPath.length > 0 ? newPath[newPath.length - 1] : null);
+                }}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-900 text-slate-500 hover:text-emerald-600 border border-slate-100 dark:border-slate-800 transition-all"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            )}
+            <h3 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">
+              {currentFolder ? currentFolder.name : `Learning Resources (${resources.length})`}
+            </h3>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors h-auto">
+          <div className="w-full overflow-x-auto scrollbar-hide">
+            <table className="w-full min-w-[1000px] text-left">
+              <thead>
+                <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                  <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Resource Name</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Teacher</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Subject</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Shared On</th>
+                  <th className="pr-12 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                {resources.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-20 text-center">
+                      <div className="flex flex-col items-center gap-4 opacity-30">
+                        <Folder size={48} className="text-slate-400" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">This folder is empty</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  resources.map((r) => (
+                    <tr
+                      key={r._id || r.id}
+                      onClick={() => {
+                        if (r.type === 'folder') {
+                          setFolderPath([...folderPath, r]);
+                          setCurrentFolder(r);
+                        }
+                      }}
+                      className="group hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-all cursor-pointer"
+                    >
+                      <td className="pl-12 pr-6 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${r.type === 'folder' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                            {r.type === 'folder' ? <Folder size={18} /> : r.type === 'link' ? <LinkIcon size={18} /> : <FileText size={18} />}
+                          </div>
+                          {r.type === 'folder' ? (
+                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 transition-colors">{r.name}</span>
+                          ) : (
+                            <a
+                              href={r.fileUrl || r.url}
+                              target={r.type === 'link' ? "_blank" : undefined}
+                              rel={r.type === 'link' ? "noopener noreferrer" : undefined}
+                              download={r.type !== 'link' ? r.name : undefined}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 transition-colors"
+                            >
+                              {r.name}
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-6 font-bold text-slate-500">
+                        <div className="flex items-center gap-2">
+                          <User size={14} className="text-slate-400" />
+                          <span className="text-xs font-bold text-slate-500">
+                            {r.teacherId ? `${r.teacherId.firstName || ''} ${r.teacherId.lastName || ''}` : (r.teacherName || 'Instructor')}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-6">
+                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/10">{r.subject}</span>
+                      </td>
+                      <td className="px-6 py-6 text-xs font-bold text-slate-500">{new Date(r.sharedOn).toLocaleDateString()}</td>
+                      <td className="pr-12 py-6">
+                        <div className="flex items-center justify-end">
+                          {r.type === 'folder' ? (
+                            <div className="p-2 text-slate-300 group-hover:text-emerald-500 transition-all">
+                              <ChevronDown className="-rotate-90" size={16} />
+                            </div>
+                          ) : (
+                            <a
+                              href={r.fileUrl || r.url}
+                              target={r.type === 'link' ? "_blank" : undefined}
+                              rel={r.type === 'link' ? "noopener noreferrer" : undefined}
+                              download={r.type !== 'link' ? r.name : undefined}
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-400 hover:text-emerald-500 rounded-lg transition-all"
+                            >
+                              {r.type === 'link' ? <LinkIcon size={16} /> : <DownloadIcon size={16} />}
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     )}

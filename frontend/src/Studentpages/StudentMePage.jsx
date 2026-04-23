@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { FaRegUser } from "react-icons/fa6";
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -72,7 +73,7 @@ const STUDENT_ME_INITIAL = {
   grade: '---',
   section: '---',
   dateOfBirth: '---',
-  avatarUrl: 'https://i.pinimg.com/736x/8b/27/ff/8b27ff4a7a6cefb81f33d8282b5dfaa7.jpg',
+  avatarUrl: null,
   email: '---',
   phone: '---',
   fatherName: '---',
@@ -500,11 +501,17 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
                     <Loader2 size={32} className="text-emerald-500 animate-spin" />
                   ) : (
                     <>
+                    {currentAvatar ? (
                       <img
                         src={currentAvatar}
                         alt={student.name}
                         className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:blur-[3px]"
                       />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-800">
+                        <FaRegUser className="text-slate-500 w-12 h-12" />
+                      </div>
+                    )}
                       {/* Pencil Overlay */}
                       {!readOnly && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
@@ -593,9 +600,9 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsChangePasswordOpen(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black rounded-xl transition-all shadow-sm border border-slate-700 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0"
               >
-                <Lock size={12} className="text-emerald-500" />
+                <Lock size={12} className="text-white" />
                 Change Password
               </button>
             </div>
@@ -825,9 +832,14 @@ const StudentMePage = () => {
 
   const fetchStudentData = async () => {
     try {
-      let studentId = localStorage.getItem("studentId");
+      // Prioritize studentId from navigation state (useful for teacher view)
+      let studentId = location.state?.studentId;
 
-      // Deep sync: try to extract from JWT if missing
+      if (!studentId || studentId === "undefined" || studentId === "null") {
+        studentId = localStorage.getItem("studentId");
+      }
+
+      // Deep sync: try to extract from JWT if missing (fallback for students viewing own profile)
       if (!studentId || studentId === "undefined" || studentId === "null") {
         const token = localStorage.getItem("token");
         if (token) {
@@ -872,6 +884,8 @@ const StudentMePage = () => {
         ? `${data.sectionId.classTeacherId.firstName} ${data.sectionId.classTeacherId.lastName || ''}`.trim()
         : STUDENT_ME_INITIAL.classTeacher;
 
+      const formattedDOB = data.birthdate ? new Date(data.birthdate).toLocaleDateString('en-GB') : STUDENT_ME_INITIAL.dateOfBirth;
+
       const studentData = {
         ...STUDENT_ME_INITIAL,
         ...data,
@@ -884,7 +898,9 @@ const StudentMePage = () => {
         grade: data.gradeId?.gradeName || data.studentClass,
         section: data.sectionId?.sectionName || data.section,
         classTeacher: teacherName,
+        dateOfBirth: formattedDOB,
         address: data.Address || STUDENT_ME_INITIAL.address,
+        permanentAddress: data.Address || STUDENT_ME_INITIAL.permanentAddress,
         fatherName: data.fatherName || STUDENT_ME_INITIAL.fatherName,
         fatherPhone: data.fatherPhone || STUDENT_ME_INITIAL.fatherPhone,
         motherName: data.motherName || STUDENT_ME_INITIAL.motherName,
@@ -976,6 +992,8 @@ const StudentMePage = () => {
           console.warn("Failed to fetch yearly attendance stats for passed student", e);
         }
 
+        const formattedDOB = passedStudent.birthdate ? new Date(passedStudent.birthdate).toLocaleDateString('en-GB') : (passedStudent.dateOfBirth || STUDENT_ME_INITIAL.dateOfBirth);
+
         setStudent({
           ...STUDENT_ME_INITIAL,
           ...passedStudent,
@@ -985,7 +1003,9 @@ const StudentMePage = () => {
           grade: passedStudent.gradeId?.gradeName || passedStudent.studentClass || passedStudent.grade || STUDENT_ME_INITIAL.grade,
           section: passedStudent.sectionId?.sectionName || passedStudent.section || STUDENT_ME_INITIAL.section,
           classTeacher: teacherName,
-          address: passedStudent.Address || STUDENT_ME_INITIAL.address,
+          dateOfBirth: formattedDOB,
+          address: passedStudent.Address || passedStudent.address || STUDENT_ME_INITIAL.address,
+          permanentAddress: passedStudent.Address || passedStudent.permanentAddress || STUDENT_ME_INITIAL.permanentAddress,
           phone: passedStudent.phone || passedStudent.phoneNumber || STUDENT_ME_INITIAL.phone,
           email: passedStudent.email || STUDENT_ME_INITIAL.email,
           fatherName: passedStudent.fatherName || STUDENT_ME_INITIAL.fatherName,
@@ -1000,7 +1020,7 @@ const StudentMePage = () => {
       }
     };
     initPassedStudent();
-  }, [passedStudent]);
+  }, [passedStudent, location.state?.studentId]);
 
   const fetchResults = async () => {
     if (!student._id) return;
@@ -1163,7 +1183,26 @@ const StudentMePage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <GuardianInfoCard student={student} onUpdate={handleUpdateStudent} readOnly={isTeacherView} />
-          <FeeStatusCard feeStatus={student.feeStatus} readOnly={isTeacherView} onNavigate={() => navigate('/student/fee')} />
+          {isTeacherView ? (
+            <div className="bg-white dark:bg-[#0b1220] rounded-[40px] border border-slate-100 dark:border-white/5 shadow-xl p-8 transition-all flex flex-col items-center justify-center text-center gap-6 h-full relative overflow-hidden group/card shadow-amber-500/5">
+              <div className="absolute top-[-40px] right-[-40px] w-48 h-48 bg-amber-500/[0.03] blur-[60px] rounded-full pointer-events-none" />
+              <div className="w-16 h-16 bg-amber-500/10 rounded-[24px] flex items-center justify-center text-amber-500 border border-amber-500/10 shadow-inner group-hover/card:scale-110 transition-transform duration-500">
+                <Lock size={32} />
+              </div>
+              <div className="space-y-3 relative z-10">
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Access Restricted</h3>
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] max-w-[240px] leading-relaxed">
+                  Financial records are private and only visible to the Admin and Student/Parent.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/5 rounded-xl mt-2">
+                <ShieldCheck size={12} className="text-slate-400" />
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Privacy Protected</span>
+              </div>
+            </div>
+          ) : (
+            <FeeStatusCard feeStatus={student.feeStatus} readOnly={isTeacherView} onNavigate={() => navigate('/student/fee')} />
+          )}
         </div>
 
         <AttendanceSummaryCard yearly={student.yearlyAttendance} studentId={student._id} />

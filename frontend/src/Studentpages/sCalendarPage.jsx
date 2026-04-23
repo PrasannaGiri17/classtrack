@@ -168,7 +168,13 @@ const SCalendarPage = () => {
             </button>
           </div>
 
-          {/* Removed Add Event button for Students */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center justify-center gap-3 px-10 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+          >
+            <Plus size={20} />
+            Add Personal Event
+          </button>
         </div>
       </div>
 
@@ -259,7 +265,14 @@ const SCalendarPage = () => {
                         {event.description}
                       </p>
 
-                      {/* Removed Delete button for Students */}
+                      {event.type !== 'HOLIDAY' && event.type !== 'EXAMS' && String(event.createdBy) === String(localStorage.getItem('studentId')) && (
+                        <button
+                          onClick={(e) => handleDeleteClick(e, event._id)}
+                          className="p-2 -mr-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all"
+                        >
+                          <Trash size={18} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

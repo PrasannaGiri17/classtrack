@@ -15,94 +15,85 @@ import {
     FileText,
     Settings
 } from 'lucide-react';
+import schoolNotificationService from '../Api/schoolNotificationService';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const INITIAL_NOTIFICATIONS = [
-    {
-        id: 'n1',
-        title: 'New Student Registration',
-        message: 'A new student, Emma Watson, has been registered in Grade 10-A.',
-        type: 'success',
-        category: 'users',
-        timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 mins ago
-        isRead: false,
-    },
-    {
-        id: 'n2',
-        title: 'Fee Payment Received',
-        message: 'Payment of $500 received from John Doe (Grade 8-B) for Term 1 Tuition.',
-        type: 'success',
-        category: 'finance',
-        timestamp: new Date(Date.now() - 1000 * 60 * 45), // 45 mins ago
-        isRead: false,
-    },
-    {
-        id: 'n3',
-        title: 'System Maintenance Alert',
-        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM. Expect brief downtime.',
-        type: 'warning',
-        category: 'system',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-        isRead: true,
-    },
-    {
-        id: 'n4',
-        title: 'New Faculty Request',
-        message: 'Mr. Anderson has requested approval for a new Science Lab equipment purchase.',
-        type: 'info',
-        category: 'academic',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-        isRead: true,
-    },
-    {
-        id: 'n5',
-        title: 'Failed Login Attempt',
-        message: 'Multiple failed login attempts detected for user admin@school.com from IP 192.168.1.105.',
-        type: 'alert',
-        category: 'system',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-        isRead: true,
-    },
-];
+import { useAuth } from '../context/AuthContext';
 
 const NotificationPage = () => {
-    const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+    const { user } = useAuth();
+    const userId = user?._id || user?.userId;
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [filterCategory, setFilterCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
-    const handleMarkAllRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    React.useEffect(() => {
+        const fetchNotifications = async () => {
+            try {
+                setLoading(true);
+                const teacherId = localStorage.getItem("teacherId");
+                if (teacherId && teacherId !== "undefined" && teacherId !== "null") {
+                    const data = await schoolNotificationService.getNotifications('teacher', teacherId);
+                    setNotifications(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch notifications:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchNotifications();
+    }, []);
+
+    const handleMarkAllRead = async () => {
+        try {
+            await schoolNotificationService.markAllAsRead('teacher');
+            setNotifications(prev => prev.map(n => ({
+                ...n,
+                readBy: [...(new Set([...(n.readBy || []), userId]))]
+            })));
+        } catch (error) {
+            console.error("Failed to mark all as read:", error);
+        }
     };
 
-    const handleMarkAsRead = (id) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    const handleMarkAsRead = async (id) => {
+        try {
+            await schoolNotificationService.markAsRead(id);
+            setNotifications(prev => prev.map(n => 
+                n._id === id ? { ...n, readBy: [...(n.readBy || []), userId] } : n
+            ));
+        } catch (error) {
+            console.error("Failed to mark as read:", error);
+        }
     };
 
-    const handleDelete = (id) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+    const handleDelete = async (id) => {
+        try {
+            await schoolNotificationService.deleteNotification(id);
+            setNotifications(prev => prev.filter(n => n._id !== id));
+        } catch (error) {
+            console.error("Failed to delete notification:", error);
+        }
     };
 
     const filteredNotifications = notifications.filter(n => {
         const matchesSearch = n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             n.message.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = filterCategory === 'all' || n.category === filterCategory;
-        const matchesUnread = showUnreadOnly ? !n.isRead : true;
+        // For now, SchoolNotifications don't have categories, so we treat all as 'system' or just 'all'
+        const matchesCategory = filterCategory === 'all';
+        const matchesUnread = true; // showUnreadOnly logic not yet supported by model
 
         return matchesSearch && matchesCategory && matchesUnread;
     });
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const unreadCount = 0; // Not yet supported by model
 
     const getCategoryIcon = (category) => {
-        switch (category) {
-            case 'finance': return <CreditCard className="w-4 h-4" />;
-            case 'users': return <UserPlus className="w-4 h-4" />;
-            case 'academic': return <FileText className="w-4 h-4" />;
-            case 'system': return <Settings className="w-4 h-4" />;
-            default: return null;
-        }
+        return <Bell className="w-4 h-4" />;
     };
 
     const getTypeStyles = (type) => {
@@ -185,6 +176,16 @@ const NotificationPage = () => {
 
                     <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
 
+                    <button 
+                        onClick={handleMarkAllRead}
+                        className="px-4 py-2.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all border border-emerald-100/50 dark:border-emerald-800/50 flex items-center gap-2"
+                    >
+                        <CheckCheck className="w-4 h-4" />
+                        Mark all read
+                    </button>
+
+                    <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
                     {['all', 'system', 'finance', 'users', 'academic'].map(category => (
                         <button
                             key={category}
@@ -202,18 +203,27 @@ const NotificationPage = () => {
 
             {/* Notifications List */}
             <div className="space-y-3">
+                {loading ? (
+                  <div className="py-20 text-center">
+                    <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Fetching announcements...</p>
+                  </div>
+                ) : (
                 <AnimatePresence>
                     {filteredNotifications.length > 0 ? (
                         filteredNotifications.map((notification) => (
                             <motion.div
-                                key={notification.id}
+                                key={notification._id}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 className="group relative overflow-hidden bg-white dark:bg-slate-900 p-5 rounded-2xl border transition-all border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md cursor-pointer"
-                                onClick={() => !notification.isRead && handleMarkAsRead(notification.id)}
+                                onClick={() => {
+                                    const isRead = notification.readBy?.includes(userId);
+                                    if (!isRead) handleMarkAsRead(notification._id);
+                                }}
                             >
-                                {!notification.isRead && (
+                                {!(notification.readBy?.includes(userId)) && (
                                     <>
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
                                         <div className="absolute right-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
@@ -238,7 +248,7 @@ const NotificationPage = () => {
                                             </div>
                                             <div className="flex items-center gap-1.5 text-slate-400 text-xs font-medium shrink-0">
                                                 <Clock className="w-3.5 h-3.5" />
-                                                {format(notification.timestamp, 'MMM d, h:mm a')}
+                                                {format(new Date(notification.createdAt), 'MMM d, h:mm a')}
                                             </div>
                                         </div>
 
@@ -251,7 +261,7 @@ const NotificationPage = () => {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleDelete(notification.id);
+                                                handleDelete(notification._id);
                                             }}
                                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors tooltip-trigger"
                                             title="Delete notification"
@@ -278,6 +288,7 @@ const NotificationPage = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
+                )}
             </div>
         </div>
     );

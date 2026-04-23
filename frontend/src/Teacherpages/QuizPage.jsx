@@ -39,6 +39,7 @@ import quizService from '../Api/quizService';
 import teacherService from '../Api/teacherService';
 import calendarService from '../Api/calendarService';
 import CustomNepaliHolidayCalendar from '../MainSystemComponents/CustomNepaliHolidayCalendar';
+import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 
@@ -53,6 +54,8 @@ const QuizPage = () => {
   const [selectedQuizForStats, setSelectedQuizForStats] = useState(null);
   const [selectedAnalyticsQuizId, setSelectedAnalyticsQuizId] = useState('');
   const [editingQuizId, setEditingQuizId] = useState(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [quizToDelete, setQuizToDelete] = useState(null);
 
   const [teacherData, setTeacherData] = useState({ classes: [], subjects: [] });
   const [holidays, setHolidays] = useState([]);
@@ -325,15 +328,23 @@ const QuizPage = () => {
     }
   };
 
-  const handleDeleteQuiz = async (id) => {
-    if (!window.confirm('Are you sure you want to permanently remove this assessment?')) return;
+  const handleDeleteQuiz = (id) => {
+    setQuizToDelete(id);
+    setIsConfirmOpen(true);
+  };
+
+  const confirmDeleteQuiz = async () => {
+    if (!quizToDelete) return;
     try {
-      await quizService.deleteQuiz(id);
-      setQuizzes(quizzes.filter(q => q._id !== id));
+      await quizService.deleteQuiz(quizToDelete);
+      setQuizzes(quizzes.filter(q => q._id !== quizToDelete));
       toast({ type: 'success', message: 'Evaluation successfully archived.' });
     } catch (err) {
       console.error('Delete error:', err);
       toast({ type: 'error', message: 'Failed to delete record.' });
+    } finally {
+      setIsConfirmOpen(false);
+      setQuizToDelete(null);
     }
   };
 
@@ -344,6 +355,12 @@ const QuizPage = () => {
   const analyticsData = useMemo(() => {
     return selectedAnalyticsQuiz?.stats?.contestants || [];
   }, [selectedAnalyticsQuiz]);
+
+  const topStudents = useMemo(() => {
+    return [...analyticsData]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [analyticsData]);
 
   if (loading) {
     return (
@@ -482,11 +499,11 @@ const QuizPage = () => {
           <div className="bg-white dark:bg-slate-900 p-10 lg:p-12 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
               <div>
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white  tracking-tight flex items-center gap-3">
                   <Sparkles className="text-emerald-500" size={24} />
-                  Contestant performance
+                  Student performance
                 </h2>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Individual score comparison for selected assessment</p>
+                <p className="text-xs font-bold text-slate-400 tracking-widest mt-2">Individual score comparison for selected Quiz</p>
               </div>
               <div className="flex items-center gap-4">
                 <div className="relative group min-w-[280px]">
@@ -582,6 +599,53 @@ const QuizPage = () => {
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Highest Performer</p>
             </div>
           </div>
+
+          {/* Top 5 Leaderboard */}
+          {topStudents.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 p-10 lg:p-12 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center gap-4 mb-10">
+                <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center text-amber-500 shadow-lg shadow-amber-500/10">
+                  <Trophy size={24} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Top Performers</h2>
+                  <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-1">Celebrating excellence in this assessment</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                {topStudents.map((student, index) => (
+                  <div key={index} className="relative group">
+                    <div className="absolute -top-3 -right-3 w-10 h-10 bg-white dark:bg-slate-800 rounded-2xl shadow-xl flex items-center justify-center z-10 border border-slate-50 dark:border-slate-800 transition-transform group-hover:scale-110">
+                      <span className={`text-xs font-black ${index === 0 ? 'text-amber-500' : 'text-slate-300'}`}>#{index + 1}</span>
+                    </div>
+                    <div className={`p-8 rounded-[36px] border-2 transition-all duration-500 ${index === 0 ? 'bg-amber-50/30 border-amber-500/20 dark:bg-amber-900/10' :
+                      index === 1 ? 'bg-slate-50/50 border-slate-200 dark:bg-slate-800/40' :
+                        'bg-slate-50/30 border-transparent dark:bg-slate-800/20'
+                      }`}>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg ${index === 0 ? 'bg-amber-500 text-white' :
+                        index === 1 ? 'bg-slate-400 text-white' :
+                          index === 2 ? 'bg-orange-400 text-white' :
+                            'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                        }`}>
+                        {index === 0 ? <Trophy size={24} /> : <User size={24} />}
+                      </div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white tracking-tight mb-2 truncate">{student.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-2xl font-black ${index === 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{student.score}%</span>
+                        <div className="h-1.5 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${index === 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            style={{ width: `${student.score}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -887,6 +951,14 @@ const QuizPage = () => {
           </div>
         </div>
       </PortalPopup>
+
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmDeleteQuiz}
+        title="Remove Assessment?"
+        message="Are you sure you want to permanently remove this assessment? This action cannot be reversed."
+      />
     </div>
   );
 };

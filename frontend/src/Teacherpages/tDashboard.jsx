@@ -118,14 +118,32 @@ const TDashboard = () => {
 
         if (assignedSectionIds.size > 0) {
           // 6. Get Current BS Date
-          const todayAD = new Date().toISOString().split('T')[0];
+          // 7. Get Attendance Records (Handle month crossing for weekly summary)
+          const targetSectionId = secData?.sectionId || Array.from(assignedSectionIds)[0];
+          const now = new Date();
+          const todayAD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
           const todayBS = convertADtoBS(todayAD);
           const [currentYear, currentMonthNum] = todayBS.split('-').map(Number);
           const currentMonthName = NEPALI_MONTHS[currentMonthNum - 1];
 
-          // 7. Get Attendance Records
-          const targetSectionId = secData?.sectionId || Array.from(assignedSectionIds)[0];
-          const attData = await attendanceService.getAttendance(targetSectionId, currentYear, currentMonthName);
+          // Determine if the last 7 days span two months
+          const sevenDaysAgoAD = new Date();
+          sevenDaysAgoAD.setDate(sevenDaysAgoAD.getDate() - 7);
+          const sevenDaysAgoBS = convertADtoBS(sevenDaysAgoAD.toISOString().split('T')[0]);
+          const [prevYear, prevMonthNum] = sevenDaysAgoBS.split('-').map(Number);
+
+          const fetchAttPromises = [
+            attendanceService.getAttendance(targetSectionId, currentYear, currentMonthName)
+          ];
+          
+          // If crossing months, fetch the previous month too
+          if (prevMonthNum !== currentMonthNum) {
+             fetchAttPromises.push(attendanceService.getAttendance(targetSectionId, prevYear, NEPALI_MONTHS[prevMonthNum - 1]));
+          }
+
+          const attResponses = await Promise.all(fetchAttPromises);
+          const currentMonthAtt = attResponses[0];
+          const prevMonthAtt = attResponses[1]; // might be undefined
 
           // 8. Get Holidays
           const holidays = (events || [])
@@ -133,13 +151,20 @@ const TDashboard = () => {
 
           // 9. Calculate Weekly Attendance
           const primaryClassStudents = teacherStudents.filter(s => String(s.sectionId) === String(targetSectionId));
-          const currentWeekData = calculateWeeklySummary(attData?.attendanceData || [], primaryClassStudents, holidays);
+          const currentWeekData = calculateWeeklySummary(
+            currentMonthAtt?.attendanceData || [], 
+            prevMonthAtt?.attendanceData || [],
+            primaryClassStudents, 
+            holidays,
+            currentMonthNum,
+            prevMonthNum
+          );
           setWeeklyAttendanceData(currentWeekData);
 
-          // 10. Calculate Average Attendance Rate for the MONTH
+          // 10. Calculate Average Attendance Rate for the CURRENT MONTH
           let monthlyPresentCount = 0;
           let monthlyTotalPossible = 0;
-          const monthRecords = attData?.attendanceData || [];
+          const monthRecords = currentMonthAtt?.attendanceData || [];
           
           if (monthRecords.length > 0) {
             // Get all days that have at least one record (to count working days)
@@ -201,39 +226,39 @@ const TDashboard = () => {
     fetchAnnouncements();
   }, []);
 
-  const calculateWeeklySummary = (attendanceRecords, students, holidays = []) => {
+  const calculateWeeklySummary = (currentMonthAtt, prevMonthAtt, students, holidays = [], currentMonth, prevMonth) => {
     const today = new Date();
-
-    // We fetch the last 7 working days to ensure a full working week (Sun-Fri) is always visible
-    // even at the transition between weeks.
     const recentDays = [];
     let checkDate = new Date(today);
 
-    // Look back up to 12 days to find 7 working days (skipping Saturdays)
-    for (let i = 0; i < 12 && recentDays.length < 7; i++) {
-      const dayOfWeek = checkDate.getDay();
-      if (dayOfWeek !== 6) { // Skip Saturday
+    // Show last 7 days including Saturdays (to match AttendancePage's exhaustive view)
+    for (let i = 0; i < 7; i++) {
         recentDays.push(new Date(checkDate));
-      }
-      checkDate.setDate(checkDate.getDate() - 1);
+        checkDate.setDate(checkDate.getDate() - 1);
     }
 
-    // Sort them chronologically (oldest to newest)
+    // Sort chronologically
     recentDays.sort((a, b) => a - b);
 
-    const summary = recentDays.map((date) => {
+    return recentDays.map((date) => {
       const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-      const dateStr = date.toISOString().split('T')[0];
+      // Use local parts to avoid UTC time shift (especially critical in Nepal UTC+5:45)
+      const yearAD = date.getFullYear();
+      const monthAD = String(date.getMonth() + 1).padStart(2, '0');
+      const dayAD = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${yearAD}-${monthAD}-${dayAD}`;
+      const isSaturday = date.getDay() === 6;
 
       try {
         const bsDate = convertADtoBS(dateStr);
         const [year, monthNum, dayNum] = bsDate.split('-').map(Number);
-
-        // Label with day name and number for clarity (e.g., "Sun 8")
         const label = `${dayName} ${dayNum}`;
 
-        // Check if this date is a holiday
-        const isHoliday = holidays.some(h => {
+        // Context-aware attendance lookup (handle month crossing)
+        const relevantAttArray = (monthNum === currentMonth) ? currentMonthAtt : (monthNum === prevMonth ? prevMonthAtt : []);
+
+        // Check if holiday
+        const isPublicHoliday = holidays.some(h => {
           let hDate = h.nepali_date;
           if (!hDate && h.startDate) {
             try {
@@ -245,13 +270,15 @@ const TDashboard = () => {
           return parseInt(parts[0]) === year && parseInt(parts[1]) === monthNum && parseInt(parts[2]) === dayNum;
         });
 
+        const isHoliday = isSaturday || isPublicHoliday;
+
         let presentCount = 0;
-        attendanceRecords.forEach(record => {
-          const status = record.dailyStatus?.[String(dayNum)] || record.dailyStatus?.[dayNum];
-          if (status === 'P') {
-            presentCount++;
-          }
-        });
+        if (!isHoliday) {
+          relevantAttArray.forEach(record => {
+            const status = record.dailyStatus?.[String(dayNum)] || record.dailyStatus?.[dayNum];
+            if (status === 'P') presentCount++;
+          });
+        }
 
         return {
           name: label,
@@ -264,8 +291,6 @@ const TDashboard = () => {
         return { name: dayName, students: 0 };
       }
     });
-
-    return summary;
   };
 
   const stats = [

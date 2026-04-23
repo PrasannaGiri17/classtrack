@@ -181,6 +181,7 @@ exports.getResourcesBySubject = async (req, res) => {
 exports.getStudentResources = async (req, res) => {
   try {
     const { grade, section } = req.params;
+    const { folderId } = req.query;
     
     const gradeStr = String(grade).trim();
     const sectionStr = String(section).trim();
@@ -199,9 +200,15 @@ exports.getStudentResources = async (req, res) => {
           { section: { $regex: new RegExp(`^${sectionStr}$`, 'i') } }
         ]
       }],
-      isArchived: false,
-      type: { $ne: 'folder' } 
+      isArchived: false
     };
+
+    // Support folder navigation for students
+    if (folderId === 'root' || !folderId) {
+      query.folderId = null;
+    } else {
+      query.folderId = folderId;
+    }
 
     const resources = await Content.find(query).populate('teacherId', 'firstName lastName').sort({ sharedOn: -1 });
     res.status(200).json(resources);

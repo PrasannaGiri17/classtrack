@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, Bell, Sun, Moon, Check, ArrowRight, User, Loader2, X } from "lucide-react";
+import { FaRegUser } from "react-icons/fa6";
 import { useNavigate } from "react-router-dom";
 import messageService from "../../../Api/messageService";
 
@@ -52,10 +53,10 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
   // Debounced Search using useEffect
   useEffect(() => {
-    if (searchQuery.trim().length < 4) {
+    if (searchQuery.trim().length < 2) {
       setSearchResults([]);
       setIsSearching(false);
-      if (searchQuery.trim().length === 0) setShowSearchResults(false);
+      setShowSearchResults(false);
       return;
     }
 
@@ -140,11 +141,13 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
             placeholder="Search for students, teachers..."
             value={searchQuery}
             onChange={(e) => {
-              const val = e.target.value;
-              setSearchQuery(val);
-              if (val.trim().length >= 4) setShowSearchResults(true);
+              setSearchQuery(e.target.value);
             }}
-            onFocus={() => searchQuery.trim().length >= 4 && setShowSearchResults(true)}
+            onFocus={() => {
+              if (searchQuery.trim().length >= 2) {
+                setShowSearchResults(true);
+              }
+            }}
             className="w-full h-11 bg-slate-100 dark:bg-slate-800 border-none rounded-2xl pl-11 pr-16 text-sm focus:ring-2 focus:ring-emerald-500/20 dark:focus:ring-emerald-500/10 focus:bg-white dark:focus:bg-slate-700 transition-all outline-none dark:text-slate-200 dark:placeholder-slate-500"
           />
           
@@ -366,11 +369,15 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group"
         >
           <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
-            <img
-              src={localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200"}
-              alt="Profile"
-              className="w-full h-full object-cover"
-            />
+            {localStorage.getItem("userPhoto") ? (
+              <img
+                src={localStorage.getItem("userPhoto")}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <FaRegUser className="text-emerald-500 w-5 h-5" />
+            )}
           </div>
           <div className="hidden sm:block">
             <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">

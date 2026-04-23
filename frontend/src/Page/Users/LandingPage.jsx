@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { FaRegUser } from "react-icons/fa6";
 import {
     GraduationCap,
     LayoutDashboard,
@@ -328,7 +329,9 @@ export default function LandingPage() {
                             </blockquote>
                             <div className="flex items-center justify-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-navy-700 overflow-hidden">
-                                    <img src="https://picsum.photos/seed/perez/100/100" alt="Florentino Perez" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                    <div className="w-full h-full bg-navy-800 flex items-center justify-center border border-navy-700">
+                                      <FaRegUser className="text-emerald-500 w-6 h-6" />
+                                    </div>
                                 </div>
                                 <div className="text-left">
                                     <div className="font-bold text-white">Florentino Perez</div>

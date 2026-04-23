@@ -26,6 +26,7 @@ const Content = () => {
     const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
     const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
+    const [folderAssignment, setFolderAssignment] = useState({ classRef: '', subject: '' });
     const [teacherData, setTeacherData] = useState({ classes: [], subjects: [], classOptions: [] });
     const [newResource, setNewResource] = useState({
         name: '',
@@ -81,6 +82,10 @@ const Content = () => {
                     classRef: classOptions[0] || '',
                     subject: subjects[0] || ''
                 }));
+                setFolderAssignment({
+                    classRef: classOptions[0] || '',
+                    subject: subjects[0] || ''
+                });
             } catch (error) {
                 console.error("Failed to fetch teacher data:", error);
             }
@@ -107,12 +112,31 @@ const Content = () => {
         const teacherId = localStorage.getItem('teacherId');
         if (!teacherId || !newFolderName.trim()) return;
 
+        let grade, section;
+        const wholeMatch = folderAssignment.classRef.match(/Whole Grade\s+(\d+)/i);
+        if (wholeMatch) {
+            grade = wholeMatch[1];
+            section = 'ALL';
+        } else {
+            const classMatch = folderAssignment.classRef.match(/(?:Grade\s+|G)(\d+)(?:\s*-\s*|\s*)([A-Za-z]+)/i);
+            if (classMatch) {
+                grade = classMatch[1];
+                section = classMatch[2].toUpperCase();
+            } else {
+                grade = folderAssignment.classRef;
+                section = 'N/A';
+            }
+        }
+
         try {
             const entry = {
                 name: newFolderName,
                 type: 'folder',
                 teacherId: teacherId,
-                folderId: null
+                folderId: null,
+                grade,
+                section,
+                subject: folderAssignment.subject
             };
             await contentService.createResource(entry);
             fetchResources();
@@ -497,14 +521,14 @@ const Content = () => {
                             ) : (
                                 <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Files (Max 5)</label>
-                                    <div className="min-h-[140px] p-4 bg-slate-900/60 dark:bg-slate-950/60 border-2 border-slate-700/50 dark:border-slate-800 border-dashed rounded-[32px] relative overflow-hidden">
+                                    <div className="min-h-[140px] p-4 bg-slate-50 dark:bg-slate-950/40 border-2 border-slate-100 dark:border-slate-800 border-dashed rounded-[32px] shadow-inner relative overflow-hidden">
                                         {newResource.files.length === 0 ? (
                                             <label className="flex flex-col items-center justify-center w-full h-[108px] cursor-pointer group">
-                                                <Download className="w-8 h-8 text-slate-500 group-hover:text-emerald-500 transition-colors mb-2" />
-                                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-emerald-500 transition-colors">
+                                                <Download className="w-8 h-8 text-slate-400 group-hover:text-emerald-500 transition-colors mb-2" />
+                                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-emerald-500 transition-colors">
                                                     Click to upload or drag & drop
                                                 </span>
-                                                <p className="text-[9px] font-bold text-slate-600 mt-1 uppercase tracking-widest">
+                                                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">
                                                     PDF, DOCX, Images, Excel, PPT
                                                 </p>
                                                 <input
@@ -527,16 +551,16 @@ const Content = () => {
                                             <div className="space-y-3">
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                     {newResource.files.map((file, idx) => (
-                                                        <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-2xl group/item">
+                                                        <div key={idx} className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-2xl group/item shadow-sm">
                                                             <div className="flex items-center gap-3 min-w-0">
-                                                                <div className="w-8 h-8 shrink-0 bg-slate-700 rounded-lg flex items-center justify-center text-emerald-400">
+                                                                <div className="w-8 h-8 shrink-0 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-emerald-500">
                                                                     <FileText size={14} />
                                                                 </div>
                                                                 <div className="min-w-0">
-                                                                    <p className="text-[10px] font-bold text-slate-200 truncate uppercase tracking-tight">
+                                                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate uppercase tracking-tight">
                                                                         {file.name}
                                                                     </p>
-                                                                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                                                                    <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                                                                         {(file.size / (1024 * 1024)).toFixed(2)} MB
                                                                     </p>
                                                                 </div>
@@ -629,6 +653,35 @@ const Content = () => {
                                 placeholder="e.g. Unit 1 - Introduction"
                                 className="w-full px-6 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold dark:text-white outline-none focus:ring-4 focus:ring-amber-500/10"
                             />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assign to Grade</label>
+                                <div className="relative">
+                                    <select
+                                        value={folderAssignment.classRef}
+                                        onChange={(e) => setFolderAssignment({ ...folderAssignment, classRef: e.target.value })}
+                                        className="appearance-none w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-[11px] font-black dark:text-white outline-none focus:ring-4 focus:ring-amber-500/10 cursor-pointer uppercase"
+                                    >
+                                        {teacherData.classOptions.map(cls => <option key={cls} value={cls}>{cls}</option>)}
+                                    </select>
+                                    <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subject</label>
+                                <div className="relative">
+                                    <select
+                                        value={folderAssignment.subject}
+                                        onChange={(e) => setFolderAssignment({ ...folderAssignment, subject: e.target.value })}
+                                        className="appearance-none w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-[11px] font-black dark:text-white outline-none focus:ring-4 focus:ring-amber-500/10 cursor-pointer uppercase"
+                                    >
+                                        {teacherData.subjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                                    </select>
+                                    <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex gap-4 pt-4">

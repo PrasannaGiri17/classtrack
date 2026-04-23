@@ -352,7 +352,7 @@ const ExamManagement = () => {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
+            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
           >
             {[2082, 2083, 2084].map(y => (
               <option key={y} value={y}>{y} BS</option>
@@ -367,7 +367,7 @@ const ExamManagement = () => {
           <select
             value={selectedClass}
             onChange={(e) => handleClassChange(e.target.value)}
-            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
+            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
           >
             {teacherClasses.length === 0 ? (
               <option value="">No classes assigned</option>
@@ -384,7 +384,7 @@ const ExamManagement = () => {
           <select
             value={selectedTerm}
             onChange={(e) => setSelectedTerm(e.target.value)}
-            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
+            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
           >
             {examTerms.length === 0 ? (
               <option value="">Loading terms...</option>
@@ -403,7 +403,7 @@ const ExamManagement = () => {
         <div className="xl:col-span-2 relative group">
           <label className="absolute -top-2.5 left-5 bg-white dark:bg-slate-900 px-2 text-[9px] font-black text-emerald-600 tracking-widest z-10">Subject</label>
           {teacherSubjects.length <= 1 ? (
-            <div className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent rounded-2xl pl-5 pr-5 py-4 text-xs font-black text-slate-700 dark:text-slate-200 shadow-inner">
+            <div className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent rounded-2xl pl-5 pr-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-inner">
               {teacherSubjects[0] || '—'}
             </div>
           ) : (
@@ -411,7 +411,7 @@ const ExamManagement = () => {
               <select
                 value={selectedSubject}
                 onChange={(e) => setSelectedSubject(e.target.value)}
-                className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
+                className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
               >
                 {teacherSubjects.map(s => <option key={s} value={s}>{s}</option>)}
               </select>

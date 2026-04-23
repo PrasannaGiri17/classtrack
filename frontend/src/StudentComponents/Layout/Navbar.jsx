@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Bell, Sun, Moon, Check, ArrowRight, User, MessageSquare } from 'lucide-react';
+import { FaRegUser } from "react-icons/fa6";
 import { useNavigate } from 'react-router-dom';
 import messageService from '../../Api/messageService';
 
@@ -8,7 +9,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
   const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
-  const [userPhoto, setUserPhoto] = useState(localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200");
+  const [userPhoto, setUserPhoto] = useState(localStorage.getItem("userPhoto") || null);
   const [unreadConversations, setUnreadConversations] = useState(0);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
     const forceUpdate = () => {
       setUserName(localStorage.getItem("userName") || "Student");
-      setUserPhoto(localStorage.getItem("userPhoto") || "https://picsum.photos/seed/admin/200/200");
+      setUserPhoto(localStorage.getItem("userPhoto") || null);
     };
 
     window.addEventListener('profileUpdated', forceUpdate);
@@ -203,11 +204,15 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group"
         >
           <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
-            <img
-              src={userPhoto}
-              alt="Profile"
-              className="w-full h-full object-cover"
-            />
+            {userPhoto ? (
+              <img
+                src={userPhoto}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <FaRegUser className="text-emerald-500 w-5 h-5" />
+            )}
           </div>
           <div className="hidden sm:block">
             <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">

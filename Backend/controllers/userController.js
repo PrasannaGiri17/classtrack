@@ -33,7 +33,38 @@ exports.getContactableUsers = async (req, res) => {
                 const profile = await Teacher.findById(userDoc.teacherId);
                 if (profile) {
                     userDoc.name = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.name || 'Teacher';
-                    userDoc.classIds = profile.assignedSections ? profile.assignedSections.map(s => s.toString()) : [];
+                    const resolvedIds = profile.assignedSections ? profile.assignedSections.map(s => s.toString()) : [];
+                    
+                    // Also resolve strings like "Grade 5-A" from assignedClasses/classTeacher
+                    const classStrings = [...(profile.assignedClasses || [])];
+                    if (profile.classTeacher) classStrings.push(profile.classTeacher);
+
+                    if (classStrings.length > 0) {
+                        try {
+                            const { Grade: GradeModal } = require('../models/School');
+                            const allGrades = await GradeModal.find({ schoolId: sId }).lean();
+                            
+                            for (const str of classStrings) {
+                                // Extract Number and Section Letter (e.g. "Grade 5-A" -> 5, A)
+                                const match = str.match(/(\d+)\s*-\s*([A-Z])/i);
+                                if (match) {
+                                    const gNum = parseInt(match[1]);
+                                    const sLetter = match[2].toUpperCase();
+                                    
+                                    const gradeDoc = allGrades.find(g => g.gradeNumber === gNum);
+                                    if (gradeDoc && gradeDoc.sections) {
+                                        const section = gradeDoc.sections.find(s => s.sectionName.toUpperCase() === sLetter);
+                                        if (section && !resolvedIds.includes(section._id.toString())) {
+                                            resolvedIds.push(section._id.toString());
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Error resolving class strings for teacher sync:", e);
+                        }
+                    }
+                    userDoc.classIds = resolvedIds;
                 }
             } else if (role === 'admin' && userDoc.adminId) {
                 const profile = await Admin.findById(userDoc.adminId);
@@ -46,7 +77,7 @@ exports.getContactableUsers = async (req, res) => {
             currentUser = userDoc.toObject();
         }
 
-        const { search } = req.query;
+        const { search, role: requestedRole } = req.query;
         let filter = {};
 
         if (role === 'admin') {
@@ -56,44 +87,95 @@ exports.getContactableUsers = async (req, res) => {
                 role: { $in: ['teacher', 'student'] }
             };
         } else if (role === 'teacher') {
-            const teacherClassIds = currentUser.classIds ? [...currentUser.classIds] : [];
+            // Always resolve fresh to handle un-assignment or re-assignment
+            let teacherClassIds = [];
             
-            // Look up routines where this teacher teaches to add those sections
             try {
                 const Timetable = require('../models/Timetable');
                 const { Grade } = require('../models/School');
+                const profile = await Teacher.findById(currentUser.teacherId).lean();
+                
+                if (profile) {
+                    // 1. Direct assignedSections
+                    if (profile.assignedSections) {
+                        teacherClassIds.push(...profile.assignedSections.map(id => id.toString()));
+                    }
+
+                    // 2. Resolve from class strings (Grade 5-A etc)
+                    const classStrings = [...(profile.assignedClasses || [])];
+                    if (profile.classTeacher) classStrings.push(profile.classTeacher);
+                    
+                    if (classStrings.length > 0) {
+                        const allGrades = await Grade.find({ schoolId: sId }).lean();
+                        for (const str of classStrings) {
+                            const match = str.match(/(\d+)\s*-\s*([A-Z])/i);
+                            if (match) {
+                                const gNum = parseInt(match[1]);
+                                const sLetter = match[2].toUpperCase();
+                                const gradeDoc = allGrades.find(g => g.gradeNumber === gNum);
+                                if (gradeDoc && gradeDoc.sections) {
+                                    const section = gradeDoc.sections.find(s => s.sectionName.toUpperCase() === sLetter);
+                                    if (section && !teacherClassIds.includes(section._id.toString())) {
+                                        teacherClassIds.push(section._id.toString());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Add from Timetable
                 if (currentUser.teacherId) {
                     const timetables = await Timetable.find({ schoolId: sId, 'assignments.teacherId': currentUser.teacherId });
-                    
                     const sectionMap = new Map();
                     timetables.forEach(t => sectionMap.set(`${t.gradeNumber}-${t.sectionName}`, { gNum: t.gradeNumber, sName: t.sectionName }));
                     
-                    for (const { gNum, sName } of sectionMap.values()) {
-                        // Find Grade that matches gNum, then find its embedded section matching sName
-                        const grades = await Grade.find({ schoolId: sId });
-                        for (const grade of grades) {
-                            if (grade.gradeNumber.toString() === gNum.toString()) {
-                                const matchingSection = grade.sections.find(s => s.sectionName === sName);
-                                if (matchingSection && !teacherClassIds.includes(matchingSection._id.toString())) {
-                                    teacherClassIds.push(matchingSection._id.toString());
+                    if (sectionMap.size > 0) {
+                        const allGrades = await Grade.find({ schoolId: sId }).lean();
+                        for (const { gNum, sName } of sectionMap.values()) {
+                            for (const grade of allGrades) {
+                                if (grade.gradeNumber.toString() === gNum.toString()) {
+                                    const matchingSection = grade.sections.find(s => s.sectionName.toUpperCase() === sName.toUpperCase());
+                                    if (matchingSection && !teacherClassIds.includes(matchingSection._id.toString())) {
+                                        teacherClassIds.push(matchingSection._id.toString());
+                                    }
                                 }
                             }
                         }
                     }
                 }
             } catch (err) {
-                console.error("Error fetching routine for teacher:", err);
+                console.error("Error fetching fresh sections for teacher search:", err);
+                teacherClassIds = currentUser.classIds ? [...currentUser.classIds] : [];
             }
 
-            filter = {
-                schoolId: sId,
-                _id: { $ne: id },
-                $or: [
-                    { role: 'admin' },
-                    { role: 'teacher' },
-                    { role: 'student', classId: { $in: teacherClassIds } }
-                ]
-            };
+            if (requestedRole === 'student') {
+                // Find all students in these classes first (more reliable than User.classId cache)
+                const studentsInClasses = await Student.find({ schoolId: sId, sectionId: { $in: teacherClassIds } }).select('_id').lean();
+                const studentProfileIds = studentsInClasses.map(s => s._id);
+
+                filter = {
+                    schoolId: sId,
+                    _id: { $ne: id },
+                    role: 'student',
+                    studentId: { $in: studentProfileIds }
+                };
+            } else {
+                // For general contacts, we still use the cache but supplement with studentId check if needed
+                // Actually, let's keep it simple for now or use the same logic
+                const studentsInClasses = await Student.find({ schoolId: sId, sectionId: { $in: teacherClassIds } }).select('_id').lean();
+                const studentProfileIds = studentsInClasses.map(s => s._id);
+
+                filter = {
+                    schoolId: sId,
+                    _id: { $ne: id },
+                    $or: [
+                        { role: 'admin' },
+                        { role: 'teacher' },
+                        { role: 'student', studentId: { $in: studentProfileIds } }
+                    ]
+                };
+            }
         } else if (role === 'student') {
             const myClassId = currentUser.classId;
             const routineTeacherIds = [];
@@ -152,8 +234,53 @@ exports.getContactableUsers = async (req, res) => {
         }
 
         if (search) {
-            // Match search query at the beginning of the name or at the beginning of any word in the name
-            filter.name = { $regex: `(^|\\s)${search}`, $options: 'i' };
+            const searchRegex = { $regex: search, $options: 'i' };
+            
+            // SPECIAL: For teachers searching students, also search by Student model fields (ID, firstName, lastName)
+            if (role === 'teacher' && requestedRole === 'student') {
+                try {
+                    // Extract the class filter we already built
+                    const classFilter = filter.studentId; 
+                    
+                    const matchedStudents = await Student.find({
+                        schoolId: sId,
+                        ...(classFilter ? { _id: classFilter } : {}), // Respect the classroom restriction
+                        $or: [
+                            { firstName: searchRegex },
+                            { lastName: searchRegex },
+                            { studentId: searchRegex }
+                        ]
+                    }).select('_id').lean();
+
+                    const matchedStudentIds = matchedStudents.map(s => s._id);
+                    
+                    // Update filter to ONLY these matched student profiles
+                    filter.studentId = { $in: matchedStudentIds };
+                    
+                    // Also allow matching by email on User document if name search fails
+                    filter.$or = [
+                        { email: searchRegex },
+                        { studentId: { $in: matchedStudentIds } }
+                    ];
+                } catch (err) {
+                    console.error("Error in deep search for students:", err);
+                }
+            } else {
+                // Default search on User document
+                filter.$and = [
+                    { ...filter },
+                    {
+                        $or: [
+                            { name: searchRegex },
+                            { email: searchRegex }
+                        ]
+                    }
+                ];
+                if (requestedRole) {
+                    filter.$and.push({ role: requestedRole });
+                }
+                delete filter.name;
+            }
         }
 
         const users = await User.find(filter)

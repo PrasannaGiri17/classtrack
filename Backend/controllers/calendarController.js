@@ -6,7 +6,7 @@ const School = require('../models/School'); // Assuming School model exists, tho
 
 // @desc    Create a new calendar event
 // @route   POST /api/calendar/events
-// @access  Private (Admin)
+// @access  Private (Admin, Teacher, Student)
 exports.createEvent = async (req, res) => {
   try {
     const {
@@ -26,8 +26,17 @@ exports.createEvent = async (req, res) => {
 
     // Role-based audience restriction
     const role = req.user?.role;
-    if (role !== 'admin' && audience !== 'Personal') {
-      return res.status(403).json({ message: 'Only administrators can broadcast events to broad audiences' });
+    const isGlobalBroadcast = ['Whole School', 'Students', 'Teachers'].includes(audience);
+
+    // Only administrators can broadcast to global audiences. 
+    // Teachers are allowed to broadcast to specific classes/sections.
+    if (role !== 'admin' && isGlobalBroadcast) {
+      return res.status(403).json({ message: 'Only administrators can broadcast events to the whole school or broad groups' });
+    }
+
+    // Students are restricted to Personal events only
+    if (role === 'student' && audience !== 'Personal') {
+      return res.status(403).json({ message: 'Students can only create personal calendar events' });
     }
 
     // Default color logic if not provided
@@ -88,7 +97,21 @@ exports.getEvents = async (req, res) => {
       { createdBy: { $exists: false } }
     ];
 
-    if (role === 'student') visibilityFilters.push({ audience: 'Students' });
+    if (role === 'student' && req.user.studentId) {
+       visibilityFilters.push({ audience: 'Students' });
+       // Fetch student details to get their Grade and Section
+       const student = await Student.findById(req.user.studentId);
+       if (student) {
+         if (student.studentClass) {
+           visibilityFilters.push({ audience: `Whole Grade ${student.studentClass}` });
+           visibilityFilters.push({ audience: `Grade ${student.studentClass}` });
+           if (student.sectionName) {
+             visibilityFilters.push({ audience: `Grade ${student.studentClass}-${student.sectionName}` });
+           }
+         }
+       }
+    }
+    
     if (role === 'teacher') visibilityFilters.push({ audience: 'Teachers' });
     
     // Always show personal events created by the requester

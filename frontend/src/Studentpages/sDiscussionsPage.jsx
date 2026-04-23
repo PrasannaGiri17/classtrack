@@ -60,12 +60,19 @@ const ImageGrid = ({ urls }) => {
   if (!urls || urls.length === 0) return null;
 
   return (
-    <div className={`grid gap-3 mt-4 overflow-hidden rounded-3xl ${urls.length === 1 ? 'grid-cols-1' : urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2'
-      }`}>
+    <div className={`grid gap-3 mt-4 overflow-hidden rounded-3xl max-w-2xl ${
+      urls.length === 1 ? 'grid-cols-1 w-fit' : 'grid-cols-2'
+    }`}>
       {urls.map((url, idx) => (
-        <div key={idx} className={`relative overflow-hidden border border-slate-100 dark:border-slate-800 ${urls.length === 3 && idx === 0 ? 'col-span-2 aspect-[21/9]' : 'aspect-video'
-          }`}>
-          <img src={url} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" alt="Attached Reference" />
+        <div key={idx} className={`relative overflow-hidden border border-slate-100 dark:border-slate-800 ${
+          urls.length === 1 ? 'max-h-[400px]' : 
+          (urls.length === 3 && idx === 0 ? 'col-span-2 aspect-[21/9]' : 'aspect-video')
+        }`}>
+          <img 
+            src={url} 
+            className={`${urls.length === 1 ? 'w-auto max-h-[400px] object-contain' : 'w-full h-full object-cover'} transition-transform duration-700 hover:scale-105`} 
+            alt="Attached Reference" 
+          />
         </div>
       ))}
     </div>
@@ -580,6 +587,7 @@ const SDiscussionsPage = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
 
   const isTeacher = user?.role === 'teacher';
 
@@ -695,11 +703,13 @@ const SDiscussionsPage = () => {
 
       let matchesTab = true;
       if (activeTab === 'my') {
+        const currentUserId = String(user?.studentId || user?.teacherId || user?._id || user?.id || user?.userId);
         if (isTeacher) {
-          // "Your Replied" logic: for now simulate with a 'repliedBy' property in mock
-          matchesTab = p.repliedBy?.includes(localStorage.getItem('teacherId')) || p.authorId === user?.id;
+          // Teacher sees posts they authored OR posts they replied to
+          matchesTab = p.repliedBy?.includes(currentUserId) || String(p.authorId) === currentUserId;
         } else {
-          matchesTab = p.authorId === user?.id;
+          // Student sees posts they authored
+          matchesTab = String(p.authorId) === currentUserId;
         }
       }
 
@@ -721,7 +731,7 @@ const SDiscussionsPage = () => {
     try {
       await discussionService.deleteDiscussion(postId);
       setPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
-      toast({ type: 'info', message: 'Discussion removed.' });
+      toast({ type: 'success', message: 'Discussion removed.' });
     } catch (err) {
       toast({ type: 'error', message: 'Failed to delete discussion.' });
     }
@@ -792,18 +802,38 @@ const SDiscussionsPage = () => {
               />
             </div>
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              <select
-                value={filterSubject}
-                onChange={(e) => setFilterSubject(e.target.value)}
-                className="px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none transition-all dark:text-slate-200 shadow-sm"
+            <div className="relative">
+              <button
+                onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
+                className="flex items-center gap-4 px-6 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none transition-all dark:text-slate-200 shadow-sm min-w-[180px] justify-between"
               >
-                <option value="all">All Channels</option>
-                {subjects.length > 0 ? (
-                  subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
-                ) : (
-                  <option disabled>No Subjects Loaded</option>
-                )}
-              </select>
+                <span>{subjects.find(s => s.id === filterSubject)?.name || 'All Channels'}</span>
+                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isSubjectDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isSubjectDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsSubjectDropdownOpen(false)} />
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl z-20 py-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <button
+                      onClick={() => { setFilterSubject('all'); setIsSubjectDropdownOpen(false); }}
+                      className={`w-full text-left px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${filterSubject === 'all' ? 'text-emerald-500 bg-emerald-50/50 dark:bg-emerald-500/10' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                    >
+                      All Channels
+                    </button>
+                    {subjects.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => { setFilterSubject(s.id); setIsSubjectDropdownOpen(false); }}
+                        className={`w-full text-left px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${filterSubject === s.id ? 'text-emerald-500 bg-emerald-50/50 dark:bg-emerald-500/10' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
 
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shrink-0">
                 <button

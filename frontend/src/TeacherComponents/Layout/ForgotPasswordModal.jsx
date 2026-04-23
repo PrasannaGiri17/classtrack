@@ -102,24 +102,24 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
 
     return (
         <PortalPopup isOpen={isOpen} onClose={onClose}>
-            <div className="w-full max-w-xl bg-[#111827] rounded-[32px] border border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="w-full max-w-xl bg-white dark:bg-[#111827] rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                 {/* Header */}
                 <div className="px-10 pt-8 pb-3 flex items-start justify-between relative">
                     <div className="space-y-1">
-                        <h2 className="text-xl font-black text-white tracking-tight uppercase">Reset Password</h2>
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Reset Password</h2>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
                             Securely update your account credentials
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-1.5 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all active:scale-90"
+                        className="p-1.5 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all active:scale-90"
                     >
                         <X size={18} />
                     </button>
                 </div>
 
-                <div className="h-px bg-slate-800/50 w-full" />
+                <div className="h-px bg-slate-100 dark:bg-slate-800/50 w-full" />
 
                 {/* Form */}
                 <form onSubmit={handleResetPassword} className="p-10 pt-6 space-y-6">
@@ -137,14 +137,14 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     disabled={otpSent}
                                     placeholder="email@example.com"
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all disabled:opacity-50"
+                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all disabled:opacity-50"
                                 />
                             </div>
-                            <button
+                             <button
                                 type="button"
                                 onClick={handleSendOTP}
                                 disabled={isSendingOtp || otpSent}
-                                className="px-5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shrink-0 flex items-center justify-center min-w-[100px]"
+                                className="px-5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shrink-0 flex items-center justify-center min-w-[100px]"
                             >
                                 {isSendingOtp ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : otpSent ? 'Sent' : 'Send OTP'}
                             </button>
@@ -165,14 +165,14 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                     disabled={otpVerified}
                                     placeholder="6-digit OTP"
-                                    className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all disabled:opacity-50"
+                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all disabled:opacity-50"
                                 />
                             </div>
-                            <button
+                             <button
                                 type="button"
                                 onClick={handleVerifyOTP}
                                 disabled={isVerifyingOtp || otpVerified || !otpSent}
-                                className="px-5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shrink-0 flex items-center justify-center min-w-[100px]"
+                                className="px-5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shrink-0 flex items-center justify-center min-w-[100px]"
                             >
                                 {isVerifyingOtp ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : otpVerified ? 'Verified' : 'Verify OTP'}
                             </button>
@@ -188,12 +188,12 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors">
                                         <Lock size={16} />
                                     </div>
-                                    <input
+                                     <input
                                         type="password"
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all"
+                                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all"
                                     />
                                 </div>
                             </div>
@@ -204,19 +204,19 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors">
                                         <Lock size={16} />
                                     </div>
-                                    <input
+                                     <input
                                         type="password"
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all"
+                                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 outline-none transition-all"
                                     />
                                 </div>
                             </div>
                         </div>
 
                         {/* Password Requirements Indicator (Matching ResetPage.jsx) */}
-                        <div className="bg-slate-900/80 p-5 rounded-[20px] border border-slate-800 shadow-inner">
+                        <div className="bg-slate-50 dark:bg-slate-900/80 p-5 rounded-[20px] border border-slate-200 dark:border-slate-800 shadow-inner">
                             <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Security Requirements</p>
                             <div className="grid grid-cols-2 gap-y-2.5">
                                 <RequirementItem label="8+ Characters" met={newPassword.length >= 8} />
@@ -232,7 +232,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
                     <button
                         type="submit"
                         disabled={isResetting || !otpVerified}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/10 transition-all active:scale-[0.98] flex items-center justify-center gap-3 mt-2"
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 dark:disabled:text-slate-500 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/10 transition-all active:scale-[0.98] flex items-center justify-center gap-3 mt-2"
                     >
                         {isResetting ? (
                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -251,7 +251,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, initialEmail = '' }) => {
 
 const RequirementItem = ({ label, met }) => (
     <div className="flex items-center gap-2.5">
-        <div className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${met ? 'bg-emerald-500' : 'bg-slate-700 shadow-inner'}`} />
+        <div className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${met ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700 shadow-inner'}`} />
         <span className={`text-[10px] font-bold transition-all duration-300 ${met ? 'text-emerald-500' : 'text-slate-500'}`}>
             {label}
         </span>

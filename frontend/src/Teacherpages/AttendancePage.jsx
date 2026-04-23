@@ -496,10 +496,10 @@ const AttendancePage = () => {
           <table className="w-full text-left border-collapse min-w-[3000px]">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                <th className="sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 w-[80px] min-w-[80px] py-8 border-r border-slate-200 dark:border-slate-700 transition-colors text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <th className="sticky left-0 z-30 bg-slate-50 dark:bg-slate-800 w-[80px] min-w-[80px] py-8 border-none transition-colors text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Roll No
                 </th>
-                <th className="sticky left-[80px] z-20 bg-slate-50 dark:bg-slate-800 pl-6 pr-6 py-8 border-r border-slate-200 dark:border-slate-700 min-w-[260px] transition-colors text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <th className="sticky left-[80px] z-20 bg-slate-50 dark:bg-slate-800 pl-6 pr-6 py-8 border-none min-w-[260px] transition-colors text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Student Identity
                 </th>
                 {daysArray.map(day => {
@@ -554,7 +554,7 @@ const AttendancePage = () => {
                       <span className="text-xs font-bold text-slate-400">{s.rollNumber ? String(s.rollNumber).padStart(2, '0') : '—'}</span>
                     </div>
                   </td>
-                  <td className="sticky left-[80px] z-20 bg-white dark:bg-slate-900 pl-6 pr-6 py-5 border-r border-slate-200 dark:border-slate-700 transition-colors pointer-events-none">
+                  <td className="sticky left-[80px] z-20 bg-white dark:bg-slate-900 pl-6 pr-6 py-5 border-none transition-colors pointer-events-none">
                     <div className="flex items-center gap-4 min-w-0 pointer-events-auto">
                       {s.profilePhoto ? (
                         <img src={s.profilePhoto} alt={s.firstName} className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0" />

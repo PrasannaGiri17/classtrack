@@ -142,14 +142,15 @@ const SDiaryPage = () => {
         if (sectionId) {
           const sectionRes = await gradeService.getSectionById(sectionId);
           if (sectionRes) {
-            const fullClass = `${sectionRes.gradeName} Section ${sectionRes.sectionName}`;
+            // Must match teacher's save format exactly: "Grade {gradeNum} Section {sectionName}"
+            // Teacher saves: `${grade} ${section}` where grade="Grade 5", section="Section B"
+            const fullClass = `Grade ${gNum} Section ${sectionRes.sectionName}`;
             setClassName(fullClass);
             setSectionName(sectionRes.sectionName);
           } else {
             setIsLoading(false);
           }
         } else {
-          // If no sectionId, student doesn't have a diary to see (usually)
           setIsLoading(false);
         }
       } catch (err) {
@@ -193,16 +194,18 @@ const SDiaryPage = () => {
         const assignment = timetableRes.assignments[slot.id];
         if (!assignment) return null; // No teacher/subject assigned to this slot
 
-        const diaryEntry = diaryRes.find(d => d.periodId.includes(slot.id));
+        // Match diary entry: periodId format is "{WEEKDAY}-{gradeNum}-{sectionName}-{slotId}"
+        const expectedPeriodId = `${weekday}-${gradeNum}-${sectionName}-${slot.id}`;
+        const diaryEntry = (diaryRes || []).find(d => d.periodId === expectedPeriodId || d.periodId?.includes(slot.id));
         
         return {
-          periodId: `${weekday}-${gradeNum}-${sectionName}-${slot.id}`,
+          periodId: expectedPeriodId,
           subject: assignment.subjectName,
-          teacherId: assignment.teacherId, // might be object or id
+          teacherId: assignment.teacherId,
           teacherName: assignment.teacherName,
           activity: diaryEntry ? diaryEntry.activity : "",
           homework: diaryEntry ? diaryEntry.homework : "",
-          time: slot.label, // In this system, slot.label is used for time if it's "9:00 - 9:45"
+          time: slot.label,
           periodLabel: slot.label,
           _id: diaryEntry?._id || `temp-${slot.id}`
         };

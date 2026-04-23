@@ -107,6 +107,15 @@ exports.submitQuiz = async (req, res) => {
     await studentQuiz.save();
 
     // Update Quiz stats
+    const student = await require('../models/studentModel').findById(studentId);
+    const contestantName = student ? `${student.firstName} ${student.lastName}` : "Unknown Student";
+
+    // Add to contestants list
+    quiz.stats.contestants.push({
+      name: contestantName,
+      score: percentage
+    });
+
     quiz.stats.attempted += 1;
     const allAttempts = await StudentQuiz.find({ schoolId: req.schoolId,  quizId });
     

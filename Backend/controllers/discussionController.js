@@ -7,7 +7,7 @@ exports.createDiscussion = async (req, res) => {
     const { gradeId, subjectId, title, body, imageUrls } = req.body;
     
     // Auth info from protect middleware
-    const schoolId = req.user.schoolId || req.schoolId;
+    const schoolId = String(req.user.schoolId || req.schoolId);
     let finalGradeId = gradeId;
 
     if (!finalGradeId && req.user.role === 'student' && req.user.studentId) {
@@ -69,7 +69,7 @@ exports.createDiscussion = async (req, res) => {
 // Get Discussions (with filtering and search)
 exports.getDiscussions = async (req, res) => {
   try {
-    const schoolId = req.user.schoolId || req.schoolId;
+    const schoolId = String(req.user.schoolId || req.schoolId);
     const { subjectId, search, gradeId } = req.query;
 
     let filter = { schoolId };
@@ -86,17 +86,28 @@ exports.getDiscussions = async (req, res) => {
     }
 
     if (search) {
-      filter.$text = { $search: search };
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { body: { $regex: search, $options: 'i' } }
+      ];
     }
 
     const discussions = await Discussion.find(filter)
       .sort({ createdAt: -1 })
       .populate('authorId', 'firstName lastName profilePhoto');
     
+    // Get all post IDs to fetch their commenters in one go
+    const postIds = discussions.map(d => d._id);
+    const comments = await Comment.find({ postId: { $in: postIds }, schoolId });
+
     // Transform to maintain compatibility
     const results = await Promise.all(discussions.map(async d => {
         let doc = d.toObject();
         
+        // Populate repliedBy with unique author IDs who commented
+        const postComments = comments.filter(c => String(c.postId) === String(d._id));
+        doc.repliedBy = [...new Set(postComments.map(c => String(c.authorId)))];
+
         // 1. Resolve author details from populated object
         if (doc.authorId && typeof doc.authorId === 'object') {
             doc.authorName = `${doc.authorId.firstName} ${doc.authorId.lastName}`.trim();
@@ -139,7 +150,7 @@ exports.getDiscussions = async (req, res) => {
 // Get Discussion By ID
 exports.getDiscussionById = async (req, res) => {
   try {
-    const schoolId = req.user.schoolId || req.schoolId;
+    const schoolId = String(req.user.schoolId || req.schoolId);
     const post = await Discussion.findOne({ _id: req.params.id, schoolId })
       .populate('authorId', 'firstName lastName profilePhoto');
 
@@ -180,8 +191,8 @@ exports.getDiscussionById = async (req, res) => {
 // Delete Discussion
 exports.deleteDiscussion = async (req, res) => {
   try {
-    const schoolId = req.user.schoolId || req.schoolId;
-    const authorId = req.user._id || req.user.id;
+    const schoolId = String(req.user.schoolId || req.schoolId);
+    const authorId = req.user.studentId || req.user.teacherId || req.user._id || req.user.id;
 
     // Must match both school and author (unless admin role added later)
     const post = await Discussion.findOneAndDelete({
@@ -205,7 +216,7 @@ exports.deleteDiscussion = async (req, res) => {
 
 exports.reportDiscussion = async (req, res) => {
   try {
-    const schoolId = req.user.schoolId || req.schoolId;
+    const schoolId = String(req.user.schoolId || req.schoolId);
     const { id } = req.params;
 
     // If a teacher reports, we treat it as an immediate delete/ban for quality control
@@ -234,7 +245,7 @@ exports.reportDiscussion = async (req, res) => {
 exports.addComment = async (req, res) => {
   try {
     const { body, imageUrls } = req.body;
-    const schoolId = req.user.schoolId || req.schoolId;
+    const schoolId = String(req.user.schoolId || req.schoolId);
     const authorRole = req.user.role;
     const authorRoleModel = authorRole === 'student' ? 'Student' : 'Teacher';
     const authorId = req.user.studentId || req.user.teacherId || req.user._id || req.user.id;
@@ -289,7 +300,7 @@ exports.addComment = async (req, res) => {
 // Get Comments for Post
 exports.getCommentsByPost = async (req, res) => {
   try {
-    const schoolId = req.user.schoolId || req.schoolId;
+    const schoolId = String(req.user.schoolId || req.schoolId);
     const comments = await Comment.find({ postId: req.params.id, schoolId })
       .sort({ createdAt: 1 })
       .populate('authorId', 'firstName lastName profilePhoto');

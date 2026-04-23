@@ -60,9 +60,21 @@ exports.getAllQuizzes = async (req, res) => {
   try {
     const query = { schoolId: req.schoolId };
     
-    // Filter by teacher if requested (important for teacher portal vs student portal)
+    // Filter by teacher if requested
     if (req.query.teacherId) {
       query.teacherId = req.query.teacherId;
+    }
+
+    // Filter by grade and section (Crucial for students)
+    if (req.query.grade) {
+      query.grade = req.query.grade;
+    }
+    if (req.query.section && req.query.section !== 'ALL') {
+      // Support 'ALL' sections for student broadcast
+      query.$or = [
+        { section: req.query.section },
+        { section: 'ALL' }
+      ];
     }
 
     const quizzes = await Quiz.find(query).sort({ createdAt: -1 });

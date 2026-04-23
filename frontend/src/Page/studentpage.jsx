@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { FaRegUser } from "react-icons/fa6";
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -75,7 +76,7 @@ const STUDENT_ME_INITIAL = {
     grade: '10',
     section: 'A',
     dateOfBirth: '05/10/2004',
-    avatarUrl: 'https://picsum.photos/seed/cristiano/400/400',
+    avatarUrl: null,
     profilePhoto: null,
     email: 'cristiano.ronaldo@madridacademy.edu',
     phone: '98XXXXXXXX',
@@ -497,11 +498,17 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
                         <div className="relative group cursor-pointer" onClick={handleImageClick}>
                             <div className="w-36 h-36 md:w-40 md:h-40 rounded-[36px] bg-[#0b1220] p-1.5 shadow-2xl border border-white/10 relative overflow-hidden">
                                 <div className="w-full h-full rounded-[30px] overflow-hidden bg-slate-800 relative">
-                                    <img
-                                        src={currentAvatar}
-                                        alt={student.name}
-                                        className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:blur-[3px]"
-                                    />
+                                    {currentAvatar ? (
+                                        <img
+                                            src={currentAvatar}
+                                            alt={student.name}
+                                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:blur-[3px]"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-slate-800">
+                                            <FaRegUser className="text-slate-500 w-12 h-12" />
+                                        </div>
+                                    )}
                                     {/* Pencil Overlay */}
                                     <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                                         <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-2xl">

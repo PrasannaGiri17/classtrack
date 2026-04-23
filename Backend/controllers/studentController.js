@@ -70,6 +70,14 @@ const updateSectionEnrollment = async (req, res) => {
       }
     }
 
+    // SYNC: Update User model's classId for all affected students
+    if (studentIds.length > 0) {
+      await User.updateMany(
+        { studentId: { $in: studentIds } },
+        { $set: { classId: sectionId ? sectionId.toString() : null } }
+      );
+    }
+
     res.status(200).json({ message: "Enrollment updated successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -178,6 +186,7 @@ const addStudent = async (req, res) => {
       password: tempPassword, // will hash via userSchema.pre('save')
       role: "student",
       studentId: student._id,
+      name: `${student.firstName} ${student.lastName}`,
       mustChangePassword: true,
     });
 
@@ -311,6 +320,14 @@ const updateStudent = async (req, res) => {
       runValidators: true,
     });
 
+    // SYNC: Update User model if sectionId changed
+    if (req.body.sectionId !== undefined) {
+      await User.findOneAndUpdate(
+        { studentId: updatedStudent._id },
+        { $set: { classId: updatedStudent.sectionId ? updatedStudent.sectionId.toString() : null } }
+      );
+    }
+
     res.status(200).json(updatedStudent);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -367,6 +384,12 @@ const removeStudentFromSection = async (req, res) => {
         await Student.bulkWrite(bulkOps);
       }
     }
+
+    // SYNC: Update User model
+    await User.findOneAndUpdate(
+      { studentId: studentId },
+      { $set: { classId: null } }
+    );
 
     res.status(200).json({ message: "Student removed from section successfully" });
   } catch (error) {

@@ -270,12 +270,14 @@ const CalendarPage = () => {
                         {event.description}
                       </p>
 
-                      <button
-                        onClick={(e) => handleDeleteClick(e, event._id)}
-                        className="p-2 -mr-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all"
-                      >
-                        <Trash size={18} />
-                      </button>
+                      {event.type !== 'HOLIDAY' && event.type !== 'EXAMS' && (
+                        <button
+                          onClick={(e) => handleDeleteClick(e, event._id)}
+                          className="p-2 -mr-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all"
+                        >
+                          <Trash size={18} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

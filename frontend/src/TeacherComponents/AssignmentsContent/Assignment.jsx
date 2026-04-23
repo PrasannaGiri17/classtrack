@@ -333,11 +333,11 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                     <div className="flex flex-wrap items-center gap-6 text-[11px] text-slate-400 font-medium mb-6">
                         <div className="flex items-center gap-2">
                             <FileText size={14} className="text-slate-300" />
-                            {new Date(a.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} NPT
+                            {new Date(a.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </div>
                         <div className="flex items-center gap-2">
                             <Clock size={14} className="text-slate-300" />
-                            {new Date(a.closeTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} NPT
+                            {new Date(a.closeTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </div>
                         <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-800/50">
                             <Users size={12} />
@@ -473,7 +473,14 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                         <td className="px-4 py-5">
                                             <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
                                                 <Clock size={14} className="text-slate-300" />
-                                                {sub.submittedAt}
+                                                {new Date(sub.submittedAt).toLocaleString('en-US', { 
+                                                    month: 'short', 
+                                                    day: 'numeric', 
+                                                    year: 'numeric', 
+                                                    hour: 'numeric', 
+                                                    minute: '2-digit',
+                                                    hour12: true 
+                                                })}
                                             </div>
                                         </td>
                                         <td className="px-4 py-5">
@@ -659,14 +666,14 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                     Question Resources (Max 5 Files)
                                 </label>
-                                <div className="min-h-[140px] p-4 bg-slate-900/60 dark:bg-slate-950/60 border-2 border-slate-700/50 dark:border-slate-800 border-dashed rounded-[32px] shadow-inner relative overflow-hidden">
+                                <div className="min-h-[140px] p-4 bg-slate-50 dark:bg-slate-950/40 border-2 border-slate-100 dark:border-slate-800 border-dashed rounded-[32px] shadow-inner relative overflow-hidden">
                                     {newAssignment.questionFiles.length === 0 ? (
                                         <label className="flex flex-col items-center justify-center w-full h-[108px] cursor-pointer group">
-                                            <Download className="w-8 h-8 text-slate-500 group-hover:text-emerald-500 transition-colors mb-2" />
-                                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-emerald-500 transition-colors">
+                                            <Download className="w-8 h-8 text-slate-400 group-hover:text-emerald-500 transition-colors mb-2" />
+                                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-emerald-500 transition-colors">
                                                 Click to upload or drag & drop
                                             </span>
-                                            <p className="text-[9px] font-bold text-slate-600 mt-1 uppercase tracking-widest">
+                                            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">
                                                 PDF, DOCX, Images, Excel, PPT
                                             </p>
                                             <input
@@ -689,16 +696,16 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                         <div className="space-y-3">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 {newAssignment.questionFiles.map((file, idx) => (
-                                                    <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-800/50 border border-slate-700/50 rounded-2xl group/item">
+                                                    <div key={idx} className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-2xl group/item shadow-sm">
                                                         <div className="flex items-center gap-3 min-w-0">
-                                                            <div className="w-8 h-8 shrink-0 bg-slate-700 rounded-lg flex items-center justify-center text-emerald-400">
+                                                            <div className="w-8 h-8 shrink-0 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-emerald-500">
                                                                 <Paperclip size={14} />
                                                             </div>
                                                             <div className="min-w-0">
-                                                                <p className="text-[10px] font-bold text-slate-200 truncate uppercase tracking-tight">
+                                                                <p className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate uppercase tracking-tight">
                                                                     {file.name}
                                                                 </p>
-                                                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                                                                <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                                                                     {(file.size / (1024 * 1024)).toFixed(2)} MB
                                                                 </p>
                                                             </div>
@@ -762,7 +769,8 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                                         day: 'numeric',
                                                         year: 'numeric',
                                                         hour: 'numeric',
-                                                        minute: '2-digit'
+                                                        minute: '2-digit',
+                                                        hour12: true
                                                     })
                                                     : "Select Deadline"}
                                             </span>

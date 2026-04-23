@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { FaRegUser } from "react-icons/fa6";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     User,
@@ -322,7 +323,7 @@ const TeacherMePage = () => {
                                                 {teacher.profilePhoto ? (
                                                     <img src={teacher.profilePhoto} alt="Profile" className="w-full h-full object-cover transition-all duration-300 group-hover/photo:scale-105" />
                                                 ) : (
-                                                    <User size={48} className="text-emerald-500/30" />
+                                                    <FaRegUser size={48} className="text-emerald-500/30" />
                                                 )}
 
                                                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/photo:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
@@ -410,9 +411,9 @@ const TeacherMePage = () => {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => setIsChangePasswordOpen(true)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black rounded-xl transition-all shadow-sm border border-slate-700 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0"
                             >
-                                <Lock size={12} className="text-emerald-500" />
+                                <Lock size={12} className="text-white" />
                                 Change Password
                             </button>
                         </div>

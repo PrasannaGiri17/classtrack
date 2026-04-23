@@ -384,18 +384,20 @@ const NotificationPage = () => {
                       <Calendar size={12} className="text-emerald-500" />
                       {formatTimestamp(a.createdAt)}
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-emerald-600/70 border border-emerald-500/10 flex items-center gap-2">
-                        {a.senderId === CURRENT_ADMIN_ID ? 'Your Announcement' : `${a.sender} (${a.senderType})`}
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-emerald-600/70 border border-emerald-500/10 flex items-center gap-2">
+                          {a.senderId === CURRENT_ADMIN_ID ? 'Your Announcement' : `${a.sender} (${a.senderType})`}
+                        </div>
+  
+                        {a.senderId === CURRENT_ADMIN_ID && (
+                          <button
+                            onClick={(e) => handleDeleteClick(e, a)}
+                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
-
-                      <button
-                        onClick={(e) => handleDeleteClick(e, a)}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>

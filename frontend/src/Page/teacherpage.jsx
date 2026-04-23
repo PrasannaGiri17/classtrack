@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { FaRegUser } from "react-icons/fa6";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     User,
@@ -297,7 +298,7 @@ const TeacherPage = () => {
                                         {(photoPreview || teacher.profilePhoto) ? (
                                             <img src={photoPreview || teacher.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
                                         ) : (
-                                            <User size={48} className="text-emerald-500/30" />
+                                            <FaRegUser size={48} className="text-emerald-500/30" />
                                         )}
                                     </div>
                                 </div>

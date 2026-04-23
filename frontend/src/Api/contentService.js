@@ -97,9 +97,11 @@ const contentService = {
         }
     },
     // Get resources for a student
-    getStudentResources: async (grade, section) => {
+    getStudentResources: async (grade, section, folderId = null) => {
         try {
-            const response = await axios.get(`${API_URL}/student/${grade}/${section}`);
+            const response = await axios.get(`${API_URL}/student/${grade}/${section}`, {
+                params: { folderId }
+            });
             return response.data;
         } catch (error) {
             console.error('Error fetching student resources:', error);

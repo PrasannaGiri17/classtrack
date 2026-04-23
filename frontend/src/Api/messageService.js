@@ -4,9 +4,11 @@ const API_BASE_URL = "http://localhost:7000/api";
 
 const messageService = {
   // Get messageable contacts filtered by role/school permissions
-  getContacts: async (search = '') => {
+  getContacts: async (search = '', role = '') => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/users${search ? `?search=${search}` : ''}`);
+      let url = `${API_BASE_URL}/users?search=${search}`;
+      if (role) url += `&role=${role}`;
+      const response = await axios.get(url);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

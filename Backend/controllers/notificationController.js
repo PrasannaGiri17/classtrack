@@ -53,9 +53,16 @@ exports.getNotificationById = async (req, res) => {
 // Delete Notification
 exports.deleteNotification = async (req, res) => {
   try {
-    const notification = await Notification.findOneAndDelete({ _id: req.params.id, schoolId: req.schoolId });
+    const query = { _id: req.params.id, schoolId: req.schoolId };
+    
+    // Ownership check for teachers
+    if (req.user.role === 'teacher') {
+      query.senderId = req.user.teacherId.toString();
+    }
+
+    const notification = await Notification.findOneAndDelete(query);
     if (!notification) {
-      return res.status(404).json({ message: "Notification not found" });
+      return res.status(404).json({ message: "Notification not found or you are not authorized to delete it." });
     }
     res.status(200).json({ message: "Notification deleted successfully" });
   } catch (error) {

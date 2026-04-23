@@ -187,6 +187,7 @@ const SQuizPage = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('available');
+  const [studentProfile, setStudentProfile] = useState(null);
 
   const studentId = localStorage.getItem('studentId');
 
@@ -207,23 +208,44 @@ const SQuizPage = () => {
   const fetchQuizzes = async () => {
     try {
       setLoading(true);
-      if (!studentId) {
-        toast({ type: 'error', message: 'Student ID not found. Please log in again.' });
+      const sId = localStorage.getItem('studentId');
+      if (!sId) {
+        toast({ type: 'error', message: 'Session expired. Please log in again.' });
         setLoading(false);
         return;
       }
 
+      // 1. Fetch Student Profile to get Grade and Section
+      let currentGrade, currentSection;
+      try {
+        const studentRes = await axios.get(`${BASE_URL}/students/${sId}`);
+        const profile = studentRes.data;
+        setStudentProfile(profile);
+        currentGrade = profile.grade;
+        currentSection = profile.section;
+      } catch (err) {
+        console.error('Profile fetch error:', err);
+        toast({ type: 'error', message: 'Failed to sync student preferences.' });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fetch quizzes and attempts in parallel using grade filters
       const [quizzesRes, attemptsRes] = await Promise.all([
-        axios.get(`${BASE_URL}/quizzes`),
-        axios.get(`${BASE_URL}/student/quiz/attempts/${studentId}`)
+        axios.get(`${BASE_URL}/quizzes`, { 
+          params: { grade: currentGrade, section: currentSection } 
+        }),
+        axios.get(`${BASE_URL}/student/quiz/attempts/${sId}`)
       ]);
 
       const attemptsMap = {};
-      attemptsRes.data.forEach(a => {
-        attemptsMap[a.quizId._id || a.quizId] = a;
+      (attemptsRes.data || []).forEach(a => {
+        if (a && a.quizId) {
+          attemptsMap[a.quizId._id || a.quizId] = a;
+        }
       });
 
-      setQuizzes(quizzesRes.data.map(q => {
+      const processedQuizzes = (quizzesRes.data || []).map(q => {
         const attempt = attemptsMap[q._id];
         const now = new Date();
         const start = new Date(q.startTime);
@@ -247,7 +269,9 @@ const SQuizPage = () => {
           submittedAt: attempt?.submittedAt,
           timeSpentMinutes: attempt?.timeSpentMinutes
         };
-      }));
+      });
+
+      setQuizzes(processedQuizzes);
     } catch (error) {
       console.error('Fetch quizzes error:', error);
       toast({ type: 'error', message: 'Failed to load quizzes' });
