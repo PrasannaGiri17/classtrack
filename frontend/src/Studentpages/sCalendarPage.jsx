@@ -8,8 +8,10 @@ import calendarService from '../Api/calendarService';
 import NepaliCalendar, { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 import "@adhikarisaroj795/nepali-calendar-react/styles/nepalicalender.css";
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const SCalendarPage = () => {
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEventsOpen, setIsEventsOpen] = useState(true);
   const [calendarMode, setCalendarMode] = useState('AD'); // 'AD' or 'BS'
@@ -78,31 +80,21 @@ const SCalendarPage = () => {
                     (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() < today.getMonth());
 
   // Derived state: Events filtered by viewed month and future/past status
+  // Derived state: Events filtered by viewed month status
   const filteredEvents = events
     .filter(event => {
       const eventStart = new Date(event.startDate);
       const eventEnd = new Date(event.endDate);
 
-      // Normalize to local date components for month comparison
-      const startYear = eventStart.getFullYear();
-      const startMonth = eventStart.getMonth();
-      const viewYear = currentDate.getFullYear();
-      const viewMonth = currentDate.getMonth();
-
-      const isCorrectMonth = startYear === viewYear && startMonth === viewMonth;
-      if (!isCorrectMonth) return false;
-
-      // 2. If viewing current month, only show future/today events
-      const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
+      // Normalize dates to local midnight for comparison
+      const start = new Date(eventStart.getFullYear(), eventStart.getMonth(), eventStart.getDate());
+      const end = new Date(eventEnd.getFullYear(), eventEnd.getMonth(), eventEnd.getDate());
       
-      if (isCurrentMonth) {
-        // Normalize today and eventEnd to midnight local for accurate "from today" check
-        const eventEndLocal = new Date(eventEnd.getFullYear(), eventEnd.getMonth(), eventEnd.getDate());
-        const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        return eventEndLocal >= todayLocal;
-      }
+      const viewMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const viewMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-      return true;
+      // Check if event overlaps with the viewed month
+      return start <= viewMonthEnd && end >= viewMonthStart;
     })
     .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
 
@@ -265,7 +257,7 @@ const SCalendarPage = () => {
                         {event.description}
                       </p>
 
-                      {event.type !== 'HOLIDAY' && event.type !== 'EXAMS' && String(event.createdBy) === String(localStorage.getItem('studentId')) && (
+                      {event.type !== 'HOLIDAY' && event.type !== 'EXAMS' && String(event.createdBy) === String(user?.userId) && (
                         <button
                           onClick={(e) => handleDeleteClick(e, event._id)}
                           className="p-2 -mr-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-all"

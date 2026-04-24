@@ -168,7 +168,7 @@ const FeeModal = ({
                                     <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                                         <Calendar size={16} />
                                     </div>
-                                    <h4 className="text-sm font-black text-slate-900 dark:text-white capitalize tracking-widest">Monthly Ledger</h4>
+                                    <h4 className="text-sm font-black text-slate-900 dark:text-white capitalize tracking-widest">Selected Months</h4>
                                 </div>
                                 <div className="px-4 py-1.5 bg-transparent rounded-full border border-slate-100 dark:border-slate-800">
                                     <span className="text-[10px] font-black text-emerald-500 capitalize tracking-widest italic">
@@ -210,7 +210,7 @@ const FeeModal = ({
 
                         <div className="mt-auto pt-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-8">
                             <div className="flex items-center gap-6">
-                                <div 
+                                <div
                                     onClick={() => setPaymentGateway && setPaymentGateway('khalti')}
                                     className={`text-center group cursor-pointer transition-all duration-300 ${paymentGateway === 'khalti' ? 'scale-105' : ''}`}
                                 >
@@ -221,7 +221,7 @@ const FeeModal = ({
                                     <p className={`text-[10px] font-bold capitalize tracking-widest mt-2 transition-colors ${paymentGateway === 'khalti' ? 'text-purple-600' : 'text-slate-500 dark:text-slate-400'}`}>Khalti</p>
                                 </div>
 
-                                <div 
+                                <div
                                     onClick={() => setPaymentGateway && setPaymentGateway('esewa')}
                                     className={`text-center group cursor-pointer transition-all duration-300 ${paymentGateway === 'esewa' ? 'scale-105' : ''}`}
                                 >

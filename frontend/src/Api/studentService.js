@@ -50,6 +50,11 @@ const deleteStudent = async (id) => {
   return response.data;
 };
 
+const togglePin = async (id) => {
+  const response = await axios.patch(`${API_URL}/${id}/toggle-pin`);
+  return response.data;
+};
+
 const studentService = {
   getStudents,
   getStudentsBySection,
@@ -59,7 +64,8 @@ const studentService = {
   getStudentById,
   addStudent,
   updateStudent,
-  deleteStudent
+  deleteStudent,
+  togglePin
 };
 
 export default studentService;

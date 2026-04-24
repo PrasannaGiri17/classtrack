@@ -47,6 +47,8 @@ const ExamManagement = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const isTermLocked = lockedTerms.has(selectedTerm);
+  const isPastYear = selectedYear <= 2082;
+  const isReadOnly = isTermLocked || isPastYear;
 
   // 1. On mount — load teacher info + routine + grade sections map + exam config
   useEffect(() => {
@@ -458,10 +460,16 @@ const ExamManagement = () => {
                 <p className="text-base font-black text-slate-900 dark:text-white leading-none">{selectedSubject || '—'}</p>
               </div>
             </div>
+            {isPastYear && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500 animate-pulse">
+                <Lock size={14} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Read Only Mode (Historical Data)</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {isTermLocked ? (
+        {isTermLocked && !isPastYear ? (
           <div className="py-40 flex flex-col items-center justify-center text-center px-10 animate-in fade-in zoom-in-95 duration-500">
             <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-[32px] flex items-center justify-center mb-8 shadow-xl shadow-red-500/10">
               <Lock size={48} />
@@ -528,7 +536,8 @@ const ExamManagement = () => {
                           max="75"
                           value={student.theory}
                           onChange={(e) => updateMark(student.id, 'theory', e.target.value)}
-                          className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/30 rounded-[18px] text-center text-sm font-black dark:text-white outline-none transition-all shadow-inner"
+                          disabled={isReadOnly}
+                          className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/30 rounded-[18px] text-center text-sm font-black dark:text-white outline-none transition-all shadow-inner disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                       </td>
                       <td className="px-4 py-5">
@@ -538,7 +547,8 @@ const ExamManagement = () => {
                           max="25"
                           value={student.practical}
                           onChange={(e) => updateMark(student.id, 'practical', e.target.value)}
-                          className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/30 rounded-[18px] text-center text-sm font-black dark:text-white outline-none transition-all shadow-inner"
+                          disabled={isReadOnly}
+                          className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/30 rounded-[18px] text-center text-sm font-black dark:text-white outline-none transition-all shadow-inner disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                       </td>
                       <td className="pr-10 pl-4 py-5">
@@ -547,7 +557,8 @@ const ExamManagement = () => {
                           placeholder="Brief Performance Note..."
                           value={student.remark}
                           onChange={(e) => updateMark(student.id, 'remark', e.target.value)}
-                          className="w-full px-6 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/30 rounded-[18px] text-xs font-bold dark:text-white outline-none transition-all shadow-inner placeholder:text-slate-300"
+                          disabled={isReadOnly}
+                          className="w-full px-6 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/30 rounded-[18px] text-xs font-bold dark:text-white outline-none transition-all shadow-inner placeholder:text-slate-300 disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                       </td>
                     </tr>
@@ -566,21 +577,22 @@ const ExamManagement = () => {
               </table>
             </div>
 
-            {/* Save Footer */}
-            <div className="p-6 border-t border-slate-50 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/30 flex items-center justify-center">
-              <button
-                onClick={handleSaveMarks}
-                disabled={isSaving || markEntries.length === 0}
-                className="px-8 py-3 bg-emerald-600 text-white rounded-2xl font-black text-[11px] tracking-[0.15em] shadow-lg shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 disabled:opacity-50 disabled:grayscale"
-              >
-                {isSaving ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Save size={15} />
-                )}
-                {isSaving ? 'Publishing...' : 'Publish Marks'}
-              </button>
-            </div>
+            {!isReadOnly && (
+              <div className="p-6 border-t border-slate-50 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/30 flex items-center justify-center">
+                <button
+                  onClick={handleSaveMarks}
+                  disabled={isSaving || markEntries.length === 0}
+                  className="px-8 py-3 bg-emerald-600 text-white rounded-2xl font-black text-[11px] tracking-[0.15em] shadow-lg shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 disabled:opacity-50 disabled:grayscale"
+                >
+                  {isSaving ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Save size={15} />
+                  )}
+                  {isSaving ? 'Publishing...' : 'Publish Marks'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

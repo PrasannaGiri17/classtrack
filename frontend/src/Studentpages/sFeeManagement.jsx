@@ -28,6 +28,7 @@ import PortalPopup from '../MainSystemComponents/PortalPopup';
 import feeService from '../Api/feeService';
 import studentService from '../Api/studentService';
 import FeeModal from './FeeModal';
+import schoolNotificationService from '../Api/schoolNotificationService';
 import { getNepaliDateInfo } from '../Utils/nepaliDateHelpers';
 
 const NEPALI_MONTHS = [
@@ -62,18 +63,33 @@ const SFeeManagement = () => {
     // Check for payment status in URL
     const queryParams = new URLSearchParams(location.search);
     const paymentStatus = queryParams.get('payment');
-    
+
     if (paymentStatus && !toastShownRef.current) {
       toastShownRef.current = true;
-      
+
       if (paymentStatus === 'success') {
         toast({ type: 'success', message: 'Payment completed successfully! Your digital receipt is downloading...' });
-        fetchMyFees(true); // Fetch and download PDF
+
+        // Handle Admin Notification
+        const lastPaidIdsRaw = sessionStorage.getItem("lastPaidFees");
+        if (lastPaidIdsRaw) {
+          try {
+            const lastPaidIds = JSON.parse(lastPaidIdsRaw);
+            // We need the fees to be loaded first to get the month names
+            // So we'll handle the notification inside fetchMyFees or after it
+            fetchMyFees(true, true);
+          } catch (err) {
+            console.error("Failed to parse last payment data for notification", err);
+            fetchMyFees(true, false);
+          }
+        } else {
+          fetchMyFees(true, false);
+        }
       } else if (paymentStatus === 'failed') {
         toast({ type: 'error', message: 'Payment failed or was cancelled. Please try again.' });
         fetchMyFees(false);
       }
-      
+
       // Clear URL params without triggering a full page state reset
       navigate(location.pathname, { replace: true });
     } else {
@@ -89,14 +105,16 @@ const SFeeManagement = () => {
     }
   }, [location, navigate]);
 
-  const fetchMyFees = async (shouldDownloadStatement = false) => {
+  const fetchMyFees = async (shouldDownloadStatement = false, shouldNotifyAdmin = false) => {
     setIsLoading(true);
+    let realStudentId = "N/A";
     try {
       // 1. Fetch Student Details first for the header
       const studentId = localStorage.getItem("studentId");
       if (studentId) {
         try {
           const sData = await studentService.getStudentById(studentId);
+          realStudentId = sData.studentId || "N/A";
           setStudentInfo(prev => ({
             ...prev,
             name: `${sData.firstName} ${sData.lastName}`,
@@ -138,6 +156,21 @@ const SFeeManagement = () => {
             try {
               const lastPaidIds = JSON.parse(lastPaidIdsRaw);
               const filteredData = sortedData.filter(f => lastPaidIds.includes(f._id));
+
+              if (shouldNotifyAdmin && filteredData.length > 0) {
+                const months = filteredData.map(f => f.monthName).join(', ');
+                const year = filteredData[0].academicYear;
+                const studentName = `${localStorage.getItem("userName") || "Student"}`;
+
+                await schoolNotificationService.createNotification({
+                  schoolId: parseInt(localStorage.getItem("studentSchoolId")),
+                  title: "Fee Payment Success",
+                  message: `${studentName} (${realStudentId}) has paid the ${year} ${months} fee.`,
+                  sender: studentName,
+                  receiver: "admin"
+                });
+              }
+
               generateFullStatement(filteredData, "Digital Fee Receipt");
               sessionStorage.removeItem("lastPaidFees");
             } catch (err) {
@@ -179,31 +212,58 @@ const SFeeManagement = () => {
     fees.filter(f => f.status !== 'PAID').reduce((sum, f) => sum + f.dueAmount, 0),
     [fees]);
 
-  const getFeeTagDetails = (feeMonthStr, isPaid, isSelected) => {
-    if (isPaid) return { label: 'Paid', styling: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' };
+  const getFeeTagDetails = (feeMonthStr, isPaid, isSelected, feeYear) => {
+    let details = { label: '', styling: '' };
 
-    let label = 'Due';
-    let styling = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+    if (isPaid) {
+      details = { label: 'Paid', styling: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' };
+    } else {
+      // Get current Nepali date info
+      const today = new Date();
+      const { year: currentYear, month: currentMonth } = getNepaliDateInfo(today);
+      const currentMonthIdx = currentMonth - 1;
+      const feeMonthIndex = NEPALI_MONTHS.indexOf(feeMonthStr);
 
-    const feeMonthIndex = NEPALI_MONTHS.indexOf(feeMonthStr);
-    if (feeMonthIndex !== -1) {
-      const diff = feeMonthIndex - currentMonthIndex;
-      if (diff === 1) {
-        label = 'Next Due';
-      } else if (diff === -1 || diff === -2) {
-        label = 'Overdue';
-        styling = 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-sm shadow-amber-500/10';
-      } else if (diff <= -3) {
-        label = 'Past Due';
-        styling = 'bg-red-500/10 text-red-500 border-red-500/20 shadow-sm shadow-red-500/10';
+      // 1. Past Years Logic
+      if (parseInt(feeYear) < currentYear) {
+        details = {
+          label: 'Yearly Due',
+          styling: 'bg-red-500/10 text-red-500 border-red-500/20 shadow-sm shadow-red-500/10 font-black'
+        };
+      }
+      // 2. Current Year Logic
+      else if (parseInt(feeYear) === currentYear) {
+        if (feeMonthIndex === currentMonthIdx || feeMonthIndex === currentMonthIdx + 1) {
+          details = {
+            label: 'Due',
+            styling: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-sm shadow-emerald-500/10'
+          };
+        } else if (feeMonthIndex < currentMonthIdx) {
+          details = {
+            label: 'Due',
+            styling: 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-sm shadow-amber-500/10'
+          };
+        } else {
+          details = {
+            label: 'Upcoming',
+            styling: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700'
+          };
+        }
+      }
+      // 3. Future Years Logic
+      else {
+        details = {
+          label: 'Upcoming',
+          styling: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700'
+        };
       }
     }
 
     if (isSelected) {
-      styling = 'bg-white/20 text-white border-white/30 shadow-none text-white';
+      details.styling = 'bg-white/20 text-white border-white/30 shadow-none';
     }
 
-    return { label, styling };
+    return details;
   };
 
   // --- Handlers ---
@@ -231,7 +291,7 @@ const SFeeManagement = () => {
         const amountInPaisa = subTotal * 100;
         const purchaseOrderId = `ORDER_${Date.now()}`;
         const feeIds = selectedFees.map(f => f._id);
-        
+
         sessionStorage.setItem("lastPaidFees", JSON.stringify(feeIds));
 
         const response = await feeService.initiateKhaltiPayment({
@@ -252,7 +312,7 @@ const SFeeManagement = () => {
 
         const purchaseOrderId = `ORDER_${Date.now()}`;
         const feeIds = selectedFees.map(f => f._id);
-        
+
         sessionStorage.setItem("lastPaidFees", JSON.stringify(feeIds));
 
         const response = await feeService.initiateEsewaPayment({
@@ -305,7 +365,7 @@ const SFeeManagement = () => {
     // If called via onClick, the first argument is an event object
     // We should fallback to the 'fees' state if dataToUse is not an array
     const targetData = Array.isArray(dataToUse) ? dataToUse : fees;
-    
+
     if (!targetData || targetData.length === 0) {
       toast({ type: 'error', message: 'No fee records available to print.' });
       return;
@@ -314,12 +374,12 @@ const SFeeManagement = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const primaryColor = [16, 185, 129]; // Emerald Green #10B981
-    
+
     // 1. HEADER SECTION
     // Colored Banner
     doc.setFillColor(...primaryColor);
     doc.rect(0, 0, pageWidth, 40, 'F');
-    
+
     // Logo Placeholder (Circle with Initials)
     const schoolInitials = (studentInfo.schoolName || "S").split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     doc.setFillColor(255, 255, 255);
@@ -328,34 +388,34 @@ const SFeeManagement = () => {
     doc.setTextColor(...primaryColor);
     doc.setFont("helvetica", "bold");
     doc.text(schoolInitials, 25, 21.5, { align: 'center' });
-    
+
     // School Name & Subtitle
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
     doc.text(studentInfo.schoolName.toUpperCase() || "SCHOOL STATEMENT", 42, 18);
-    
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(title, 42, 26);
-    
+
     // Header Right Info
     doc.setFontSize(9);
     doc.text(`Academic Year: ${studentInfo.academicYear || "2081/82"}`, pageWidth - 15, 18, { align: 'right' });
     doc.text(`Printed On: ${new Date().toLocaleDateString()}`, pageWidth - 15, 26, { align: 'right' });
-    
+
     // Reset Text Color
     doc.setTextColor(30, 41, 59); // Slate-800
-    
+
     // 2. STUDENT INFO BOX
     const infoBoxY = 50;
     doc.setFillColor(248, 250, 252); // Slate-50 background
     doc.setDrawColor(226, 232, 240); // Slate-200 border
     doc.rect(14, infoBoxY, pageWidth - 28, 35, 'FD');
-    
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("STUDENT PARTICULARS", 20, infoBoxY + 8);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     // Left Column
@@ -363,23 +423,23 @@ const SFeeManagement = () => {
     doc.text(`Student ID:    ${studentInfo.studentId}`, 20, infoBoxY + 22);
     doc.text(`Class/Grade:   ${studentInfo.class}`, 20, infoBoxY + 28);
     doc.text(`Section:       ${studentInfo.section || "N/A"}`, 20, infoBoxY + 34);
-    
+
     // Right Column
     const rightColX = pageWidth / 2 + 10;
     const totalPaidVal = targetData.reduce((sum, f) => sum + (f.paidAmount || 0), 0);
     const totalDueVal = targetData.reduce((sum, f) => sum + (f.dueAmount || 0), 0);
-    
+
     doc.text(`Academic Period: ${studentInfo.academicYear}`, rightColX, infoBoxY + 16);
     doc.text(`Total Paid:      Rs. ${totalPaidVal.toLocaleString()}`, rightColX, infoBoxY + 22);
     doc.text(`Total Balance:   Rs. ${totalDueVal.toLocaleString()}`, rightColX, infoBoxY + 28);
     doc.text(`Statement Date:  ${new Date().toLocaleDateString()}`, rightColX, infoBoxY + 34);
-    
+
     // 3. TABLE IMPROVEMENTS
     const tableRows = targetData.map((f, i) => {
-      let statusText = f.status === 'PAID' ? "SETTLED" : 
-                       f.status === 'OVERDUE' ? "OVERDUE" : 
-                       f.status === 'PARTIAL' ? "PARTIAL" : "PENDING";
-      
+      let statusText = f.status === 'PAID' ? "SETTLED" :
+        f.status === 'OVERDUE' ? "OVERDUE" :
+          f.status === 'PARTIAL' ? "PARTIAL" : "PENDING";
+
       return [
         i + 1,
         f.monthName,
@@ -390,7 +450,7 @@ const SFeeManagement = () => {
         `Rs. ${f.dueAmount.toLocaleString()}`
       ];
     });
-    
+
     autoTable(doc, {
       startY: 95,
       head: [['S.N', 'Month', 'Collection Status', 'Method', 'Receipt No.', 'Total Charge', 'Amount Due']],
@@ -409,64 +469,64 @@ const SFeeManagement = () => {
         if (data.section === 'body' && data.column.index === 2) {
           const status = data.cell.raw;
           if (status === "SETTLED") {
-              data.cell.styles.textColor = [16, 185, 129]; // Emerald
-              data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.textColor = [16, 185, 129]; // Emerald
+            data.cell.styles.fontStyle = 'bold';
           } else if (status === "OVERDUE") {
-              data.cell.styles.textColor = [239, 68, 68]; // Red
-              data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.textColor = [239, 68, 68]; // Red
+            data.cell.styles.fontStyle = 'bold';
           } else if (status === "PARTIAL") {
-              data.cell.styles.textColor = [245, 158, 11]; // Amber
+            data.cell.styles.textColor = [245, 158, 11]; // Amber
           }
         }
       }
     });
-    
+
     // 4. SUMMARY SECTION
     const finalY = (doc).lastAutoTable.finalY + 10;
     const totalChargeVal = targetData.reduce((sum, f) => sum + (f.totalAmount || 0), 0);
-    
+
     const isReceipt = title.includes("Receipt");
-    
+
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(...primaryColor);
     doc.rect(pageWidth - 84, finalY, 70, isReceipt ? 22 : 30, 'D');
-    
+
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text("Total Fees Charged:", pageWidth - 80, finalY + 8);
     doc.text("Total Amount Paid:", pageWidth - 80, finalY + 16);
-    
+
     if (!isReceipt) {
       doc.setFont("helvetica", "bold");
       doc.text("Net Total Balance:", pageWidth - 80, finalY + 24);
     }
-    
+
     doc.setFont("helvetica", "normal");
     doc.text(`Rs. ${totalChargeVal.toLocaleString()}`, pageWidth - 18, finalY + 8, { align: 'right' });
     doc.text(`Rs. ${totalPaidVal.toLocaleString()}`, pageWidth - 18, finalY + 16, { align: 'right' });
-    
+
     if (!isReceipt) {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(239, 68, 68); // Red for debt
       if (totalDueVal === 0) doc.setTextColor(...primaryColor);
       doc.text(`Rs. ${totalDueVal.toLocaleString()}`, pageWidth - 18, finalY + 24, { align: 'right' });
     }
-    
+
     // 5. FOOTER
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setDrawColor(226, 232, 240);
     doc.line(14, pageHeight - 25, pageWidth - 14, pageHeight - 25);
-    
+
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.setFont("helvetica", "italic");
     doc.text("This is an official computer-generated statement of the school and is valid without physical signature.", pageWidth / 2, pageHeight - 18, { align: 'center' });
-    
+
     doc.setFont("helvetica", "normal");
     // Determine Filename
     const sanitizedName = studentInfo.name.replace(/\s+/g, '_');
     const fileName = isReceipt ? `Digital_Fee_Receipt_${sanitizedName}.pdf` : `Academic_Ledger_${sanitizedName}.pdf`;
-    
+
     doc.save(fileName);
   };
 
@@ -482,8 +542,8 @@ const SFeeManagement = () => {
     <div className="w-full max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-32 pt-2">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter uppercase mb-2">School Fee Ledger</h1>
-          <p className="text-sm font-bold text-slate-400 tracking-widest uppercase">Digital Payment & Account Reconciliation</p>
+          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">School Fee Management</h1>
+          <p className="text-s font-bold text-slate-600 tracking-widest uppercase">Digital Payment of School Fee</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative group min-w-[160px]">
@@ -504,7 +564,7 @@ const SFeeManagement = () => {
             <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
           </div>
 
-          <button 
+          <button
             onClick={() => generateFullStatement(fees)}
             className="flex items-center gap-3 px-8 py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-widest shadow-xl hover:translate-y-[-4px] active:scale-95 transition-all group"
           >
@@ -582,7 +642,7 @@ const SFeeManagement = () => {
                             </div>
 
                             {(() => {
-                              const tag = getFeeTagDetails(fee.monthName, isPaid, isSelected);
+                              const tag = getFeeTagDetails(fee.monthName, isPaid, isSelected, fee.academicYear);
                               if (!tag) return null;
                               return (
                                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[9px] font-black tracking-widest w-fit capitalize transition-colors ${tag.styling}`}>
@@ -624,7 +684,7 @@ const SFeeManagement = () => {
                 )}
               </div>
               <div className="min-w-fit">
-                <p className="text-[10px] font-black text-slate-500 tracking-widest leading-none mb-1.5 whitespace-nowrap">Authenticated</p>
+                <p className="text-[10px] font-black text-slate-500 tracking-widest leading-none mb-1.5 whitespace-nowrap">Student Name</p>
                 <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight leading-none capitalize tracking-widest whitespace-nowrap">{studentInfo.name}</h3>
               </div>
             </div>
@@ -638,10 +698,7 @@ const SFeeManagement = () => {
                   <Hash size={14} className="text-emerald-500 flex-shrink-0" />
                   <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-widest capitalize whitespace-nowrap">{studentInfo.studentId}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Wallet size={14} className="text-emerald-500 flex-shrink-0" />
-                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-widest capitalize whitespace-nowrap">Rs. {studentInfo.monthlyFee}/mo</span>
-                </div>
+
               </div>
             </div>
           </div>
@@ -716,7 +773,7 @@ const SFeeManagement = () => {
           {/* Pending Banner */}
           <div className="p-8 bg-white dark:bg-emerald-600 rounded-[36px] flex items-center justify-between shadow-xl border border-slate-100 dark:border-emerald-500 relative overflow-hidden group transition-colors">
             <div className="relative z-10">
-              <p className="text-[9px] font-black text-slate-400 dark:text-emerald-100/80 tracking-widest capitalize mb-1.5">Academic Year Total Dues</p>
+              <p className="text-[9px] font-black text-slate-400 dark:text-emerald-100/80 tracking-widest capitalize mb-1.5">All Total Dues</p>
               <h4 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">Rs. {totalDueSummary.toLocaleString()}</h4>
             </div>
             <div className="w-12 h-12 bg-slate-50 dark:bg-white/10 rounded-2xl flex items-center justify-center text-slate-400 dark:text-white relative z-10 border border-slate-100 dark:border-white/10 shadow-inner">
@@ -784,13 +841,13 @@ const SFeeManagement = () => {
           </div>
 
           <div className="p-10 pt-0">
-            <button onClick={() => setDetailFee(null)} className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-400 font-black text-[11px] capitalize tracking-widest rounded-2xl">Return To Ledger</button>
+            <button onClick={() => setDetailFee(null)} className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-400 font-black text-[11px] capitalize tracking-widest rounded-2xl">Return Back</button>
           </div>
         </div>
       </PortalPopup>
 
       {/* Payment Confirmation Modal */}
-       <FeeModal 
+      <FeeModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         studentInfo={studentInfo}

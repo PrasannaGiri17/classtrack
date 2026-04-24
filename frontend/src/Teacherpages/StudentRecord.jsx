@@ -219,7 +219,7 @@ const SStudentRecord = () => {
   };
 
   const handleStudentClick = (student) => {
-    navigate('/teacher/student-profile', { state: { studentData: student } });
+    navigate(`/teacher/student/${student._id}`);
   };
 
   const handleDeleteNotice = async (id) => {

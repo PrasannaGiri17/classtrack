@@ -16,7 +16,7 @@ import autoTable from 'jspdf-autotable';
 // --- Constants & Dummy Data ---
 const SECTIONS = ["A", "B", "C"];
 const CURRENT_YEAR = new Date().getFullYear() + (new Date().getMonth() + 1 > 4 || (new Date().getMonth() + 1 === 4 && new Date().getDate() >= 14) ? 57 : 56);
-const YEARS = Array.from({ length: 5 }, (_, i) => (CURRENT_YEAR - 2 + i).toString()); // Generates current year +/- 2 years
+const YEARS = ["2082", "2083", "2084"];
 
 const ExamManagement = () => {
   const [activeView, setActiveView] = useState('menu');
@@ -34,6 +34,7 @@ const ExamManagement = () => {
   const [resSection, setResSection] = useState(localStorage.getItem('resSection') || 'A');
   const [resultSearch, setResultSearch] = useState('');
   const [activeResultIndex, setActiveResultIndex] = useState(0);
+  const [previewMode, setPreviewMode] = useState('individual'); // 'individual' or 'list'
 
   // Sync Year
   const handleYearChange = (year) => {
@@ -253,13 +254,16 @@ const ExamManagement = () => {
       };
     });
 
-    // Apply search filter
+    // Apply Grade, Section and Search filters
     return combined.filter(r => {
+      const matchesGrade = previewMode === 'individual' || r.grade === resGrade;
+      const matchesSection = previewMode === 'individual' || resSection === 'All' || r.section === resSection;
       const matchesSearch = r.name.toLowerCase().includes(resultSearch.toLowerCase()) ||
         r.studentId.toLowerCase().includes(resultSearch.toLowerCase());
-      return matchesSearch;
+      
+      return matchesGrade && matchesSection && matchesSearch;
     });
-  }, [realStudents, realResults, resultSearch, resGrade, resSection, resPhase, examData]);
+  }, [realStudents, realResults, resultSearch, resGrade, resSection, resPhase, examData, previewMode]);
 
   useEffect(() => {
     setActiveResultIndex(0);
@@ -305,7 +309,7 @@ const ExamManagement = () => {
 
       toast({
         type: 'success',
-        message: `Marking portal for ${termName} is now ${newStatus ? 'OPEN' : 'CLOSED'}`
+        message: `Marking Portal: ${termName} is now ${newStatus ? 'OPEN' : 'CLOSED'}`
       });
     } catch (error) {
       console.error("Failed to update status:", error);
@@ -338,7 +342,7 @@ const ExamManagement = () => {
 
       toast({
         type: 'success',
-        message: `Results for ${termName} are now ${newStatus ? 'PUBLISHED' : 'HIDDEN'}`
+        message: `Results Status: ${termName} is now ${newStatus ? 'VISIBLE' : 'HIDDEN'} to students`
       });
     } catch (error) {
       console.error("Failed to update publish status:", error);
@@ -584,6 +588,8 @@ const ExamManagement = () => {
               years={YEARS}
               initialPhases={phases}
               onDownloadPDF={handleDownloadPDF}
+              previewMode={previewMode}
+              setPreviewMode={setPreviewMode}
             />
           )}
         </div>

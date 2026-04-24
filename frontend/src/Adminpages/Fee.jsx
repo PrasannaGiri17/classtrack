@@ -15,7 +15,9 @@ import {
   X,
   Tag,
   RefreshCcw,
-  Zap
+  Zap,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../MainSystemComponents/Toast';
@@ -137,7 +139,7 @@ const Fee = () => {
         filteredData = filteredData.filter(item => (item.feeStatus || item.status) === filterStatus.toUpperCase());
       }
 
-      setFeesData(filteredData);
+      setFeesData([...filteredData].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)));
       console.log("FEE_DEBUG: Filtered Data:", filteredData);
       setTotalRecords(filteredData.length);
       setTotalPages(Math.ceil(filteredData.length / itemsPerPage));
@@ -247,6 +249,17 @@ const Fee = () => {
       fetchFeeStatus();
     } catch (error) {
       toast({ type: 'error', message: 'Failed to add extra fees.' });
+    }
+  };
+
+  const handleTogglePin = async (id, e) => {
+    if (e) e.stopPropagation();
+    try {
+      await studentService.togglePin(id);
+      toast({ type: 'success', message: 'Pin status updated.' });
+      fetchFeeStatus();
+    } catch (error) {
+      toast({ type: 'error', message: 'Failed to toggle pin.' });
     }
   };
 
@@ -414,13 +427,12 @@ const Fee = () => {
                       <th className="px-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em]">Fee Months</th>
                       <th className="px-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em]">Due Amount</th>
                       <th className="px-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em] text-center">Status</th>
-                      <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 capitalize tracking-[0.3em] text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                     {displayFees.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-24 text-center">
+                        <td colSpan={4} className="py-24 text-center">
                           <div className="flex flex-col items-center gap-4 opacity-30">
                             <CreditCard size={48} />
                             <p className="text-[10px] font-black capitalize tracking-[0.3em]">No students found</p>
@@ -436,11 +448,24 @@ const Fee = () => {
                         >
                           <td className="pl-12 pr-6 py-6">
                             <div className="flex items-center gap-4">
-                              <img
-                                src={record.profilePhoto || `https://api.dicebear.com/7.x/initials/svg?seed=${record.studentName}`}
-                                alt=""
-                                className="w-10 h-10 rounded-xl object-cover shadow-sm bg-slate-100 dark:bg-slate-700"
-                              />
+                              <div className="relative group/pin flex-shrink-0">
+                                <img
+                                  src={record.profilePhoto || `https://api.dicebear.com/7.x/initials/svg?seed=${record.studentName}`}
+                                  alt=""
+                                  className="w-11 h-11 rounded-xl object-cover shadow-sm bg-slate-100 dark:bg-slate-700 transition-transform group-hover/pin:scale-105"
+                                />
+                                <button
+                                  onClick={(e) => handleTogglePin(record._id || record.studentId, e)}
+                                  className={`absolute -top-1.5 -right-1.5 w-6 h-6 flex items-center justify-center rounded-lg transition-all duration-300 z-10 ${
+                                    record.isPinned 
+                                      ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/40 rotate-45' 
+                                      : 'bg-white dark:bg-slate-800 text-slate-300 opacity-0 group-hover/pin:opacity-100 hover:text-amber-500 shadow-md'
+                                  }`}
+                                  title={record.isPinned ? "Unpin Student" : "Pin Student"}
+                                >
+                                  <Pin size={12} fill={record.isPinned ? "currentColor" : "none"} />
+                                </button>
+                              </div>
                               <div>
                                 <span className="text-sm font-black text-slate-900 dark:text-white block">{record.studentName}</span>
                                 <div className="flex items-center gap-2 mt-0.5">
@@ -467,22 +492,6 @@ const Fee = () => {
                           <td className="px-6 py-6">
                             <div className="flex justify-center">
                               {getStatusBadge(record)}
-                            </div>
-                          </td>
-                          <td className="pr-12 pl-6 py-6">
-                            <div className="flex items-center justify-center gap-2">
-                              {record.feeStatus !== 'PAID' && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenExtraFeeModal(record);
-                                  }}
-                                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all shadow-sm group/btn"
-                                  title="Add Extra Fee"
-                                >
-                                  <Plus size={18} className="group-hover/btn:rotate-90 transition-transform" />
-                                </button>
-                              )}
                             </div>
                           </td>
                         </tr>

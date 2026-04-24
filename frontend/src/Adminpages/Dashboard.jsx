@@ -9,7 +9,8 @@ import {
   Bell,
   Sparkles,
   ChevronDown,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { GiChampions } from "react-icons/gi";
@@ -19,13 +20,16 @@ import teacherService from '../Api/teacherService';
 import attendanceService from '../Api/attendanceService';
 import calendarService from '../Api/calendarService';
 import resultService from '../Api/resultService';
+import schoolNotificationService from '../Api/schoolNotificationService';
 import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const NEPALI_MONTHS = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
 
 const DashboardPage = () => {
   const { schoolId } = useAuth();
+  const navigate = useNavigate();
   const [selectedClass, setSelectedClass] = useState('All Classes');
   const [totalStudentsCount, setTotalStudentsCount] = useState(0);
   const [statsData, setStatsData] = useState([
@@ -35,6 +39,19 @@ const DashboardPage = () => {
     { title: 'Fail Rate', value: '0%', icon: AlertCircle, color: 'bg-red-500', trend: '-0.2%', trendUp: false },
   ]);
   const [weeklyAttendanceData, setWeeklyAttendanceData] = useState([]);
+  const [recentNotifications, setRecentNotifications] = useState([]);
+  const [isNotifLoading, setIsNotifLoading] = useState(false);
+
+  const getTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    if (diffInMinutes < 1) return 'just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -88,7 +105,23 @@ const DashboardPage = () => {
         console.error("Failed to fetch dashboard stats:", error);
       }
     };
+
+    const fetchNotifications = async () => {
+      try {
+        setIsNotifLoading(true);
+        const role = 'admin';
+        const adminId = localStorage.getItem("adminId");
+        const data = await schoolNotificationService.getNotifications(role, adminId);
+        setRecentNotifications(data.slice(0, 5));
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      } finally {
+        setIsNotifLoading(false);
+      }
+    };
+
     fetchStats();
+    fetchNotifications();
   }, [schoolId]);
 
   const calculateWeeklySummary = (attendanceRecords, holidays = []) => {
@@ -271,21 +304,35 @@ const DashboardPage = () => {
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
-            <button className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
+            <button onClick={() => navigate('/admin/activities')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
-                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                  <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Registry Updated</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">New student enrollment records have been synchronized with the main database.</p>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-2 block uppercase tracking-widest">2 hours ago</span>
-                </div>
+          <div className="space-y-4 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] max-h-[400px]">
+            {isNotifLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Syncing activities...</p>
               </div>
-            ))}
+            ) : recentNotifications.length > 0 ? (
+              recentNotifications.map((notif) => (
+                <div key={notif._id} className="flex gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                    <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">{notif.title}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{notif.message}</p>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-2 block uppercase tracking-widest">
+                      {getTimeAgo(notif.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <Bell className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No recent activity</p>
+              </div>
+            )}
           </div>
         </div>
 

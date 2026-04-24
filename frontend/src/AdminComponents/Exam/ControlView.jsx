@@ -54,8 +54,11 @@ const ControlView = ({
   sections,
   years,
   initialPhases,
-  onDownloadPDF
+  onDownloadPDF,
+  previewMode,
+  setPreviewMode
 }) => {
+
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-500 pb-20">
       <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[48px] shadow-sm flex flex-col overflow-hidden">
@@ -185,9 +188,28 @@ const ControlView = ({
 
           {/* Section 3: Verified Result Preview */}
           <div className="p-10 bg-white dark:bg-slate-950/40">
-            <div className="flex items-center gap-3 mb-10">
-              <ShieldCheck className="text-emerald-500" size={28} />
-              <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Verified Result Preview</h4>
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="text-emerald-500" size={28} />
+                <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Check Students Result</h4>
+              </div>
+
+              {/* View Switcher */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner group/switcher">
+                <button
+                  onClick={() => setPreviewMode('individual')}
+                  className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300 ${previewMode === 'individual' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-md scale-100' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 scale-95'}`}
+                >
+                  <User size={14} /> INDIVIDUAL
+                </button>
+                <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+                <button
+                  onClick={() => setPreviewMode('list')}
+                  className={`flex items-center gap-2 px-6 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all duration-300 ${previewMode === 'list' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-md scale-100' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 scale-95'}`}
+                >
+                  <ClipboardCheck size={14} /> Classwise Lists
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col xl:flex-row items-center justify-between gap-6 mb-8 p-6 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px]">
@@ -210,140 +232,257 @@ const ControlView = ({
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 </div>
+
+                {/* Grade and Section Selection - Only for List mode */}
+                {previewMode === 'list' && (
+                  <>
+                    <div className="relative min-w-[110px]">
+                      <select
+                        value={resGrade}
+                        onChange={e => setResGrade(e.target.value)}
+                        className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none pr-10 cursor-pointer"
+                      >
+                        {grades.map(g => <option key={g} value={g}>Grade {g}</option>)}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+
+                    <div className="relative min-w-[130px]">
+                      <select
+                        value={resSection}
+                        onChange={e => setResSection(e.target.value)}
+                        className="appearance-none w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none pr-10 cursor-pointer"
+                      >
+                        <option value="All">All Sections</option>
+                        {sections.map(s => <option key={s} value={s}>Section {s}</option>)}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div className="flex items-center gap-4 w-full xl:w-auto">
-                <div className="relative flex-1 xl:w-64">
+              {previewMode === 'individual' && (
+                <div className="flex items-center gap-4 w-full xl:w-auto">
+                  <div className="relative flex-1 xl:w-64">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input type="text" placeholder="Search ID/Name..." value={resultSearch} onChange={e => setResultSearch(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-10 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handlePrev} disabled={activeResultIndex === 0} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronLeft size={20} /></button>
+                    <div className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black text-slate-400 tracking-tight">{activeResultIndex + 1} / {filteredResults.length || 0}</div>
+                    <button onClick={handleNext} disabled={activeResultIndex >= filteredResults.length - 1} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronRight size={20} /></button>
+                  </div>
+                </div>
+              )}
+
+              {previewMode === 'list' && (
+                <div className="flex-1 xl:max-w-md relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input type="text" placeholder="Search ID/Name..." value={resultSearch} onChange={e => setResultSearch(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-10 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none focus:ring-2 focus:ring-emerald-500/20" />
+                  <input type="text" placeholder="Filter list by ID/Name..." value={resultSearch} onChange={e => setResultSearch(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-10 py-2.5 rounded-xl text-[10px] font-black text-slate-900 dark:text-white tracking-tight outline-none focus:ring-2 focus:ring-emerald-500/20" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={handlePrev} disabled={activeResultIndex === 0} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronLeft size={20} /></button>
-                  <div className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black text-slate-400 tracking-tight">{activeResultIndex + 1} / {filteredResults.length || 0}</div>
-                  <button onClick={handleNext} disabled={activeResultIndex >= filteredResults.length - 1} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronRight size={20} /></button>
-                </div>
-              </div>
+              )}
             </div>
 
-            {currentResult ? (
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[48px] p-10 shadow-xl relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
-                <div className="absolute -right-20 -bottom-20 opacity-[0.03] pointer-events-none text-slate-900 dark:text-white"><Trophy size={400} /></div>
+            {previewMode === 'individual' ? (
+              currentResult ? (
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[48px] p-10 shadow-xl relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+                  <div className="absolute -right-20 -bottom-20 opacity-[0.03] pointer-events-none text-slate-900 dark:text-white"><Trophy size={400} /></div>
 
-                <div className="relative z-10 flex flex-col space-y-12">
-                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
-                    <div className="flex items-center gap-6">
-                      <div className="w-28 h-28 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-[36px] overflow-hidden flex items-center justify-center shadow-2xl shadow-emerald-500/30 ring-4 ring-white dark:ring-slate-800">
-                        {currentResult.image ? (
-                          <img
-                            src={(currentResult.image.startsWith('http') || currentResult.image.startsWith('data:'))
-                              ? currentResult.image
-                              : `http://localhost:7000/${currentResult.image.replace(/\\/g, '/')}`}
-                            alt={currentResult.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User size={56} className="text-white" />
-                        )}
+                  <div className="relative z-10 flex flex-col space-y-12">
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
+                      <div className="flex items-center gap-6">
+                        <div className="w-28 h-28 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-[36px] overflow-hidden flex items-center justify-center shadow-2xl shadow-emerald-500/30 ring-4 ring-white dark:ring-slate-800">
+                          {currentResult.image ? (
+                            <img
+                              src={(currentResult.image.startsWith('http') || currentResult.image.startsWith('data:'))
+                                ? currentResult.image
+                                : `http://localhost:7000/${currentResult.image.replace(/\\/g, '/')}`}
+                              alt={currentResult.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User size={56} className="text-white" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">{currentResult.name}</h3>
+                          <p className="text-sm font-bold text-slate-400 tracking-tight mb-4">SID: {currentResult.studentId} • Grade {currentResult.grade}-{currentResult.section}</p>
+                          <span className="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 text-[10px] font-black tracking-tight rounded-xl border border-emerald-500/10">
+                            {currentResult.phase}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-2">{currentResult.name}</h3>
-                        <p className="text-sm font-bold text-slate-400 tracking-tight mb-4">SID: {currentResult.studentId} • Grade {currentResult.grade}-{currentResult.section}</p>
-                        <span className="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 text-[10px] font-black tracking-tight rounded-xl border border-emerald-500/10">
-                          {currentResult.phase}
-                        </span>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => onDownloadPDF(currentResult)}
+                          className="flex items-center gap-2 px-10 py-5 bg-emerald-600 text-white rounded-[24px] text-[11px] font-black tracking-tight shadow-2xl shadow-emerald-500/30 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all"
+                        >
+                          <Download size={18} /> Download Official Transcript
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => onDownloadPDF(currentResult)}
-                        className="flex items-center gap-2 px-10 py-5 bg-emerald-600 text-white rounded-[24px] text-[11px] font-black tracking-tight shadow-2xl shadow-emerald-500/30 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all"
-                      >
-                        <Download size={18} /> Download Official Transcript
-                      </button>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                      {Object.entries(currentResult.marks).map(([sub, data]) => (
+                        <div key={sub} className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-[32px] border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center group hover:border-indigo-500/30 transition-all shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 tracking-tight mb-4 leading-none captialize">{sub}</p>
+                          <p className={`text-4xl font-black leading-none mb-2 ${!data ? 'text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
+                            {data ? data.total : '—'}
+                          </p>
+                          <div className="flex items-center gap-3 mt-4">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[9px] font-black text-emerald-500 captialize">Theory</span>
+                              <span className="text-sm font-black text-emerald-600">{data?.theory || 0}</span>
+                            </div>
+                            <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-800" />
+                            <div className="flex flex-col items-center">
+                              <span className="text-[9px] font-black text-indigo-500 captialize">Prac</span>
+                              <span className="text-sm font-black text-indigo-600">{data?.practical || 0}</span>
+                            </div>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mt-6 overflow-hidden flex">
+                            <div
+                              className="h-full bg-emerald-500 transition-all duration-1000"
+                              style={{ width: `${(data?.theory || 0)}%` }}
+                            />
+                            <div
+                              className="h-full bg-indigo-500 transition-all duration-1000"
+                              style={{ width: `${(data?.practical || 0)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                    {Object.entries(currentResult.marks).map(([sub, data]) => (
-                      <div key={sub} className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-[32px] border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center group hover:border-indigo-500/30 transition-all shadow-sm">
-                        <p className="text-[10px] font-black text-slate-400 tracking-tight mb-4 leading-none captialize">{sub}</p>
-                        <p className={`text-4xl font-black leading-none mb-2 ${!data ? 'text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
-                          {data ? data.total : '—'}
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-end">
+                      <div className="xl:col-span-4 grid grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 tracking-tight mb-1">Percentage</p>
+                          <p className="text-4xl font-black text-slate-900 dark:text-white leading-none tracking-tighter">{currentResult.percentage}%</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-slate-400 tracking-tight mb-1">Grade Point</p>
+                          <p className="text-4xl font-black text-indigo-600 leading-none tracking-tighter">{currentResult.gpa}</p>
+                        </div>
+                        <div className="col-span-2 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                          <div className={`px-5 py-2 rounded-xl text-[11px] font-black tracking-tight border shadow-sm ${currentResult.status === 'Passed' ? 'bg-emerald-500 text-white border-emerald-400' :
+                            currentResult.status === 'Failed' ? 'bg-red-500 text-white border-red-400' :
+                              'bg-slate-400 text-white border-slate-300'
+                            }`}>
+                            {currentResult.status}
+                          </div>
+                          <p className="text-[9px] font-bold text-slate-400 tracking-tight">Validated by System</p>
+                        </div>
+                      </div>
+
+                      <div className="xl:col-span-8 flex flex-col">
+                        <p className="text-[11px] font-black text-slate-400 tracking-tight mb-6 flex items-center gap-2">
+                          <BarChart3 size={14} className="text-emerald-500" /> Subject Performance Trend
                         </p>
-                        <div className="flex items-center gap-3 mt-4">
-                          <div className="flex flex-col items-center">
-                            <span className="text-[9px] font-black text-emerald-500 captialize">Theory</span>
-                            <span className="text-sm font-black text-emerald-600">{data?.theory || 0}</span>
-                          </div>
-                          <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-800" />
-                          <div className="flex flex-col items-center">
-                            <span className="text-[9px] font-black text-indigo-500 captialize">Prac</span>
-                            <span className="text-sm font-black text-indigo-600">{data?.practical || 0}</span>
-                          </div>
+                        <div className="h-[140px] w-full bg-slate-50/50 dark:bg-slate-800/20 rounded-[32px] p-6 border border-slate-100 dark:border-slate-800/50">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={Object.entries(currentResult.marks).map(([sub, val]) => ({ name: sub, val: val?.total || 0 }))}>
+                              <Bar dataKey="val" radius={[4, 4, 0, 0]} barSize={24}>
+                                {Object.values(currentResult.marks).map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={(Number(entry?.total) >= 40) ? '#10b981' : '#ef4444'} />
+                                ))}
+                              </Bar>
+                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} dy={10} />
+                              <Tooltip cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#fff', fontSize: '10px', padding: '8px' }} />
+                            </BarChart>
+                          </ResponsiveContainer>
                         </div>
-                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mt-6 overflow-hidden flex">
-                          <div
-                            className="h-full bg-emerald-500 transition-all duration-1000"
-                            style={{ width: `${(data?.theory || 0)}%` }}
-                          />
-                          <div
-                            className="h-full bg-indigo-500 transition-all duration-1000"
-                            style={{ width: `${(data?.practical || 0)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-end">
-                    <div className="xl:col-span-4 grid grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800">
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 tracking-tight mb-1">Percentage</p>
-                        <p className="text-4xl font-black text-slate-900 dark:text-white leading-none tracking-tighter">{currentResult.percentage}%</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-black text-slate-400 tracking-tight mb-1">Grade Point</p>
-                        <p className="text-4xl font-black text-indigo-600 leading-none tracking-tighter">{currentResult.gpa}</p>
-                      </div>
-                      <div className="col-span-2 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                        <div className={`px-5 py-2 rounded-xl text-[11px] font-black tracking-tight border shadow-sm ${currentResult.status === 'Passed' ? 'bg-emerald-500 text-white border-emerald-400' :
-                          currentResult.status === 'Failed' ? 'bg-red-500 text-white border-red-400' :
-                            'bg-slate-400 text-white border-slate-300'
-                          }`}>
-                          {currentResult.status}
-                        </div>
-                        <p className="text-[9px] font-bold text-slate-400 tracking-tight">Validated by System</p>
-                      </div>
-                    </div>
-
-                    <div className="xl:col-span-8 flex flex-col">
-                      <p className="text-[11px] font-black text-slate-400 tracking-tight mb-6 flex items-center gap-2">
-                        <BarChart3 size={14} className="text-emerald-500" /> Subject Performance Trend
-                      </p>
-                      <div className="h-[140px] w-full bg-slate-50/50 dark:bg-slate-800/20 rounded-[32px] p-6 border border-slate-100 dark:border-slate-800/50">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={Object.entries(currentResult.marks).map(([sub, val]) => ({ name: sub, val: val?.total || 0 }))}>
-                            <Bar dataKey="val" radius={[4, 4, 0, 0]} barSize={24}>
-                              {Object.values(currentResult.marks).map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={(Number(entry?.total) >= 40) ? '#10b981' : '#ef4444'} />
-                              ))}
-                            </Bar>
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 700 }} dy={10} />
-                            <Tooltip cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#fff', fontSize: '10px', padding: '8px' }} />
-                          </BarChart>
-                        </ResponsiveContainer>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="py-40 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[48px] border-2 border-dashed border-slate-100 dark:border-slate-800 flex flex-col items-center">
+                  <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-[32px] flex items-center justify-center text-slate-300 mb-6"><Search size={40} /></div>
+                  <p className="text-[11px] font-black text-slate-400 tracking-tight">No student records found matching the filters</p>
+                </div>
+              )
             ) : (
-              <div className="py-40 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[48px] border-2 border-dashed border-slate-100 dark:border-slate-800 flex flex-col items-center">
-                <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-[32px] flex items-center justify-center text-slate-300 mb-6"><Search size={40} /></div>
-                <p className="text-[11px] font-black text-slate-400 tracking-tight">No student records found matching the filters</p>
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[48px] overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50">
+                        <th className="pl-10 py-6 text-[10px] font-black text-slate-400 tracking-widest uppercase">Rank</th>
+                        <th className="px-6 py-6 text-[10px] font-black text-slate-400 tracking-widest uppercase">Student Identity</th>
+                        <th className="px-6 py-6 text-[10px] font-black text-slate-400 tracking-widest uppercase text-center">Class / Grade</th>
+                        <th className="px-6 py-6 text-[10px] font-black text-slate-400 tracking-widest uppercase text-center">GPA</th>
+                        <th className="px-6 py-6 text-[10px] font-black text-slate-400 tracking-widest uppercase text-center">Percentage</th>
+                        <th className="pr-10 py-6 text-[10px] font-black text-slate-400 tracking-widest uppercase text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                      {[...filteredResults]
+                        .sort((a, b) => b.percentage - a.percentage)
+                        .map((student, index) => (
+                          <tr key={student.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group/row">
+                            <td className="pl-10 py-5">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black border transition-all ${index === 0 ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' :
+                                index === 1 ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-sm' :
+                                  index === 2 ? 'bg-orange-500/10 text-orange-600 border-orange-500/20' :
+                                    'bg-slate-50 dark:bg-slate-800 text-slate-400 border-transparent'
+                                }`}>
+                                {index + 1}
+                              </div>
+                            </td>
+                            <td className="px-6 py-5">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden flex-shrink-0 group-hover/row:ring-2 group-hover/row:ring-emerald-500/50 transition-all">
+                                  {student.image ? (
+                                    <img
+                                      src={(student.image.startsWith('http') || student.image.startsWith('data:'))
+                                        ? student.image
+                                        : `http://localhost:7000/${student.image.replace(/\\/g, '/')}`}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : <div className="w-full h-full flex items-center justify-center text-slate-400 font-black text-xs">{student.name[0]}</div>}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-black text-slate-700 dark:text-slate-200 tracking-tight">{student.name}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {student.studentId}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-5 text-center">
+                              <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                G{student.grade}-{student.section}
+                              </span>
+                            </td>
+                            <td className="px-6 py-5 text-center">
+                              <p className="text-sm font-black text-indigo-600 leading-none">{student.gpa}</p>
+                            </td>
+                            <td className="px-6 py-5 text-center">
+                              <p className="text-sm font-black text-slate-700 dark:text-slate-200 leading-none">{student.percentage}%</p>
+                            </td>
+                            <td className="pr-10 py-5 text-center">
+                              <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black tracking-tight border ${student.status === 'Passed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                student.status === 'Failed' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                  'bg-slate-100 dark:bg-slate-800 text-slate-400 border-transparent'
+                                }`}>
+                                {student.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+                {filteredResults.length === 0 && (
+                  <div className="py-24 text-center bg-white dark:bg-slate-900 flex flex-col items-center">
+                    <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-300 mb-4"><Search size={32} /></div>
+                    <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">No batch records match filters</p>
+                  </div>
+                )}
               </div>
-            )}
+            )}}
             {/* 
             <div className="mt-12 pt-12 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between mb-10 px-4">

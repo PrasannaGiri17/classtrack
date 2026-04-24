@@ -128,15 +128,15 @@ const RoutineCard = ({ period, onUpdate }) => {
           </div>
         ) : (
           <div className="flex flex-col items-center group/lesson">
-            <div className="flex items-center gap-2 group/btn cursor-pointer" onClick={handleStartEdit}>
+            <div className="flex items-center gap-2 group/btn">
               <h4 className={`text-xl font-black tracking-tight leading-none text-center ${period.hasClass ? 'text-slate-900 dark:text-white' : 'text-slate-300 dark:text-slate-600'}`}>
                 {period.hasClass ? (period.lesson || "Normal Class") : "No Class"}
               </h4>
-              {period.hasClass && (
+              {/* {period.hasClass && (
                 <div className="p-1.5 text-slate-300 group-hover/btn:text-emerald-500 opacity-0 group-hover/lesson:opacity-100 transition-all rounded-lg">
                   <Pencil size={14} />
                 </div>
-              )}
+              )} */}
             </div>
           </div>
         )}

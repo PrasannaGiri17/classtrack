@@ -108,7 +108,8 @@ const STUDENT_ME_INITIAL = {
     upcomingMonth: '---',
     upcomingAmount: 0,
     pendingMonthsCount: 0,
-    totalDueAmount: 0
+    totalDueAmount: 0,
+    totalPaidAmount: 0
   }
 };
 
@@ -293,7 +294,7 @@ const AttendanceSummaryCard = ({ yearly, studentId }) => {
           {/* Absence Registry Chips */}
           <div className="space-y-3 bg-slate-50 dark:bg-slate-800/20 p-4 rounded-[16px] border border-slate-100 dark:border-white/[0.05] mt-2">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-300 tracking-wider">Absence Registry</p>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-300 tracking-wider">Absents Days</p>
               <div className="px-2 py-0.5 bg-red-500/10 rounded-md">
                 <span className="text-[9px] font-black text-red-500">{displayMonthly.absentDates.length} Dates</span>
               </div>
@@ -382,7 +383,8 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
     setCurrentAvatar(student.avatarUrl);
   }, [student.avatarUrl]);
 
-  const flag = (student.flag || 'green').toLowerCase();
+  // Only reveal flag status to teachers; students always see green
+  const flag = (readOnly ? (student.flag || 'green') : 'green').toLowerCase();
   const flagThemes = {
     red: {
       banner: 'bg-red-600 dark:bg-red-700',
@@ -501,17 +503,17 @@ const StudentProfileHeader = ({ student, onUpdate, readOnly }) => {
                     <Loader2 size={32} className="text-emerald-500 animate-spin" />
                   ) : (
                     <>
-                    {currentAvatar ? (
-                      <img
-                        src={currentAvatar}
-                        alt={student.name}
-                        className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:blur-[3px]"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-800">
-                        <FaRegUser className="text-slate-500 w-12 h-12" />
-                      </div>
-                    )}
+                      {currentAvatar ? (
+                        <img
+                          src={currentAvatar}
+                          alt={student.name}
+                          className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:blur-[3px]"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-slate-800">
+                          <FaRegUser className="text-slate-500 w-12 h-12" />
+                        </div>
+                      )}
                       {/* Pencil Overlay */}
                       {!readOnly && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
@@ -915,7 +917,8 @@ const StudentMePage = () => {
             upcomingMonth: feeData.upcomingMonth || "N/A",
             upcomingAmount: feeData.upcomingAmount || 0,
             pendingMonthsCount: feeData.unpaidCount || 0,
-            totalDueAmount: feeData.totalDue || 0
+            totalDueAmount: feeData.totalDue || 0,
+            totalPaidAmount: feeData.totalPaid || 0
           };
         }
       } catch (fe) {
@@ -1215,7 +1218,7 @@ const StudentMePage = () => {
               </div>
               <div>
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white capitalize tracking-tight leading-none">Latest Marksheet</h3>
-                <p className="text-[10px] font-bold text-slate-400 capitalize tracking-widest mt-2">{selectedTerm} Examination 2081</p>
+                <p className="text-[10px] font-bold text-slate-400 capitalize tracking-widest mt-2">{selectedTerm} Examination </p>
               </div>
             </div>
 
@@ -1264,7 +1267,7 @@ const StudentMePage = () => {
               </div>
 
               <button
-                onClick={() => navigate('/exam')}
+                onClick={() => navigate('/student/exam')}
                 className="flex items-center gap-3 px-8 py-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded-2xl font-black text-[10px] capitalize tracking-widest transition-all hover:bg-white dark:hover:bg-slate-800 group active:scale-95"
               >
                 <Layers size={16} className="group-hover:rotate-12 transition-transform" />
@@ -1357,7 +1360,7 @@ const GuardianInfoCard = ({ student, onUpdate, readOnly }) => {
           <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
             <User size={20} />
           </div>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white capitalize tracking-tight">Guardian Dets</h3>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white capitalize tracking-tight">Guardian Details</h3>
         </div>
         {hasChanges && (
           <button onClick={() => setIsConfirmDialogOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-[9px] capitalize tracking-widest shadow-lg shadow-emerald-500/20">
@@ -1393,64 +1396,57 @@ const FeeStatusCard = ({ feeStatus, readOnly, onNavigate }) => (
   <div className="bg-white dark:bg-[#0b1220] rounded-[40px] border border-slate-100 dark:border-white/5 shadow-xl p-6 lg:p-8 transition-all relative overflow-hidden group/card shadow-indigo-500/5 h-full flex flex-col justify-between">
     {/* Decorative background elements */}
     <div className="absolute top-[-80px] left-[-80px] w-64 h-64 bg-indigo-500/[0.05] blur-[100px] rounded-full pointer-events-none" />
-    <div className="absolute bottom-[-40px] right-[-40px] w-64 h-64 bg-emerald-500/[0.03] blur-[100px] rounded-full pointer-events-none" />
+    <div className="absolute bottom-[-40px] right-[-40px] w-64 h-64 bg-emerald-500/[0.03] blur-[100px] rounded-full pointer-events-none transition-colors" />
 
     <div className="relative z-10">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500 border border-indigo-500/20 shadow-inner">
+          <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500 border border-indigo-500/20 shadow-inner transition-colors">
             <CreditCard size={20} />
           </div>
           <div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white capitalize tracking-tight">Finances</h3>
-            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 capitalize tracking-widest mt-0.5">Status Overview</p>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Finances</h3>
+            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 tracking-widest mt-0.5">Status Overview</p>
           </div>
         </div>
-        {feeStatus.totalDueAmount > 0 && (
-          <div className="px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-[9px] font-black capitalize tracking-widest shadow-lg shadow-red-500/5 animate-pulse">
-            Due Balance
-          </div>
+
+        {!readOnly && (
+          <button
+            onClick={onNavigate}
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0 tracking-widest"
+          >
+            Pay Fee
+            <ArrowRight size={13} />
+          </button>
         )}
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        <div className="bg-white dark:bg-white/[0.03] p-4 lg:p-5 rounded-[28px] border border-slate-100 dark:border-white/[0.05] transition-all hover:border-indigo-500/30 group/item">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Calendar size={12} className="text-indigo-400" />
-              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 capitalize tracking-widest">Upcoming ({feeStatus.upcomingMonth})</span>
-            </div>
+        {/* Total Payments Card */}
+        <div className="bg-emerald-50 dark:bg-emerald-500/[0.06] p-4 lg:p-5 rounded-2xl border border-emerald-200 dark:border-emerald-500/20 transition-all hover:bg-emerald-100/50 dark:hover:bg-emerald-500/[0.1] group/item">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldCheck size={12} className="text-emerald-500" />
+            <span className="text-[9px] font-black text-emerald-500/60 tracking-widest">Total Payments</span>
           </div>
-          <p className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight tabular-nums">
-            <span className="text-lg font-bold text-slate-400 dark:text-slate-500 mr-1">Rs.</span>
-            {feeStatus.upcomingAmount.toLocaleString()}
+          <p className="text-3xl font-black text-emerald-500 leading-none tracking-tight tabular-nums">
+            <span className="text-lg font-bold text-emerald-500/40 mr-1">Rs.</span>
+            {(feeStatus?.totalPaidAmount || 0).toLocaleString()}
           </p>
-
         </div>
 
-        <div className="bg-red-500/[0.02] p-4 lg:p-5 rounded-[28px] border border-red-500/10 transition-all hover:bg-red-500/[0.04] group/item">
+        {/* Total Dues Card */}
+        <div className="bg-red-50 dark:bg-red-500/[0.06] p-4 lg:p-5 rounded-2xl border border-red-200 dark:border-red-500/20 transition-all hover:bg-red-100/50 dark:hover:bg-red-500/[0.1] group/item">
           <div className="flex items-center gap-2 mb-3">
-            <ShieldCheck size={12} className="text-red-500" />
-            <span className="text-[9px] font-black text-red-500/60 capitalize tracking-widest">Total Dues</span>
+            <AlertCircle size={12} className="text-red-500" />
+            <span className="text-[9px] font-black text-red-500/60 tracking-widest">Total Dues</span>
           </div>
           <p className="text-3xl font-black text-red-500 leading-none tracking-tight tabular-nums">
             <span className="text-lg font-bold text-red-500/40 mr-1">Rs.</span>
-            {feeStatus.totalDueAmount.toLocaleString()}
+            {(feeStatus?.totalDueAmount || 0).toLocaleString()}
           </p>
-          <p className="text-[8px] font-bold text-red-500/30 capitalize mt-2.5">Clear pending dues early</p>
         </div>
       </div>
     </div>
-
-    {!readOnly && (
-      <button
-        onClick={onNavigate}
-        className="w-full mt-6 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[24px] font-black text-[10px] capitalize tracking-[0.2em] shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
-      >
-        Make Payment
-        <CreditCard size={14} />
-      </button>
-    )}
   </div>
 );
 

@@ -4,14 +4,16 @@ const SchoolNotification = require("../models/SchoolNotification");
 // @route   POST /api/school-notifications
 exports.createNotification = async (req, res) => {
   try {
-    const { title, message, sender } = req.body;
+    const { title, message, sender, receiver, receiverId } = req.body;
     const schoolId = req.schoolId;
 
     const notification = new SchoolNotification({
       schoolId,
       title,
       message,
-      sender
+      sender,
+      receiver,
+      receiverId
     });
 
     await notification.save();
@@ -47,9 +49,12 @@ exports.getNotifications = async (req, res) => {
 
     const notifications = await SchoolNotification.find(query).sort({ createdAt: -1 });
 
-    // De-duplicate by title (keep only the latest)
+    // De-duplicate by title (keep only the latest), but allow multiple fee payments
     const uniqueTitles = new Set();
     const deDuplicated = notifications.filter(notif => {
+      if (notif.title === 'Fee Payment Success') {
+        return true;
+      }
       if (uniqueTitles.has(notif.title)) {
         return false;
       }

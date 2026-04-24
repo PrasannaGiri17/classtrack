@@ -233,7 +233,16 @@ const addStudent = async (req, res) => {
 
 const getStudentById = async (req, res) => {
   try {
-    const student = await Student.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    let student = await Student.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    
+    // Fallback: If not found, check if the ID passed is actually a User ID
+    if (!student) {
+      const userDoc = await User.findOne({ _id: req.params.id, role: 'student', schoolId: req.schoolId });
+      if (userDoc && userDoc.studentId) {
+        student = await Student.findOne({ _id: userDoc.studentId, schoolId: req.schoolId });
+      }
+    }
+
     if (!student) return res.status(404).json({ message: "Student not found" });
 
     // Populate Grade and Section info to find the class teacher
@@ -397,6 +406,20 @@ const removeStudentFromSection = async (req, res) => {
   }
 };
 
+const togglePin = async (req, res) => {
+  try {
+    const student = await Student.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!student) return res.status(404).json({ message: "Student not found" });
+
+    student.isPinned = !student.isPinned;
+    await student.save();
+
+    res.status(200).json({ message: "Pin status toggled", isPinned: student.isPinned });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getAllStudents,
   addStudent,
@@ -405,5 +428,6 @@ module.exports = {
   updateStudent,
   deleteStudent,
   updateSectionEnrollment,
-  removeStudentFromSection
+  removeStudentFromSection,
+  togglePin
 };

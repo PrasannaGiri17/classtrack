@@ -261,7 +261,7 @@ const DiscussionCard = ({ post, onClick, onDelete, onReport, user, subjects }) =
           {isAuthor ? (
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(post._id || post.id); }}
-              className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
+              className="p-2 text-white hover:bg-red-500 rounded-xl transition-all"
               title="Delete Discussion"
             >
               <Trash2 size={18} />
@@ -401,7 +401,7 @@ const DiscussionDetailView = ({ post, onBack, onDelete, onReport, user, subjects
           {isAuthor ? (
             <button
               onClick={() => onDelete(post._id || post.id)}
-              className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all shadow-sm"
+              className="p-4 bg-transparent text-white hover:bg-red-500 active:bg-red-600 rounded-2xl transition-all shadow-sm"
               title="Delete Discussion"
             >
               <Trash2 size={20} />

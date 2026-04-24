@@ -35,7 +35,19 @@ import gradeService from '../Api/gradeService';
 import timetableService from '../Api/timetableService';
 import routineService from '../Api/routineService';
 import notificationService from '../Api/notificationService';
-import { getHolidayOnDate } from '../Utils/nepaliDateHelpers';
+import schoolNotificationService from '../Api/schoolNotificationService';
+import { getHolidayOnDate, getNepaliDateInfo } from '../Utils/nepaliDateHelpers';
+import { formatDistanceToNow } from 'date-fns';
+
+const TERM_ORDER = {
+  "First Mid Term": 1,
+  "First Term": 2,
+  "Second Mid Term": 3,
+  "Second Term": 4,
+  "Third Mid Term": 5,
+  "Third Term": 6,
+  "Final Term": 6
+};
 
 // --- Helpers ---
 const RadialGauge = ({ title, subtitle, value, label, percent, color }) => {
@@ -128,6 +140,8 @@ const SDashboard = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [selectedClass, setSelectedClass] = useState('All Classes');
   const [selectedHomeworkDate, setSelectedHomeworkDate] = useState('Today');
+  const [recentNotifications, setRecentNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
@@ -140,6 +154,7 @@ const SDashboard = () => {
   const [className, setClassName] = useState("");
   const [sectionName, setSectionName] = useState("");
   const [gradeNum, setGradeNum] = useState("");
+  const [activeTermDisplay, setActiveTermDisplay] = useState("");
   const [holidays, setHolidays] = useState([]);
   const [diaryEntries, setDiaryEntries] = useState([]);
   const [isDiaryLoading, setIsDiaryLoading] = useState(false);
@@ -163,7 +178,7 @@ const SDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const fetchAnnouncements = async () => {
+    const fetchNotifications = async () => {
       try {
         const data = await notificationService.getNotifications();
         if (Array.isArray(data)) {
@@ -175,7 +190,24 @@ const SDashboard = () => {
         console.error("Failed to fetch announcements:", err);
       }
     };
-    fetchAnnouncements();
+
+    const fetchSchoolNotifications = async () => {
+      try {
+        setLoadingNotifications(true);
+        const studentId = localStorage.getItem("studentId");
+        if (studentId && studentId !== "undefined") {
+          const data = await schoolNotificationService.getNotifications('student', studentId);
+          setRecentNotifications(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch recent activity:", err);
+      } finally {
+        setLoadingNotifications(false);
+      }
+    };
+
+    fetchNotifications();
+    fetchSchoolNotifications();
   }, []);
 
   useEffect(() => {
@@ -246,52 +278,78 @@ const SDashboard = () => {
               console.warn("Failed to fetch dashboard attendance", e);
             }
 
-            // Fetch Term GPA
+            // Fetch Term GPA (Latest Published)
             try {
-              const examConfigData = await examService.getExamData();
-              let activeTerm = 'First Term';
-              if (examConfigData && examConfigData.termStatuses) {
-                const publishedTerms = examConfigData.termStatuses.filter(t => t.isPublished);
-                if (publishedTerms.length > 0) {
-                  activeTerm = publishedTerms[publishedTerms.length - 1].term;
-                }
+              const { year: currentYear } = getNepaliDateInfo(new Date());
+              let activeTerm = null;
+              let activeYear = currentYear;
+              let examConfigData = await examService.getExamData(currentYear);
+
+              const getLatestPublished = (config) => {
+                if (!config || !config.termStatuses) return null;
+                const published = config.termStatuses
+                  .filter(t => t.isPublished)
+                  .sort((a, b) => (TERM_ORDER[b.term] || 0) - (TERM_ORDER[a.term] || 0));
+                return published.length > 0 ? published[0].term : null;
+              };
+
+              activeTerm = getLatestPublished(examConfigData);
+
+              if (!activeTerm) {
+                // Try previous year
+                activeYear = currentYear - 1;
+                examConfigData = await examService.getExamData(activeYear);
+                activeTerm = getLatestPublished(examConfigData);
               }
-              const allGradeResults = await resultService.getResultsByGradeSectionTerm(data.gradeId?._id || data.classId, null, activeTerm);
 
-              if (allGradeResults && allGradeResults.length > 0) {
-                const uniqueResultsMap = new Map();
-                allGradeResults.forEach(r => {
-                  const sid = r.studentId?._id?.toString() || r.studentId?.toString();
-                  if (sid) uniqueResultsMap.set(sid, r);
-                });
-                const uniqueGradeResults = Array.from(uniqueResultsMap.values());
+              if (activeTerm) {
+                // Fetch ALL results for the student for this specific year
+                const studentResults = await resultService.getStudentResults(data._id, activeYear);
+                const studentResultForTerm = studentResults.find(r => r.term === activeTerm);
 
-                const sortedByGrade = uniqueGradeResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
-                const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
+                if (studentResultForTerm) {
+                  // Use historical grade/section from the result record itself
+                  const targetGradeId = studentResultForTerm.gradeId?._id || studentResultForTerm.gradeId;
+                  const targetSectionName = studentResultForTerm.sectionName;
 
-                const currentSectionName = (sectionInfo?.sectionName || data.section || "").toString().trim().toLowerCase();
-                const sectionResults = uniqueGradeResults.filter(r =>
-                  (r.sectionName || "").toString().trim().toLowerCase() === currentSectionName
-                );
-                const sortedBySection = sectionResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
-                const sectionRankIdx = sortedBySection.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
+                  const allGradeResults = await resultService.getResultsByGradeSectionTerm(targetGradeId, undefined, activeTerm, activeYear);
 
-                const getRankSuffix = (n) => {
-                  if (n === -1) return "---";
-                  const i = n + 1;
-                  const j = i % 10, k = i % 100;
-                  if (j === 1 && k !== 11) return i + "st";
-                  if (j === 2 && k !== 12) return i + "nd";
-                  if (j === 3 && k !== 13) return i + "rd";
-                  return i + "th";
-                };
+                  if (allGradeResults && allGradeResults.length > 0) {
+                    const uniqueResultsMap = new Map();
+                    allGradeResults.forEach(r => {
+                      const sid = r.studentId?._id?.toString() || r.studentId?.toString();
+                      if (sid) uniqueResultsMap.set(sid, r);
+                    });
+                    const uniqueGradeResults = Array.from(uniqueResultsMap.values());
 
-                setGradeRank(getRankSuffix(gradeRankIdx));
-                setClassRank(getRankSuffix(sectionRankIdx));
+                    // Ranking
+                    const sortedByGrade = uniqueGradeResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
+                    const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
 
-                const currentResult = allGradeResults.find(r => r.studentId?._id?.toString() === data._id?.toString() || r.studentId?.toString() === data._id?.toString());
-                if (currentResult && currentResult.summary && currentResult.summary.gpa) {
-                  setTermGPA(Number(currentResult.summary.gpa).toFixed(2));
+                    const sectionResults = uniqueGradeResults.filter(r =>
+                      (r.sectionName || "").toString().trim().toLowerCase() === (targetSectionName || "").toString().trim().toLowerCase()
+                    );
+                    const sortedBySection = sectionResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
+                    const sectionRankIdx = sortedBySection.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
+
+                    const getRankSuffix = (n) => {
+                      if (n === -1) return "---";
+                      const i = n + 1;
+                      const j = i % 10, k = i % 100;
+                      if (j === 1 && k !== 11) return i + "st";
+                      if (j === 2 && k !== 12) return i + "nd";
+                      if (j === 3 && k !== 13) return i + "rd";
+                      return i + "th";
+                    };
+
+                    setGradeRank(getRankSuffix(gradeRankIdx));
+                    setClassRank(getRankSuffix(sectionRankIdx));
+                    setActiveTermDisplay(`${activeTerm} ${activeYear}`);
+
+                    if (studentResultForTerm.summary && studentResultForTerm.summary.gpa) {
+                      setTermGPA(Number(studentResultForTerm.summary.gpa).toFixed(2));
+                    }
+                  }
                 }
               }
             } catch (e) {
@@ -385,7 +443,7 @@ const SDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <RadialGauge
           title="Overall Performance"
-          subtitle="Last Exam Academic GPA"
+          subtitle={activeTermDisplay ? `${activeTermDisplay} GPA` : "Last Exam Academic GPA"}
           value={termGPA}
           percent={(parseFloat(termGPA) / 4.0) * 100 || 0}
           color="#10b981"
@@ -401,7 +459,7 @@ const SDashboard = () => {
         <div className="bg-white dark:bg-slate-900 p-6 lg:p-7 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-lg flex flex-col transition-all group/rank">
           <div className="flex flex-col gap-1">
             <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-none">Class Position</h3>
-            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Last Exam Performance</p>
+            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">{activeTermDisplay ? `${activeTermDisplay} Performance` : "Last Exam Performance"}</p>
           </div>
 
           <div className="flex-1 flex items-center">
@@ -549,21 +607,34 @@ const SDashboard = () => {
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-8 lg:p-10 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
-            <button onClick={() => navigate('/student/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
+            <button onClick={() => navigate('/student/activities')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
-                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                  <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Registry Updated</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">New student enrollment records have been synchronized with the main database.</p>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-2 block uppercase tracking-widest">2 hours ago</span>
-                </div>
+          <div className="space-y-4 max-h-[360px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {loadingNotifications ? (
+              <div className="py-20 text-center">
+                <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Syncing activity...</p>
               </div>
-            ))}
+            ) : recentNotifications.length > 0 ? (
+              recentNotifications.map((notif) => (
+                <div key={notif._id} className="flex gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                    <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">{notif.title}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{notif.message}</p>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-2 block uppercase tracking-widest">
+                      {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-20 text-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No recent activity found</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -573,7 +644,7 @@ const SDashboard = () => {
               <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Announcements</h3>
             </div>
-            <button onClick={() => navigate('/student/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
+            <button onClick={() => navigate('/student/activities')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
           <div className="space-y-4 max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {announcements.map((item, idx) => (

@@ -116,7 +116,7 @@ const SNotificationPage = () => {
             <option value="important">Important</option>
             <option value="urgent">Urgent</option>
             <option value="warning">Warnings</option>
-            <option value="normal">General</option>
+
           </select>
           <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
         </div>
@@ -154,8 +154,8 @@ const SNotificationPage = () => {
               >
                 {/* Priority Line */}
                 <div className={`absolute top-0 left-0 w-1.5 h-full ${a.priority === 'urgent' ? 'bg-red-500' :
-                    a.priority === 'warning' ? 'bg-amber-500' :
-                      'bg-emerald-500'
+                  a.priority === 'warning' ? 'bg-amber-500' :
+                    'bg-emerald-500'
                   }`} />
 
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-8">
@@ -259,7 +259,7 @@ const SNotificationPage = () => {
 
             <div className="flex-1 overflow-y-auto p-12 scrollbar-hide bg-white dark:bg-slate-900 transition-colors">
               <div className="prose prose-emerald prose-lg dark:prose-invert max-w-none">
-                <p className="text-lg font-medium text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap uppercase font-mono italic">
+                <p className="text-lg font-medium text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
                   {previewItem.message}
                 </p>
               </div>

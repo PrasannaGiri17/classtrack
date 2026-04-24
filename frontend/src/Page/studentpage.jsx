@@ -46,6 +46,7 @@ import calendarService from '../Api/calendarService';
 import flagService from '../Api/flagService';
 import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
 import Loading from '../MainSystemComponents/Loading';
+import { useAuth } from '../context/AuthContext';
 
 // --- Helpers ---
 
@@ -345,7 +346,7 @@ const AttendanceSummaryCard = ({ yearly, studentId }) => {
     );
 };
 
-const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
+const StudentProfileHeader = ({ student, onUpdate, onEditClick, role }) => {
     const navigate = useNavigate();
     const [currentAvatar, setCurrentAvatar] = useState(student.profilePhoto || student.avatarUrl);
     const fileInputRef = useRef(null);
@@ -481,7 +482,7 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
 
                 {/* Back/Close Button */}
                 <button
-                    onClick={() => navigate('/admin/student-record')}
+                    onClick={() => navigate(`/${role}/student-record`)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-white transition-all group/close z-10"
                     title="Back to Student Records"
                 >
@@ -589,13 +590,15 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick }) => {
                     </div>
 
                     {/* Edit Button */}
-                    <button
-                        onClick={onEditClick}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                        <Pencil size={13} />
-                        Edit Student
-                    </button>
+                    {role === 'admin' && (
+                        <button
+                            onClick={onEditClick}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0"
+                        >
+                            <Pencil size={13} />
+                            Edit Student
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -794,6 +797,8 @@ const EditableInfoItem = ({ label, value, onChange, icon, placeholder, maxLength
 const StudentPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const role = user?.role || 'admin';
     const [isLoaded, setIsLoaded] = useState(false);
     const [student, setStudent] = useState(STUDENT_ME_INITIAL);
     const [selectedTerm, setSelectedTerm] = useState('First Term');
@@ -924,17 +929,25 @@ const StudentPage = () => {
                 const startAD = convertBStoAD(`${curY}-01-01`);
                 const endAD = new Date().toISOString().split('T')[0];
 
-                const [studentRes, yearlyRes, holidaysList, flagRes, allResults] = await Promise.all([
-                    studentService.getStudentById(id),
-                    attendanceService.getStudentYearlyAttendance(id, curY || 2081),
+                // 1. Fetch student first to get the correct student._id (in case 'id' is a userId)
+                const studentData = await studentService.getStudentById(id);
+                const realStudentId = studentData._id;
+
+                // 2. Fetch other data using the resolved student ID
+                const [yearlyRes, holidaysList, flagRes, allResults] = await Promise.allSettled([
+                    attendanceService.getStudentYearlyAttendance(realStudentId, curY || 2081),
                     calendarService.getEvents(startAD, endAD),
-                    flagService.getLatestFlag(id),
-                    resultService.getStudentResults(id)
+                    flagService.getLatestFlag(realStudentId),
+                    resultService.getStudentResults(realStudentId)
                 ]);
 
-                const data = studentRes;
-                const yearlyData = yearlyRes;
-                const holidayDates = new Set(holidaysList.filter(e => e.type === 'HOLIDAY').map(e => new Date(e.startDate).toISOString().split('T')[0]));
+                const data = studentData;
+                const yearlyData = yearlyRes.status === 'fulfilled' ? yearlyRes.value : null;
+                const holidaysData = holidaysList.status === 'fulfilled' ? holidaysList.value : [];
+                const latestFlag = flagRes.status === 'fulfilled' ? (Array.isArray(flagRes.value) ? flagRes.value[0] : flagRes.value) : null;
+                const resultsData = allResults.status === 'fulfilled' ? allResults.value : [];
+
+                const holidayDates = new Set(holidaysData.filter(e => e.type === 'HOLIDAY').map(e => new Date(e.startDate).toISOString().split('T')[0]));
 
                 let workingDaysCount = 0;
                 let cur = new Date(startAD);
@@ -952,26 +965,26 @@ const StudentPage = () => {
                 } : STUDENT_ME_INITIAL.yearlyAttendance;
 
                 let finalFeeStatus = STUDENT_ME_INITIAL.feeStatus;
-                try {
-                    const feeRes = await feeService.getFeeSummary(data._id);
-                    if (feeRes) {
-                        finalFeeStatus = {
-                            upcomingMonth: feeRes.upcomingMonth || "N/A",
-                            upcomingAmount: feeRes.upcomingAmount || 0,
-                            pendingMonthsCount: feeRes.unpaidCount || 0,
-                            totalDueAmount: feeRes.totalDue || 0,
-                            totalPaidAmount: feeRes.totalPaid || 0
-                        };
+                if (role === 'admin') {
+                    try {
+                        const feeRes = await feeService.getFeeSummary(realStudentId);
+                        if (feeRes) {
+                            finalFeeStatus = {
+                                upcomingMonth: feeRes.upcomingMonth || "N/A",
+                                upcomingAmount: feeRes.upcomingAmount || 0,
+                                pendingMonthsCount: feeRes.unpaidCount || 0,
+                                totalDueAmount: feeRes.totalDue || 0,
+                                totalPaidAmount: feeRes.totalPaid || 0
+                            };
+                        }
+                    } catch (fe) {
+                        console.warn("Fee fetch failed", fe);
                     }
-                } catch (fe) {
-                    console.warn("Fee fetch failed", fe);
                 }
-
-                const latestFlag = Array.isArray(flagRes) ? flagRes[0] : (flagRes || null);
 
                 // Process historical records for dropdown
                 const recordsMap = new Map();
-                allResults.forEach(res => {
+                resultsData.forEach(res => {
                     const rGradeId = res.gradeId?._id?.toString() || res.gradeId?.toString();
                     if (rGradeId) {
                         const key = `${res.academicYear}-${rGradeId}`;
@@ -1080,11 +1093,26 @@ const StudentPage = () => {
                     student={student}
                     onUpdate={handleUpdateStudent}
                     onEditClick={() => setIsEditPopupOpen(true)}
+                    role={role}
                 />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <GuardianInfoCard student={student} />
-                    <FeeStatusCard feeStatus={student.feeStatus} studentId={id} />
+                    {role === 'admin' ? (
+                        <FeeStatusCard feeStatus={student.feeStatus} studentId={id} role={role} />
+                    ) : (
+                        <div className="bg-slate-50/50 dark:bg-[#0b1220]/50 rounded-[40px] border border-dashed border-slate-200 dark:border-white/10 p-8 flex flex-col items-center justify-center text-center gap-4 group/restricted">
+                            <div className="w-16 h-16 bg-slate-100 dark:bg-white/5 rounded-3xl flex items-center justify-center text-slate-400 dark:text-slate-600 transition-colors group-hover/restricted:text-amber-500/50">
+                                <Shield size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Finance Restricted</h3>
+                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1 px-10">
+                                    Financial details are only accessible to administrative personnel.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <AttendanceSummaryCard yearly={student.yearlyAttendance} studentId={id} />
@@ -1269,7 +1297,7 @@ const GuardianInfoCard = ({ student }) => {
 
 const SkeletonBlock = ({ height }) => (<div className={`w-full ${height} bg-slate-200 dark:bg-slate-800/50 rounded-[40px]`} />);
 
-const FeeStatusCard = ({ feeStatus, studentId }) => {
+const FeeStatusCard = ({ feeStatus, studentId, role }) => {
     const navigate = useNavigate();
     return (
         <div className="bg-white dark:bg-[#0b1220] rounded-[40px] border border-slate-100 dark:border-white/5 shadow-xl p-6 lg:p-8 transition-all relative overflow-hidden group/card shadow-indigo-500/5 h-full flex flex-col justify-between">
@@ -1290,7 +1318,7 @@ const FeeStatusCard = ({ feeStatus, studentId }) => {
                     </div>
 
                     <button
-                        onClick={() => navigate(`/admin/fee/student/${studentId}`)}
+                        onClick={() => navigate(`/${role === 'admin' ? 'admin' : 'teacher'}/fee/student/${studentId}`)}
                         className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0 tracking-widest"
                     >
                         Full Fee Record

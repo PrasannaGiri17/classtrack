@@ -38,6 +38,7 @@ const StudentSchema = new mongoose.Schema(
 
     status: { type: String, enum: ["active", "inactive", "graduated"], default: "active" },
     graduationYear: { type: String, default: null }, // NEW: Tracking graduation cycle
+    isPinned: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

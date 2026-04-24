@@ -17,10 +17,14 @@ import {
   HelpCircle,
   CreditCard,
   MessageSquare,
-  Building2
+  Building2,
+  ClipboardList
 } from 'lucide-react';
 import schoolService from '../../Api/schoolService';
 import axios from 'axios';
+import { IoBookOutline } from "react-icons/io5";
+
+import { PiExam } from "react-icons/pi";
 
 
 const Sidebar = ({ activePage }) => {
@@ -63,13 +67,13 @@ const Sidebar = ({ activePage }) => {
     { key: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/student/dashboard' },
     { key: 'classroom', icon: Users, label: 'Classroom', path: '/student/classroom' },
     { key: 'discussions', icon: MessageSquare, label: 'Discussions', path: '/student/discussions' },
-    { key: 'diary', icon: BookOpenCheck, label: 'Class Diary', path: '/student/diary' },
+    { key: 'diary', icon: IoBookOutline, label: 'Class Diary', path: '/student/diary' },
     { key: 'fee', icon: CreditCard, label: 'Fee Payment', path: '/student/fee' },
-    { key: 'assignments', icon: FileBox, label: 'Assignments / Content', path: '/student/assignments' },
-    { key: 'quiz', icon: HelpCircle, label: 'Quiz', path: '/student/quiz' },
+    { key: 'assignments', icon: FileText, label: 'Assignments / Content', path: '/student/assignments' },
+    { key: 'quiz', icon: ClipboardList, label: 'Quiz', path: '/student/quiz' },
     { key: 'routine', icon: Clock, label: 'Routine', path: '/student/routine' },
     { key: 'calendar', icon: Calendar, label: 'Calendar', path: '/student/calendar' },
-    { key: 'exam', icon: FileText, label: 'Exam', path: '/student/exam' },
+    { key: 'exam', icon: PiExam, label: 'Exam', path: '/student/exam' },
     { key: 'Announcements', icon: Bell, label: 'Announcements', path: '/student/notification' },
   ];
 

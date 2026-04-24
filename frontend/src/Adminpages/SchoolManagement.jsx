@@ -131,9 +131,9 @@ const SchoolManagement = () => {
             };
             setSchoolConfig(prev => ({ ...prev, ...transformedData }));
             if (schoolData.gradeSpan) {
-              setRange({ 
-                from: schoolData.gradeSpan.start, 
-                to: schoolData.gradeSpan.end 
+              setRange({
+                from: schoolData.gradeSpan.start,
+                to: schoolData.gradeSpan.end
               });
             }
             if (schoolData.operatingHours) {
@@ -191,11 +191,11 @@ const SchoolManagement = () => {
           if (routineData) {
             console.log("Routine data fetched successfully:", routineData);
             if (routineData.operatingHours) setSchoolHours(routineData.operatingHours);
-            
+
             // Merge with local storage for unfinalized/modified routines
             const localCache = localStorage.getItem(`routine_cache_${effectiveSchoolId}`);
             let mergedRoutines = routineData.classRoutines || {};
-            
+
             if (localCache) {
               const parsedCache = JSON.parse(localCache);
               Object.keys(parsedCache).forEach(grade => {
@@ -204,13 +204,13 @@ const SchoolManagement = () => {
                 // Usually: if remote is LOCKED, we discard local (finalized is truth).
                 // if remote is UNLOCKED, we use local if available.
                 if (!mergedRoutines[grade]?.isLocked) {
-                   mergedRoutines[grade] = parsedCache[grade];
+                  mergedRoutines[grade] = parsedCache[grade];
                 }
               });
             }
             setClassRoutines(mergedRoutines);
           }
- else {
+          else {
             console.warn("Routine data was empty for schoolId:", effectiveSchoolId);
           }
         } catch (routineErr) {
@@ -333,10 +333,10 @@ const SchoolManagement = () => {
         console.error("No activeId available for saving school config.");
         return false;
       }
-      
+
       // Add schoolId to payload
       const finalPayload = { ...payload, schoolId: activeId };
-      
+
       console.log(`Attempting to update school config for schoolId: ${activeId}`, finalPayload);
       await schoolService.updateSchool(activeId, finalPayload);
       console.log(`School config updated successfully for schoolId: ${activeId}`);
@@ -566,16 +566,16 @@ const SchoolManagement = () => {
             <p className="text-[12px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-3.5">Administrative Configuration Module</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <HubCard icon={Settings} color="bg-emerald-500" title="School Setup" desc="Configure school identity, addresses, and global metadata." onClick={() => setActiveView('institutional')} />
-            <HubCard icon={Layers} color="bg-blue-500" title="Grade & Sections" desc="Define class hierarchies and active learning sections." onClick={() => setActiveView('grades')} />
-            <HubCard icon={BookOpen} color="bg-amber-500" title="School Subjects" desc="Manage core mandatory subjects and specialized electives." onClick={() => setActiveView('curriculum')} />
-            <HubCard icon={Clock} color="bg-indigo-600" title="Routine Structure" desc="Set universal school day frameworks and period skeletons." onClick={() => setActiveView('routine')} />
+            <HubCard icon={Settings} color="bg-emerald-500" title="School Setup" desc="Edit School Information." onClick={() => setActiveView('institutional')} />
+            <HubCard icon={Layers} color="bg-blue-500" title="Grade & Sections" desc="Introduce Grade and Section to your school" onClick={() => setActiveView('grades')} />
+            <HubCard icon={BookOpen} color="bg-amber-500" title="School Subjects" desc="Manage mandatory subjects and specialized subjects." onClick={() => setActiveView('curriculum')} />
+            <HubCard icon={Clock} color="bg-indigo-600" title="Routine Structure" desc="Set universal school day routine and structure." onClick={() => setActiveView('routine')} />
             <HubCard icon={RefreshCcw} color="bg-rose-500" title="Next Year Switch" desc="Transition school records to the next academic cycle (2083)." onClick={() => setIsSwitchPopupOpen(true)} />
           </div>
 
-          <YearSwitchPopup 
-            isOpen={isSwitchPopupOpen} 
-            onClose={() => setIsSwitchPopupOpen(false)} 
+          <YearSwitchPopup
+            isOpen={isSwitchPopupOpen}
+            onClose={() => setIsSwitchPopupOpen(false)}
             currentYear={2082}
             schoolEmail={currentAdminEmail || schoolConfig.schoolEmail}
           />

@@ -5,7 +5,7 @@ const schoolNotificationSchema = new mongoose.Schema({
   title:    { type: String, required: true },
   message:  { type: String, required: true },
   sender:   { type: String, required: true },
-  receiver: { type: String, enum: ['student', 'teacher', 'all'], default: 'all' },
+  receiver: { type: String, enum: ['student', 'teacher', 'admin', 'all'], default: 'all' },
   receiverId: { type: mongoose.Schema.Types.ObjectId, default: null, index: true },
   readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });

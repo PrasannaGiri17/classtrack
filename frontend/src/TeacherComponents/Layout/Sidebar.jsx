@@ -14,8 +14,12 @@ import {
   FileText,
   Bell,
   MessageSquare,
-  LogOut
+  LogOut,
+  ClipboardList
 } from 'lucide-react';
+import { IoBookOutline } from "react-icons/io5";
+
+import { PiExam } from "react-icons/pi";
 
 const Sidebar = ({ activePage }) => {
   const navigate = useNavigate();
@@ -46,9 +50,9 @@ const Sidebar = ({ activePage }) => {
     { key: 'attendance', icon: Users, label: 'Attendance', path: '/teacher/attendance' },
     { key: 'student', icon: GraduationCap, label: 'Classroom', path: '/teacher/student-record' },
     { key: 'calendar', icon: Calendar, label: 'Calendar', path: '/teacher/calendar' },
-    { key: 'exam', icon: FileText, label: 'Exam', path: '/teacher/exam' },
-    { key: 'quiz', icon: FileText, label: 'Quiz', path: '/teacher/quiz' },
-    { key: 'diary', icon: FileText, label: 'Diary', path: '/teacher/diary' },
+    { key: 'exam', icon: PiExam, label: 'Exam', path: '/teacher/exam' },
+    { key: 'quiz', icon: ClipboardList, label: 'Quiz', path: '/teacher/quiz' },
+    { key: 'diary', icon: IoBookOutline, label: 'Diary', path: '/teacher/diary' },
     { key: 'assignments', icon: FileText, label: 'Assignments', path: '/teacher/assignments' },
     { key: 'discussions', icon: MessageSquare, label: 'Discussions', path: '/teacher/discussions' },
     { key: 'notification', icon: Bell, label: 'Announcements', path: '/teacher/notification' },

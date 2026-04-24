@@ -147,7 +147,8 @@ exports.getAdminStatus = async (req, res) => {
         unpaidMonths,
         totalDueAmount: totalDue,
         totalPaidAmount: totalPaid,
-        feeStatus: totalUnpaidRaw > 0 ? "UNPAID" : "PAID"
+        feeStatus: totalUnpaidRaw > 0 ? "UNPAID" : "PAID",
+        isPinned: stu.isPinned || false
       };
     }));
 

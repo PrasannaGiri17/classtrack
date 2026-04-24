@@ -168,6 +168,7 @@ function App() {
           <Route path="discussions" element={<SDiscussionsPage />} />
           <Route path="profile" element={<TeacherMePage />} />
           <Route path="student-profile" element={<StudentMePage />} />
+          <Route path="student/:id" element={<StudentPage />} />
           <Route path="messages" element={<MessagesPage />} />
           <Route path="activities" element={<ActivityPage />} />
         </Route>

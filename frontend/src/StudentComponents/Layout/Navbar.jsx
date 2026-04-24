@@ -3,14 +3,23 @@ import { Bell, Sun, Moon, Check, ArrowRight, User, MessageSquare } from 'lucide-
 import { FaRegUser } from "react-icons/fa6";
 import { useNavigate } from 'react-router-dom';
 import messageService from '../../Api/messageService';
+import schoolNotificationService from '../../Api/schoolNotificationService';
+import { useAuth } from '../../context/AuthContext';
 
 const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userId = user?._id || user?.userId;
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
-  const [userName, setUserName] = useState(localStorage.getItem("userName") || "Student");
+  const [userName, setUserName] = useState(() => {
+    const stored = localStorage.getItem("userName");
+    return (stored && stored !== "undefined") ? stored : "Student";
+  });
   const [userPhoto, setUserPhoto] = useState(localStorage.getItem("userPhoto") || null);
   const [unreadConversations, setUnreadConversations] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -23,7 +32,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         if (url && studentId || teacherId) {
           const res = await fetch(url);
           const data = await res.json();
-          if (data) {
+          if (data && data.firstName) {
             const name = `${data.firstName} ${data.lastName || ''}`.trim();
             setUserName(name);
             localStorage.setItem("userName", name);
@@ -39,7 +48,8 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
     };
 
     const forceUpdate = () => {
-      setUserName(localStorage.getItem("userName") || "Student");
+      const stored = localStorage.getItem("userName");
+      setUserName((stored && stored !== "undefined") ? stored : "Student");
       setUserPhoto(localStorage.getItem("userPhoto") || null);
     };
 
@@ -101,14 +111,62 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
     day: 'numeric'
   });
 
-  const notifications = [
-    { id: 1, title: 'Exam Schedule', msg: 'Mid-term exam schedule for Grade 10 is out.', time: '10m ago', unread: true },
-    { id: 2, title: 'Assignment Graded', msg: 'Your Science assignment has been graded.', time: '2h ago', unread: true },
-    { id: 3, title: 'Library Reminder', msg: 'Please return "Physics Vol 1" by tomorrow.', time: '4h ago', unread: false },
-    { id: 4, title: 'Holiday Notice', msg: 'School will be closed this Friday.', time: '6h ago', unread: false },
-    { id: 5, title: 'New Achievement', msg: 'You earned a "Perfectionist" badge!', time: '1d ago', unread: true },
-    { id: 6, title: 'Fee Payment Success', msg: 'Monthly fee payment received for March.', time: '3d ago', unread: false },
-  ];
+  // Fetch school-wide notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        setLoadingNotifications(true);
+        const studentId = localStorage.getItem("studentId");
+        if (studentId && studentId !== "undefined" && studentId !== "null") {
+          const data = await schoolNotificationService.getNotifications('student', studentId);
+          setNotifications(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch notifications for navbar:", error);
+      } finally {
+        setLoadingNotifications(false);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  const getTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+
+    if (diffInMinutes < 1) return 'just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await schoolNotificationService.markAsRead(id);
+      setNotifications(prev => prev.map(n =>
+        n._id === id ? { ...n, readBy: [...(n.readBy || []), userId] } : n
+      ));
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await schoolNotificationService.markAllAsRead('student');
+      setNotifications(prev => prev.map(n => ({
+        ...n,
+        readBy: [...(new Set([...(n.readBy || []), userId]))]
+      })));
+    } catch (error) {
+      console.error("Failed to mark all read:", error);
+    }
+  };
 
   return (
     <div className="w-full flex items-center justify-between transition-colors">
@@ -156,7 +214,11 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
             }`}
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
+          {notifications.filter(n => !n.readBy?.includes(userId)).length > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 border-2 border-white dark:border-slate-800 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-1 shadow-sm">
+              {notifications.filter(n => !n.readBy?.includes(userId)).length}
+            </span>
+          )}
         </button>
 
         {/* Notifications Dropdown */}
@@ -164,30 +226,48 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           <div className="absolute top-full right-[4rem] mt-3 w-96 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-none z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Notifications</h3>
-              <button className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1">
-                <Check className="w-3 h-3" /> Mark all read
-              </button>
+
             </div>
-            {/* Scrollable Notifications List */}
             <div className="max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-              {notifications.map((notif) => (
-                <div key={notif.id} className="p-4 border-b border-slate-50 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer group">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className={`text-xs font-bold ${notif.unread ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
-                      {notif.title}
-                    </h4>
-                    <span className="text-[10px] font-medium text-slate-400">{notif.time}</span>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 group-hover:line-clamp-none transition-all">
-                    {notif.msg}
-                  </p>
-                  {notif.unread && (
-                    <div className="mt-2 w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-                  )}
+              {loadingNotifications ? (
+                <div className="p-8 text-center">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Syncing alerts...</p>
                 </div>
-              ))}
+              ) : notifications.length > 0 ? (
+                notifications.map((notif) => (
+                  <div
+                    key={notif._id}
+                    onClick={() => {
+                      if (!notif.readBy?.includes(userId)) {
+                        handleMarkAsRead(notif._id);
+                      }
+                    }}
+                    className="p-4 border-b border-slate-50 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className={`text-xs font-bold ${notif.readBy?.includes(userId) ? 'text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}>
+                        {notif.title}
+                      </h4>
+                      <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap ml-2">{getTimeAgo(notif.createdAt)}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 group-hover:line-clamp-none transition-all">
+                      {notif.message}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">{notif.sender}</span>
+                      {!notif.readBy?.includes(userId) && (
+                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No recent notifications</p>
+                </div>
+              )}
             </div>
-            <button 
+            <button
               onClick={() => navigate('/student/activities')}
               className="w-full p-4 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-800/50"
             >

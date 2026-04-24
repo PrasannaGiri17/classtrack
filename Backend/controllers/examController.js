@@ -215,20 +215,20 @@ exports.updatePublishStatus = async (req, res) => {
  
     await exam.save();
 
-    // --- Create School-Wide Notification (For Students) ---
-    const senderName = req.user?.name || "School Administration";
-    const title = `Results ${isPublished ? 'Published' : 'Hidden'} - ${term}`;
-    const message = isPublished 
-      ? `The official results for ${term} (${academicYear || 'Current'}) have been PUBLISHED. You can now view your academic report.`
-      : `The results for ${term} (${academicYear || 'Current'}) have been HIDDEN from public view.`;
+    // --- Create School-Wide Notification (For Students) only when Published ---
+    if (isPublished) {
+      const senderName = req.user?.name || "School Administration";
+      const title = `Results Published - ${term}`;
+      const message = `The official results for ${term} (${academicYear || 'Current'}) have been PUBLISHED. You can now view your academic report.`;
 
-    await new SchoolNotification({
-      schoolId: req.schoolId,
-      title,
-      message,
-      sender: senderName,
-      receiver: 'student'
-    }).save();
+      await new SchoolNotification({
+        schoolId: req.schoolId,
+        title,
+        message,
+        sender: senderName,
+        receiver: 'student'
+      }).save();
+    }
 
     res.json(exam);
   } catch (error) {

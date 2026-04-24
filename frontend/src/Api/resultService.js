@@ -9,8 +9,12 @@ const getStudentResults = async (studentId, academicYear) => {
 };
 
 const getResultsByGradeSectionTerm = async (gradeId, sectionName, term, academicYear) => {
-    const params = { gradeId, sectionName, term };
+    const params = {};
+    if (gradeId) params.gradeId = gradeId;
+    if (sectionName) params.sectionName = sectionName;
+    if (term) params.term = term;
     if (academicYear) params.academicYear = academicYear;
+
     const response = await axios.get(API_URL, { params });
     return response.data;
 };

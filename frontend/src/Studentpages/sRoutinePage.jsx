@@ -36,7 +36,7 @@ const ClassCard = ({ slot, assignment }) => {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="relative group overflow-hidden rounded-[24px] border border-slate-700/50 bg-gradient-to-br from-[#0f1c2e] to-[#0a1628] hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
+      className="relative group overflow-hidden rounded-[24px] border border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/50 hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
     >
       <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full pointer-events-none" />
@@ -46,34 +46,34 @@ const ClassCard = ({ slot, assignment }) => {
         {/* Time block — Fixed width left */}
         <div className="flex items-center gap-4 min-w-[180px] shrink-0">
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <Clock size={16} className="text-emerald-400" />
+            <Clock size={16} className="text-emerald-500" />
           </div>
-          <span className="text-sm font-black text-slate-300 tabular-nums uppercase tracking-widest">{slot.timeRange}</span>
+          <span className="text-sm font-black text-slate-600 dark:text-slate-300 tabular-nums uppercase tracking-widest">{slot.timeRange}</span>
         </div>
 
         {/* Subject & Topic — Centered globally in the card */}
         <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
-           <div className="flex items-center gap-3">
-              <BookOpen size={16} className="text-indigo-400 opacity-50" />
-              <h4 className="text-xl font-black text-white tracking-tight uppercase">
-                {subjectName || 'Normal Class'}
-              </h4>
-           </div>
-           {topic && topic !== "Normal Class" && (
-             <span className="px-3 py-1 bg-slate-800/80 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-emerald-500/20">
-               {topic}
-             </span>
-           )}
+          <div className="flex items-center gap-3">
+            <BookOpen size={16} className="text-indigo-500 opacity-50" />
+            <h4 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+              {subjectName || 'Normal Class'}
+            </h4>
+          </div>
+          {topic && topic !== "Normal Class" && (
+            <span className="px-3 py-1 bg-slate-800/80 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-emerald-500/20">
+              {topic}
+            </span>
+          )}
         </div>
 
         {/* Teacher Name — Fixed width right */}
         <div className="ml-auto min-w-[200px] flex justify-end items-center">
           {teacherName ? (
-            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.15em] hover:text-white transition-colors cursor-default">
+            <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em] hover:text-slate-900 dark:hover:text-white transition-colors cursor-default">
               {teacherName}
             </span>
           ) : (
-            <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest italic">Faculty unassigned</span>
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-700 uppercase tracking-widest italic">Teacher not assigned</span>
           )}
         </div>
 
@@ -91,7 +91,7 @@ const BreakCard = ({ slot }) => {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="relative group overflow-hidden rounded-[24px] border border-slate-700/50 bg-gradient-to-br from-[#0f1c2e] to-[#0a1628] hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
+      className="relative group overflow-hidden rounded-[24px] border border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/50 hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
     >
       {/* Subtle background glow */}
       <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
@@ -102,18 +102,18 @@ const BreakCard = ({ slot }) => {
         {/* Time block — left */}
         <div className="flex items-center gap-3 min-w-[160px] shrink-0">
           <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <Clock size={15} className="text-emerald-400" />
+            <Clock size={15} className="text-emerald-500" />
           </div>
-          <span className="text-sm font-bold text-slate-300 tabular-nums">{slot.timeRange}</span>
+          <span className="text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums">{slot.timeRange}</span>
         </div>
 
         {/* Label — absolute center of the full card */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <Coffee size={16} className="text-emerald-400" />
+            <Coffee size={16} className="text-emerald-500" />
           </div>
           <div>
-            <h4 className="text-base font-black text-white tracking-wide whitespace-nowrap">
+            <h4 className="text-base font-black text-slate-900 dark:text-white tracking-wide whitespace-nowrap">
               {capitalize(slot.label) || 'Break'}
             </h4>
           </div>
@@ -133,7 +133,7 @@ const SportsCard = ({ slot }) => {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="relative group overflow-hidden rounded-[24px] border border-slate-700/50 bg-gradient-to-br from-[#0f1c2e] to-[#0a1628] hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
+      className="relative group overflow-hidden rounded-[24px] border border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/50 hover:border-emerald-500/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] transition-all duration-300"
     >
       {/* Subtle background glow */}
       <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
@@ -144,18 +144,18 @@ const SportsCard = ({ slot }) => {
         {/* Time block — left */}
         <div className="flex items-center gap-3 min-w-[160px] shrink-0">
           <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <Clock size={15} className="text-emerald-400" />
+            <Clock size={15} className="text-emerald-500" />
           </div>
-          <span className="text-sm font-bold text-slate-300 tabular-nums">{slot.timeRange}</span>
+          <span className="text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums">{slot.timeRange}</span>
         </div>
 
         {/* Label — absolute center of the full card */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <IoFootballOutline size={20} className="text-emerald-400" />
+            <IoFootballOutline size={20} className="text-emerald-500" />
           </div>
           <div>
-            <h4 className="text-base font-black text-white tracking-wide whitespace-nowrap">
+            <h4 className="text-base font-black text-slate-900 dark:text-white tracking-wide whitespace-nowrap">
               {capitalize(slot.label) || 'Sports'}
             </h4>
           </div>
@@ -199,7 +199,7 @@ const SRoutinePage = () => {
       try {
         const profile = await studentService.getStudentById(studentId);
         setStudentInfo(profile);
-        
+
         if (profile.schoolId) {
           const matrix = await routineService.getRoutineMatrix(profile.schoolId);
           setOperatingHours(matrix.operatingHours?.start || "09:00");
@@ -256,12 +256,12 @@ const SRoutinePage = () => {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center uppercase justify-center shadow-lg shadow-emerald-500/10">
             <CalendarDays className="text-emerald-500 w-7 h-7" />
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">My Routine</h1>
-            <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">Personal Academic Sequence</p>
+            <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">Your Classroom Routine</p>
           </div>
         </div>
       </div>
@@ -273,7 +273,7 @@ const SRoutinePage = () => {
             <button
               key={day}
               onClick={() => setSelectedDay(day)}
-              className={`flex-1 px-8 py-3.5 rounded-full text-[10px] font-black tracking-[0.2em] transition-all duration-300 ${selectedDay === day
+              className={`flex-1 px-8 py-3.5 rounded-full text-[10px] font-black tracking-[0.2em] uppercase transition-all duration-300 ${selectedDay === day
                 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-95'
                 : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}

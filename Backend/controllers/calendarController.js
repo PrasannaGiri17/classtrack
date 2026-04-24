@@ -2,6 +2,7 @@ const Event = require('../models/Event');
 const Holiday = require('../models/Holiday');
 const Exam = require('../models/Exam');
 const Student = require('../models/studentModel');
+const Section = require('../models/Section');
 const School = require('../models/School'); // Assuming School model exists, though we default to 1
 
 // @desc    Create a new calendar event
@@ -86,10 +87,6 @@ exports.getEvents = async (req, res) => {
       return res.status(401).json({ message: 'School identification missing. Please relogin.' });
     }
 
-    const query = {
-      schoolId: schoolId
-    };
-
     // Logic: Users see events targeted at them/whole school OR events they created
     const visibilityFilters = [
       { audience: 'Whole School' },
@@ -98,29 +95,47 @@ exports.getEvents = async (req, res) => {
     ];
 
     if (role === 'student' && req.user.studentId) {
-       visibilityFilters.push({ audience: 'Students' });
-       // Fetch student details to get their Grade and Section
-       const student = await Student.findById(req.user.studentId);
-       if (student) {
-         if (student.studentClass) {
-           visibilityFilters.push({ audience: `Whole Grade ${student.studentClass}` });
-           visibilityFilters.push({ audience: `Grade ${student.studentClass}` });
-           if (student.sectionName) {
-             visibilityFilters.push({ audience: `Grade ${student.studentClass}-${student.sectionName}` });
-           }
-         }
-       }
+      visibilityFilters.push({ audience: 'Students' });
+      // Fetch student details to get their Grade and Section
+      const student = await Student.findById(req.user.studentId);
+      if (student) {
+        if (student.studentClass) {
+          const gNum = student.studentClass;
+          visibilityFilters.push({ audience: `Whole Grade ${gNum}` });
+          visibilityFilters.push({ audience: `Grade ${gNum}` });
+          visibilityFilters.push({ audience: `Class ${gNum}` });
+
+          if (student.sectionId) {
+            const section = await Section.findById(student.sectionId);
+            if (section) {
+              visibilityFilters.push({ audience: `Grade ${gNum}-${section.sectionName}` });
+              visibilityFilters.push({ audience: `Class ${gNum}-${section.sectionName}` });
+              visibilityFilters.push({ audience: `${gNum}-${section.sectionName}` });
+            }
+          }
+        }
+      }
     }
-    
+
     if (role === 'teacher') visibilityFilters.push({ audience: 'Teachers' });
-    
+
     // Always show personal events created by the requester
-    const userId = req.user?._id || createdBy;
+    const userId = req.user?._id || req.user?.id || createdBy;
     if (userId) {
       visibilityFilters.push({ createdBy: userId });
     }
 
-    query.$or = visibilityFilters;
+    const query = {
+      $and: [
+        { 
+          $or: [
+            { schoolId: schoolId },
+            { school_id: schoolId }
+          ]
+        },
+        { $or: visibilityFilters }
+      ]
+    };
 
     // Date range filter for Events
     if (from && to) {
@@ -135,14 +150,7 @@ exports.getEvents = async (req, res) => {
         ]
       };
 
-      // Wrap the previous $or query with the dateQuery in an $and
-      const existingOr = query.$or;
-      delete query.$or;
-      
-      query.$and = [
-        { $or: existingOr },
-        { $or: dateQuery.$or }
-      ];
+      query.$and.push({ $or: dateQuery.$or });
     }
 
     // Fetch Events, Holidays and All Exam Cycles concurrently
@@ -151,35 +159,49 @@ exports.getEvents = async (req, res) => {
       Holiday.find({ 
         $or: [
           { schoolId: req.schoolId },
+          { school_id: req.schoolId },
           { schoolId: { $exists: false } },
-          { schoolId: null }
+          { school_id: { $exists: false } },
+          { schoolId: null },
+          { school_id: null }
         ]
       }),
-      Exam.find({ schoolId: req.schoolId }).populate('schedules.entries.subjectId')
+      Exam.find({ 
+        $or: [
+          { schoolId: req.schoolId },
+          { school_id: req.schoolId }
+        ]
+      }).populate('schedules.entries.subjectId')
     ]);
 
     // Map and filter Exams based on role
     let mappedExams = [];
     for (const examData of examDocs) {
       if (examData && examData.schedules) {
-        if (role === 'student' && req.user.studentId) {
-          // Find the student's grade
-          const student = await Student.findById(req.user.studentId);
+        // 1. Map individual entries for specific grade (Students only)
+        if (role === 'student') {
+          const studentId = req.user.studentId || req.user._id;
+          const student = await Student.findById(studentId);
           const studentClass = student ? student.studentClass : null;
 
           if (studentClass !== null) {
-            // Filter exams for this specific student's grade
+            const publishedTerms = (examData.termStatuses || [])
+              .filter(ts => ts.isPublished)
+              .map(ts => ts.term);
+
             examData.schedules.forEach(schedule => {
-              if (Number(schedule.gradeNumber) === Number(studentClass)) {
+              const isPublished = publishedTerms.includes(schedule.term);
+              if (!isPublished) return;
+
+              if (schedule.gradeNumber != null && Number(schedule.gradeNumber) === Number(studentClass)) {
                 schedule.entries.forEach(entry => {
                   if (entry.date) {
                     const entryDate = new Date(entry.date);
-                    // Apply date filter
                     if ((from && to) && (entryDate < new Date(from) || entryDate > new Date(to))) return;
 
                     mappedExams.push({
                       _id: `exam-${entry._id}`,
-                      title: `Exam: ${entry.subjectId ? entry.subjectId.subjectName : 'Subject'}`,
+                      title: `Exam: ${entry.subjectId ? (entry.subjectId.subjectName || entry.subjectId) : 'Subject'}`,
                       type: 'EXAMS',
                       description: `${schedule.term} (${examData.academicYear}) - Day ${entry.slotOrder || ''}`,
                       startDate: entryDate,
@@ -192,93 +214,105 @@ exports.getEvents = async (req, res) => {
               }
             });
           }
-        } else if (role === 'admin' || role === 'teacher') {
-          // Show "Exam Week" summary for each term
-          // Group all entries by Term to find start and end dates
-          const termSummary = {};
-          examData.schedules.forEach(schedule => {
-            if (!termSummary[schedule.term]) {
-              termSummary[schedule.term] = { min: null, max: null };
-            }
-            schedule.entries.forEach(entry => {
-              if (entry.date) {
-                const d = new Date(entry.date);
-                if (!termSummary[schedule.term].min || d < termSummary[schedule.term].min) termSummary[schedule.term].min = d;
-                if (!termSummary[schedule.term].max || d > termSummary[schedule.term].max) termSummary[schedule.term].max = d;
-              }
-            });
-          });
-
-          Object.keys(termSummary).forEach(term => {
-            const { min, max } = termSummary[term];
-            if (min && max) {
-              // Apply date filter
-              if ((from && to) && (max < new Date(from) || min > new Date(to))) return;
-
-              mappedExams.push({
-                _id: `exam-week-${term.replace(/\s+/g, '-')}-${examData.academicYear}`,
-                title: `Exam Week: ${term}`,
-                type: 'EXAMS',
-                description: `Final assessment period for cycle ${examData.academicYear}`,
-                startDate: min,
-                endDate: max,
-                color: 'blue',
-                audience: role === 'admin' ? 'Admins' : 'Teachers'
-              });
-            }
-          });
         }
+
+        // 2. Map "Exam Week" summary (Visible to Everyone if published/available)
+        const termSummary = {};
+        examData.schedules.forEach(schedule => {
+          if (!termSummary[schedule.term]) {
+            termSummary[schedule.term] = { min: null, max: null };
+          }
+          schedule.entries.forEach(entry => {
+            if (entry.date) {
+              const d = new Date(entry.date);
+              if (!termSummary[schedule.term].min || d < termSummary[schedule.term].min) termSummary[schedule.term].min = d;
+              if (!termSummary[schedule.term].max || d > termSummary[schedule.term].max) termSummary[schedule.term].max = d;
+            }
+          });
+        });
+
+        // Determine which terms to show summaries for
+        const publishedTerms = (examData.termStatuses || [])
+          .filter(ts => ts.isPublished || (role === 'admin' || role === 'teacher')) // Show unpublished to staff
+          .map(ts => ts.term);
+
+        Object.keys(termSummary).forEach(term => {
+          const { min, max } = termSummary[term];
+          if (min && max && (publishedTerms.includes(term) || role === 'admin')) {
+            // Apply date filter
+            if ((from && to) && (max < new Date(from) || min > new Date(to))) return;
+
+            mappedExams.push({
+              _id: `exam-week-${term.replace(/\s+/g, '-')}-${examData.academicYear}`,
+              title: `Exam Week: ${term}`,
+              type: 'EXAMS',
+              description: `Assessment cycle for ${examData.academicYear}`,
+              startDate: min,
+              endDate: max,
+              color: 'blue',
+              audience: role === 'student' ? 'Students' : (role === 'admin' ? 'Admins' : 'Teachers')
+            });
+          }
+        });
       }
     }
 
-    // Map and filter Holidays in memory for robustness
-    const mappedHolidays = dbHolidays
-      .filter(h => h.gregorian_date) // Only process if gregorian_date exists
-      .map(h => {
-        try {
-          let normalizedDate = "";
-          
-          if (h.gregorian_date instanceof Date) {
-            normalizedDate = h.gregorian_date.toISOString().split('T')[0];
+    // 3. Map and filter Holidays in memory for robustness and deduplication
+    const holidayMap = new Map();
+    
+    dbHolidays.forEach(h => {
+      const rawDate = h.gregorian_date || h.startDate;
+      if (!rawDate) return;
+
+      try {
+        let dateKey = "";
+        if (rawDate instanceof Date) {
+          dateKey = rawDate.toISOString().split('T')[0];
+        } else {
+          // Clean string: Normalize "2025/4/14" or "2025-4-14" to "2025-04-14"
+          const cleanDate = rawDate.toString().replace(/\//g, '-');
+          const parts = cleanDate.split('-');
+          if (parts.length === 3) {
+            dateKey = parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
           } else {
-            // Clean string: Normalize "2025/4/14" or "2025-4-14" to "2025-04-14"
-            const cleanDate = h.gregorian_date.toString().replace(/\//g, '-');
-            const parts = cleanDate.split('-');
-            if (parts.length === 3) {
-              normalizedDate = parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
-            } else {
-              // Try parsing as raw date if split failed
-              normalizedDate = new Date(h.gregorian_date).toISOString().split('T')[0];
-            }
+            dateKey = new Date(rawDate).toISOString().split('T')[0];
           }
-          
-          return {
-            ...h.toObject(),
-            normalizedDate
-          };
-        } catch (e) {
-          return null;
         }
-      })
-      .filter(h => h !== null && h.normalizedDate)
-      .filter(h => {
-        if (!from || !to) return true;
-        return h.normalizedDate >= from && h.normalizedDate <= to;
-      })
-      .map(h => ({
-        _id: h._id,
+
+        // Apply date range filter early
+        if (from && to && (dateKey < from || dateKey > to)) return;
+
+        // Deduplication logic: prefer school-specific holidays over global ones
+        const existing = holidayMap.get(dateKey);
+        if (!existing || (h.schoolId && !existing.schoolId)) {
+          holidayMap.set(dateKey, h);
+        }
+      } catch (e) {
+        // Skip invalid dates
+      }
+    });
+
+    const mappedHolidays = Array.from(holidayMap.values()).map(h => {
+      const rawDate = h.gregorian_date || h.startDate;
+      const cleanDate = rawDate.toString().replace(/\//g, '-');
+      const parts = cleanDate.split('-');
+      const finalDate = parts.length === 3 
+        ? `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`
+        : rawDate;
+
+      return {
+        _id: `holiday-${h._id}`,
         id: h._id,
         title: h.title,
         type: 'HOLIDAY',
-        description: h.titles ? h.titles.join(', ') : h.title,
-        startDate: new Date(h.normalizedDate),
-        endDate: new Date(h.normalizedDate),
-        dateStr: h.normalizedDate, // Send normalized YYYY-MM-DD string
-        nepali_date: h.nepali_date,
+        description: h.titles ? h.titles.join(' / ') : h.title,
+        startDate: new Date(finalDate),
+        endDate: new Date(finalDate),
         color: 'red',
         audience: 'Whole School',
         isPublicHoliday: true
-      }));
+      };
+    });
 
     const allEvents = [...events, ...mappedHolidays, ...mappedExams].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
 

@@ -115,7 +115,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       // In teacher portal, we don't have a teacher record view like admin has, but we could navigate to chat
       navigate('/teacher/messages', { state: { contactId: result._id } });
     } else if (result.role === 'student') {
-      navigate('/teacher/student-profile', { state: { studentId: result.studentId || result._id } });
+      navigate(`/teacher/student/${result.studentId || result._id}`);
     }
   };
 

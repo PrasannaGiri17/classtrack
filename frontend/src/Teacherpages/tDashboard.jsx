@@ -10,7 +10,8 @@ import {
   Sparkles,
   ChevronDown,
   Calendar,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import GMainC from '../AdminComponents/Dashboard/GMainC';
@@ -21,6 +22,7 @@ import calendarService from '../Api/calendarService';
 import timetableService from '../Api/timetableService';
 import resultService from '../Api/resultService';
 import teacherService from '../Api/teacherService';
+import schoolNotificationService from '../Api/schoolNotificationService';
 import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 import Loading from '../MainSystemComponents/Loading';
 import { Cell } from 'recharts';
@@ -44,6 +46,19 @@ const TDashboard = () => {
     avgMarkPercent: '0%'
   });
   const [weeklyAttendanceData, setWeeklyAttendanceData] = useState([]);
+  const [recentNotifications, setRecentNotifications] = useState([]);
+  const [isNotifLoading, setIsNotifLoading] = useState(false);
+
+  const getTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    if (diffInMinutes < 1) return 'just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return `${Math.floor(diffInHours / 24)}d ago`;
+  };
 
   const teacherId = localStorage.getItem("teacherId");
 
@@ -135,10 +150,10 @@ const TDashboard = () => {
           const fetchAttPromises = [
             attendanceService.getAttendance(targetSectionId, currentYear, currentMonthName)
           ];
-          
+
           // If crossing months, fetch the previous month too
           if (prevMonthNum !== currentMonthNum) {
-             fetchAttPromises.push(attendanceService.getAttendance(targetSectionId, prevYear, NEPALI_MONTHS[prevMonthNum - 1]));
+            fetchAttPromises.push(attendanceService.getAttendance(targetSectionId, prevYear, NEPALI_MONTHS[prevMonthNum - 1]));
           }
 
           const attResponses = await Promise.all(fetchAttPromises);
@@ -152,9 +167,9 @@ const TDashboard = () => {
           // 9. Calculate Weekly Attendance
           const primaryClassStudents = teacherStudents.filter(s => String(s.sectionId) === String(targetSectionId));
           const currentWeekData = calculateWeeklySummary(
-            currentMonthAtt?.attendanceData || [], 
+            currentMonthAtt?.attendanceData || [],
             prevMonthAtt?.attendanceData || [],
-            primaryClassStudents, 
+            primaryClassStudents,
             holidays,
             currentMonthNum,
             prevMonthNum
@@ -165,7 +180,7 @@ const TDashboard = () => {
           let monthlyPresentCount = 0;
           let monthlyTotalPossible = 0;
           const monthRecords = currentMonthAtt?.attendanceData || [];
-          
+
           if (monthRecords.length > 0) {
             // Get all days that have at least one record (to count working days)
             const recordedDays = new Set();
@@ -180,12 +195,12 @@ const TDashboard = () => {
                 });
               }
             });
-            
+
             monthlyTotalPossible = monthRecords.length * recordedDays.size;
           }
 
-          const attRate = monthlyTotalPossible > 0 
-            ? ((monthlyPresentCount / monthlyTotalPossible) * 100).toFixed(1) 
+          const attRate = monthlyTotalPossible > 0
+            ? ((monthlyPresentCount / monthlyTotalPossible) * 100).toFixed(1)
             : 0;
 
           const primaryClassCount = primaryClassStudents.length;
@@ -208,6 +223,21 @@ const TDashboard = () => {
     };
 
     fetchDashboardData();
+    
+    const fetchNotifications = async () => {
+      try {
+        setIsNotifLoading(true);
+        if (teacherId && teacherId !== "undefined") {
+          const data = await schoolNotificationService.getNotifications('teacher', teacherId);
+          setRecentNotifications(data.slice(0, 5));
+        }
+      } catch (err) {
+        console.error("Failed to fetch recent activity:", err);
+      } finally {
+        setIsNotifLoading(false);
+      }
+    };
+    fetchNotifications();
   }, [teacherId]);
 
   useEffect(() => {
@@ -233,8 +263,8 @@ const TDashboard = () => {
 
     // Show last 7 days including Saturdays (to match AttendancePage's exhaustive view)
     for (let i = 0; i < 7; i++) {
-        recentDays.push(new Date(checkDate));
-        checkDate.setDate(checkDate.getDate() - 1);
+      recentDays.push(new Date(checkDate));
+      checkDate.setDate(checkDate.getDate() - 1);
     }
 
     // Sort chronologically
@@ -444,19 +474,33 @@ const TDashboard = () => {
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
             <button onClick={() => navigate('/teacher/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
-                <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                  <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Registry Updated</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">New student enrollment records have been synchronized with the main database.</p>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-2 block uppercase tracking-widest">2 hours ago</span>
-                </div>
+          <div className="space-y-4 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] max-h-[400px]">
+            {isNotifLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Syncing activity...</p>
               </div>
-            ))}
+            ) : recentNotifications.length > 0 ? (
+              recentNotifications.map((notif) => (
+                <div key={notif._id} className="flex gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                    <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">{notif.title}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{notif.message}</p>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-2 block uppercase tracking-widest">
+                      {getTimeAgo(notif.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <Bell className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No recent activity</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -471,20 +515,18 @@ const TDashboard = () => {
           <div className="space-y-4 max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {announcements.map((item, idx) => (
               <div key={item._id || item.id || idx} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  item.priority === 'urgent' ? 'bg-red-500' :
-                  item.priority === 'warning' ? 'bg-amber-500' :
-                  item.priority === 'important' ? 'bg-blue-500' : 'bg-slate-400'
-                }`} />
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.priority === 'urgent' ? 'bg-red-500' :
+                    item.priority === 'warning' ? 'bg-amber-500' :
+                      item.priority === 'important' ? 'bg-blue-500' : 'bg-slate-400'
+                  }`} />
                 <div className="flex-1">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</h4>
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${
-                  item.priority === 'urgent' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
-                  item.priority === 'warning' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
-                  item.priority === 'important' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
-                  'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                }`}>{item.priority || 'normal'}</span>
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${item.priority === 'urgent' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+                    item.priority === 'warning' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+                      item.priority === 'important' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                        'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                  }`}>{item.priority || 'normal'}</span>
               </div>
             ))}
           </div>
