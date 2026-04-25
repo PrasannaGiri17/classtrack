@@ -104,119 +104,119 @@ const AttendancePage = () => {
 
         // 1. Handle Historical Perspective (Past Years)
         if (selectedYear < currentBSYear) {
-           // Fetch the teacher's specific registry for this year and month
-           attData = await attendanceService.getAttendance(null, selectedYear, selectedMonth, teacherId);
-           
-           // If we have records for this teacher in this historical period
-           if (attData && attData.attendanceData && attData.attendanceData.length > 0) {
+          // Fetch the teacher's specific registry for this year and month
+          attData = await attendanceService.getAttendance(null, selectedYear, selectedMonth, teacherId);
+
+          // If we have records for this teacher in this historical period
+          if (attData && attData.attendanceData && attData.attendanceData.length > 0) {
+            setSectionInfo({
+              gradeId: attData.gradeId,
+              gradeNumber: attData.gradeNumber,
+              gradeName: attData.gradeName,
+              sectionId: attData.sectionId,
+              sectionName: attData.sectionName,
+              classRoomName: attData.classRoomName
+            });
+            activeSectionId = attData.sectionId;
+
+            // Extract the student list. Handle both populated objects and raw IDs.
+            const rawStudentList = attData.attendanceData.map(a => a.studentId).filter(s => s);
+
+            // If we have populated objects, use them. 
+            // Otherwise, we might need to fetch them from studentService if they are just IDs
+            if (rawStudentList.length > 0 && typeof rawStudentList[0] === 'object' && rawStudentList[0]._id) {
+              studentList = rawStudentList;
+            } else if (rawStudentList.length > 0) {
+              // They are likely strings (IDs). Fetch the full profile for each to show names.
+              const fullProfiles = await Promise.all(
+                rawStudentList.map(id => studentService.getStudentById(id).catch(() => null))
+              );
+              studentList = fullProfiles.filter(p => p);
+            }
+
+            if (studentList.length > 0) {
               setSectionInfo({
-                 gradeId: attData.gradeId,
-                 gradeNumber: attData.gradeNumber,
-                 gradeName: attData.gradeName,
-                 sectionId: attData.sectionId,
-                 sectionName: attData.sectionName,
-                 classRoomName: attData.classRoomName
+                gradeId: attData.gradeId,
+                gradeNumber: attData.gradeNumber,
+                gradeName: attData.gradeName,
+                sectionId: attData.sectionId,
+                sectionName: attData.sectionName,
+                classRoomName: attData.classRoomName
               });
               activeSectionId = attData.sectionId;
-              
-              // Extract the student list. Handle both populated objects and raw IDs.
-              const rawStudentList = attData.attendanceData.map(a => a.studentId).filter(s => s);
-              
-              // If we have populated objects, use them. 
-              // Otherwise, we might need to fetch them from studentService if they are just IDs
-              if (rawStudentList.length > 0 && typeof rawStudentList[0] === 'object' && rawStudentList[0]._id) {
-                 studentList = rawStudentList;
-              } else if (rawStudentList.length > 0) {
-                 // They are likely strings (IDs). Fetch the full profile for each to show names.
-                 const fullProfiles = await Promise.all(
-                   rawStudentList.map(id => studentService.getStudentById(id).catch(() => null))
-                 );
-                 studentList = fullProfiles.filter(p => p);
-              }
+            }
+          }
+        }
 
-              if (studentList.length > 0) {
-                 setSectionInfo({
-                    gradeId: attData.gradeId,
-                    gradeNumber: attData.gradeNumber,
-                    gradeName: attData.gradeName,
-                    sectionId: attData.sectionId,
-                    sectionName: attData.sectionName,
-                    classRoomName: attData.classRoomName
-                 });
-                 activeSectionId = attData.sectionId;
-              }
-           }
-        } 
-        
         // 2. Handle Current Perspective or Fallback (Current year or if no historical record exists)
         if (studentList.length === 0) {
-           // Only fetch current assignment if we didn't find specific historical students
-           studentList = await studentService.getStudentsByClassTeacher(teacherId);
-           attData = await attendanceService.getAttendance(activeSectionId, selectedYear, selectedMonth, teacherId);
+          // Only fetch current assignment if we didn't find specific historical students
+          studentList = await studentService.getStudentsByClassTeacher(teacherId);
+          attData = await attendanceService.getAttendance(activeSectionId, selectedYear, selectedMonth, teacherId);
         }
 
         setStudents(studentList || []);
 
         // 3. Get Holidays from Calendar
-          const events = await calendarService.getEvents();
-          const monthIndex = NEPALI_MONTHS.indexOf(selectedMonth) + 1;
-          const monthlyHolidays = (events || [])
-            .filter(e => e.type?.toUpperCase() === 'HOLIDAY' || e.isPublicHoliday)
-            .filter(e => {
-              let nDate = e.nepali_date;
-              if (!nDate && e.startDate) {
-                try {
-                  nDate = convertADtoBS(new Date(e.startDate).toISOString().split('T')[0]).replace(/-/g, '/');
-                } catch (err) { return false; }
-              }
-              if (!nDate) return false;
-              const parts = nDate.includes('/') ? nDate.split('/') : nDate.split('-');
-              return parseInt(parts[0]) === selectedYear && parseInt(parts[1]) === monthIndex;
-            })
-            .map(e => {
-              const nDate = e.nepali_date || convertADtoBS(new Date(e.startDate).toISOString().split('T')[0]).replace(/-/g, '/');
-              return parseInt(nDate.includes('/') ? nDate.split('/')[2] : nDate.split('-')[2]);
-            });
+        const events = await calendarService.getEvents();
+        const monthIndex = NEPALI_MONTHS.indexOf(selectedMonth) + 1;
+        const monthlyHolidays = (events || [])
+          .filter(e => e.type?.toUpperCase() === 'HOLIDAY' || e.isPublicHoliday)
+          .filter(e => {
+            let nDate = e.nepali_date;
+            if (!nDate && e.startDate) {
+              try {
+                nDate = convertADtoBS(new Date(e.startDate).toISOString().split('T')[0]).replace(/-/g, '/');
+              } catch (err) { return false; }
+            }
+            if (!nDate) return false;
+            const parts = nDate.includes('/') ? nDate.split('/') : nDate.split('-');
+            return parseInt(parts[0]) === selectedYear && parseInt(parts[1]) === monthIndex;
+          })
+          .map(e => {
+            const nDate = e.nepali_date || convertADtoBS(new Date(e.startDate).toISOString().split('T')[0]).replace(/-/g, '/');
+            return parseInt(nDate.includes('/') ? nDate.split('/')[2] : nDate.split('-')[2]);
+          });
 
-          // Add Saturdays as holidays automatically
-          for (let d = 1; d <= daysInMonth; d++) {
-            try {
-              const dateStr = `${selectedYear}-${String(monthIndex).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-              const ad = convertBStoAD(dateStr);
-              // getDay() 6 is Saturday
-              if (ad && new Date(ad).getDay() === 6) {
-                if (!monthlyHolidays.includes(d)) {
-                  monthlyHolidays.push(d);
-                }
-              }
-            } catch (e) { /* ignore invalid dates */ }
-          }
-
-          setHolidays(monthlyHolidays);
-
-          // Map backend attendance to local state
-          const initial = {};
-          studentList.forEach(s => {
-            const sId = String(s._id);
-            initial[sId] = {};
-            const record = attData?.attendanceData?.find(a => 
-              String(a.studentId?._id || a.studentId) === sId
-            );
-            
-            if (record && record.dailyStatus) {
-              const dailyStatus = record.dailyStatus;
-              for (let d = 1; d <= daysInMonth; d++) {
-                // Handle cases where keys might be strings or numbers
-                initial[sId][d] = dailyStatus[String(d)] || dailyStatus[d] || null;
-              }
-            } else {
-              for (let d = 1; d <= daysInMonth; d++) {
-                initial[sId][d] = null;
+        // Add Saturdays as holidays automatically
+        for (let d = 1; d <= daysInMonth; d++) {
+          try {
+            const dateStr = `${selectedYear}-${String(monthIndex).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const ad = convertBStoAD(dateStr);
+            // getDay() 6 is Saturday
+            if (ad && new Date(ad).getDay() === 6) {
+              if (!monthlyHolidays.includes(d)) {
+                monthlyHolidays.push(d);
               }
             }
-          });
-          setAttendanceRecords(initial);
-        } catch (error) {
+          } catch (e) { /* ignore invalid dates */ }
+        }
+
+        setHolidays(monthlyHolidays);
+
+        // Map backend attendance to local state
+        const initial = {};
+        studentList.forEach(s => {
+          const sId = String(s._id);
+          initial[sId] = {};
+          const record = attData?.attendanceData?.find(a =>
+            String(a.studentId?._id || a.studentId) === sId
+          );
+
+          if (record && record.dailyStatus) {
+            const dailyStatus = record.dailyStatus;
+            for (let d = 1; d <= daysInMonth; d++) {
+              // Handle cases where keys might be strings or numbers
+              initial[sId][d] = dailyStatus[String(d)] || dailyStatus[d] || null;
+            }
+          } else {
+            for (let d = 1; d <= daysInMonth; d++) {
+              initial[sId][d] = null;
+            }
+          }
+        });
+        setAttendanceRecords(initial);
+      } catch (error) {
         console.error("Error fetching attendance data:", error);
         // Only show generic error if it wasn't a 404/empty state handled by the view guard
         if (error.response?.status !== 404) {
@@ -232,10 +232,18 @@ const AttendancePage = () => {
   // Initialization Effect
   useEffect(() => {
     const init = async () => {
-      if (!teacherId) return;
+      if (!teacherId) {
+        setIsLoading(false);
+        return;
+      }
       try {
         const secData = await gradeService.getSectionByTeacherId(teacherId);
         setSectionInfo(secData);
+
+        if (!secData?.sectionId) {
+          setIsLoading(false);
+          return;
+        }
 
         const schoolId = localStorage.getItem("schoolId");
         if (schoolId) {
@@ -252,6 +260,7 @@ const AttendancePage = () => {
         }
       } catch (err) {
         console.error("Initialization error:", err);
+        setIsLoading(false);
       }
     };
     init();
@@ -370,13 +379,20 @@ const AttendancePage = () => {
   if (!isLoading && !sectionInfo?.sectionId) {
     return (
       <div className="flex flex-col items-center justify-center py-40 animate-in fade-in zoom-in-95 duration-500">
-        <div className="w-24 h-24 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 mb-8 border border-red-500/20 shadow-2xl shadow-red-500/10">
-          <ShieldAlert size={48} />
+        <div className="relative mb-12">
+          <div className="w-24 h-24 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 border border-red-500/20 shadow-2xl shadow-red-500/10 relative z-10">
+            <ShieldAlert size={48} strokeWidth={1.5} />
+          </div>
+          <div className="absolute inset-0 bg-red-500/20 blur-3xl rounded-full scale-150 opacity-20" />
         </div>
-        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter mb-4 text-center uppercase">Access Denied</h2>
-        <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center max-w-md leading-relaxed bg-slate-50 dark:bg-slate-800/40 px-8 py-4 rounded-[24px] border border-slate-100 dark:border-slate-800/50">
-          This registry is exclusively for <span className="text-red-500">Class Teachers</span>. You are not currently assigned to any classroom management profile.
-        </p>
+
+        <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-[0.1em] mb-6 text-center uppercase">Access Denied</h2>
+
+        <div className="bg-slate-50 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-100 dark:border-white/5 rounded-[32px] p-10 max-w-lg w-full text-center shadow-2xl">
+          <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] leading-relaxed">
+            This portal is reserved exclusively for <span className="text-red-500 bg-red-500/5 px-2 py-0.5 rounded-lg border border-red-500/10">Class Teachers</span>. You are not currently assigned to any classroom management profile.
+          </p>
+        </div>
       </div>
     );
   }
@@ -485,7 +501,7 @@ const AttendancePage = () => {
           </div>
         </div>
 
-        <div 
+        <div
           ref={scrollRef}
           onMouseDown={handleMouseDown}
           onMouseLeave={handleMouseLeave}

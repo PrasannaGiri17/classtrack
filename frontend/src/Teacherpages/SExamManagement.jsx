@@ -16,6 +16,7 @@ import timetableService from '../Api/timetableService';
 import studentService from '../Api/studentService';
 import gradeService from '../Api/gradeService';
 import axios from 'axios';
+import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 
 // Parse "Grade 3-B" → { grade: "3", section: "B" }
 const parseClassLabel = (label) => {
@@ -34,7 +35,15 @@ const ExamManagement = () => {
   const [teacherSubjects, setTeacherSubjects] = useState([]); // from teacher profile
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedYear, setSelectedYear] = useState(2082); // NEW: Academic Year selection
+  
+  // Automatically determine current academic year from system date
+  const currentBSYear = useMemo(() => {
+    const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+    return Number(todayBS.split('-')[0]);
+  }, []);
+
+  const selectedYear = currentBSYear;
+
   const [examTerms, setExamTerms] = useState([]);      // from backend
   const [lockedTerms, setLockedTerms] = useState(new Set()); // terms where isOpen=false
   const [selectedTerm, setSelectedTerm] = useState('');
@@ -47,8 +56,7 @@ const ExamManagement = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const isTermLocked = lockedTerms.has(selectedTerm);
-  const isPastYear = selectedYear <= 2082;
-  const isReadOnly = isTermLocked || isPastYear;
+  const isReadOnly = isTermLocked;
 
   // 1. On mount — load teacher info + routine + grade sections map + exam config
   useEffect(() => {
@@ -348,20 +356,6 @@ const ExamManagement = () => {
 
       {/* Control Panel */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-center bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm transition-all">
-        {/* Year Selector */}
-        <div className="xl:col-span-2 relative group">
-          <label className="absolute -top-2.5 left-5 bg-white dark:bg-slate-900 px-2 text-[9px] font-black text-emerald-600 tracking-widest z-10">Academic Year</label>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl pl-5 pr-12 py-4 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer transition-all shadow-inner"
-          >
-            {[2082, 2083, 2084].map(y => (
-              <option key={y} value={y}>{y} BS</option>
-            ))}
-          </select>
-          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
-        </div>
 
         {/* Class Selector */}
         <div className="xl:col-span-3 relative group">
@@ -460,16 +454,10 @@ const ExamManagement = () => {
                 <p className="text-base font-black text-slate-900 dark:text-white leading-none">{selectedSubject || '—'}</p>
               </div>
             </div>
-            {isPastYear && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500 animate-pulse">
-                <Lock size={14} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Read Only Mode (Historical Data)</span>
-              </div>
-            )}
           </div>
         </div>
 
-        {isTermLocked && !isPastYear ? (
+        {isTermLocked ? (
           <div className="py-40 flex flex-col items-center justify-center text-center px-10 animate-in fade-in zoom-in-95 duration-500">
             <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-[32px] flex items-center justify-center mb-8 shadow-xl shadow-red-500/10">
               <Lock size={48} />

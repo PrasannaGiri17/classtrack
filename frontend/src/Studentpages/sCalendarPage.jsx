@@ -37,7 +37,31 @@ const SCalendarPage = () => {
 
       // Backend now identifies schoolId and user from token
       const data = await calendarService.getEvents(from, to);
-      setEvents(data);
+      
+      // Filter out broad "Exam Week" summaries for students to prioritize solo subject events
+      const filteredCalendarData = data.filter(event => {
+        const title = event.title?.toLowerCase() || '';
+        const type = event.type?.toLowerCase() || '';
+        const isExamEvent = type === 'exams' || type === 'exam' || title.includes('exam');
+
+        if (isExamEvent) {
+           const start = new Date(event.startDate);
+           const end = new Date(event.endDate || event.startDate);
+           
+           // Only filter out if it spans multiple days (broad summary ranges)
+           const isMultiDay = start.getFullYear() !== end.getFullYear() || 
+                             start.getMonth() !== end.getMonth() || 
+                             start.getDate() !== end.getDate();
+                             
+           const isWeek = title.includes('week');
+           
+           // Keep granular (single-day) exams, hide the ranges
+           return !isMultiDay && !isWeek;
+        }
+        return true;
+      });
+
+      setEvents(filteredCalendarData);
     } catch (error) {
       console.error("Failed to fetch events", error);
     } finally {
@@ -47,7 +71,7 @@ const SCalendarPage = () => {
 
   useEffect(() => {
     fetchEvents();
-  }, [currentDate]);
+  }, [currentDate, user]);
 
   // Handle Delete Click
   const handleDeleteClick = (e, eventId) => {
@@ -76,20 +100,19 @@ const SCalendarPage = () => {
   // Determine if we are viewing a past month
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const isPastMonth = currentDate.getFullYear() < today.getFullYear() || 
-                    (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() < today.getMonth());
+  const isPastMonth = currentDate.getFullYear() < today.getFullYear() ||
+    (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() < today.getMonth());
 
-  // Derived state: Events filtered by viewed month and future/past status
   // Derived state: Events filtered by viewed month status
   const filteredEvents = events
     .filter(event => {
       const eventStart = new Date(event.startDate);
-      const eventEnd = new Date(event.endDate);
+      const eventEnd = new Date(event.endDate || event.startDate);
 
       // Normalize dates to local midnight for comparison
       const start = new Date(eventStart.getFullYear(), eventStart.getMonth(), eventStart.getDate());
       const end = new Date(eventEnd.getFullYear(), eventEnd.getMonth(), eventEnd.getDate());
-      
+
       const viewMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const viewMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 

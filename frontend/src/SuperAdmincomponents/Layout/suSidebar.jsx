@@ -14,9 +14,11 @@ import {
   LogOut,
   CreditCard
 } from 'lucide-react';
+import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
 
 const SuSidebar = ({ activePage }) => {
   const navigate = useNavigate();
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = React.useState(false);
 
   const menuItems = [
     { key: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/super-admin/dashboard' },
@@ -70,16 +72,24 @@ const SuSidebar = ({ activePage }) => {
       {/* Footer */}
       <div className="p-4 border-t border-slate-50 dark:border-slate-800 transition-colors">
         <button
-          onClick={() => {
-            localStorage.clear();
-            navigate('/login');
-          }}
+          onClick={() => setIsLogoutDialogOpen(true)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 group"
         >
           <LogOut className="w-5 h-5 text-slate-400 group-hover:text-red-500 transition-colors" />
           <span className="text-sm font-medium">Logout</span>
         </button>
       </div>
+
+      <ConfirmDialog
+        isOpen={isLogoutDialogOpen}
+        onClose={() => setIsLogoutDialogOpen(false)}
+        onConfirm={() => {
+          localStorage.clear();
+          navigate('/login');
+        }}
+        title="Confirm Logout"
+        message="Are you sure you want to log out of the Super Admin portal?"
+      />
     </div>
   );
 };

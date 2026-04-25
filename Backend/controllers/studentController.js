@@ -49,11 +49,43 @@ const updateSectionEnrollment = async (req, res) => {
       return res.status(400).json({ message: "studentIds must be an array" });
     }
 
-    await Student.updateMany(
-      { _id: { $in: studentIds } },
-      { $set: { sectionId: sectionId || null, studentClass: studentClass || null } }
-    );
+    // 1. First, clear the section assignment for all students currently in this section
+    // This ensures that students removed from the frontend view are correctly un-enrolled
+    if (sectionId) {
+      // Find all students currently in this section
+      const previousStudents = await Student.find({ sectionId, schoolId: req.schoolId });
+      const previousIds = previousStudents.map(s => s._id);
 
+      // Clear their section info
+      await Student.updateMany(
+        { sectionId, schoolId: req.schoolId },
+        { $set: { sectionId: null, studentClass: null, rollNumber: null } }
+      );
+
+      // Sync User models for previous students
+      if (previousIds.length > 0) {
+        await User.updateMany(
+          { studentId: { $in: previousIds } },
+          { $set: { classId: null } }
+        );
+      }
+    }
+
+    // 2. Now enroll the new set of students
+    if (studentIds.length > 0) {
+      await Student.updateMany(
+        { _id: { $in: studentIds } },
+        { $set: { sectionId: sectionId || null, studentClass: studentClass || null } }
+      );
+
+      // SYNC: Update User model's classId for all affected students
+      await User.updateMany(
+        { studentId: { $in: studentIds } },
+        { $set: { classId: sectionId ? sectionId.toString() : null } }
+      );
+    }
+
+    // 3. Re-calculate roll numbers for the section
     if (sectionId) {
       const studentsInSection = await Student.find({ sectionId, schoolId: req.schoolId })
         .sort({ firstName: 1, lastName: 1 });
@@ -68,14 +100,6 @@ const updateSectionEnrollment = async (req, res) => {
       if (bulkOps.length > 0) {
         await Student.bulkWrite(bulkOps);
       }
-    }
-
-    // SYNC: Update User model's classId for all affected students
-    if (studentIds.length > 0) {
-      await User.updateMany(
-        { studentId: { $in: studentIds } },
-        { $set: { classId: sectionId ? sectionId.toString() : null } }
-      );
     }
 
     res.status(200).json({ message: "Enrollment updated successfully" });
@@ -328,6 +352,14 @@ const updateStudent = async (req, res) => {
       new: true,
       runValidators: true,
     });
+
+    // SYNC: Update User model if email changed
+    if (req.body.email && req.body.email !== userexists.email) {
+      await User.findOneAndUpdate(
+        { studentId: updatedStudent._id },
+        { $set: { email: req.body.email.trim() } }
+      );
+    }
 
     // SYNC: Update User model if sectionId changed
     if (req.body.sectionId !== undefined) {

@@ -83,13 +83,13 @@ const SStudentRecord = () => {
         ]);
 
         if (teacherRes.status === 'fulfilled') setTeacherInfo(teacherRes.value);
-        
+
         if (studentsRes.status === 'fulfilled') {
           const rawStudents = studentsRes.value || [];
-          
+
           // Use academic year 2082 as requested
           const currentYear = 2082;
-          
+
           // Enhanced fetch: Get yearly attendance rate for each student
           const studentsWithAttendance = await Promise.all(
             rawStudents.map(async (s) => {
@@ -253,13 +253,20 @@ const SStudentRecord = () => {
   if (!isLoading && !sectionInfo?.sectionId) {
     return (
       <div className="flex flex-col items-center justify-center py-40 animate-in fade-in zoom-in-95 duration-500">
-        <div className="w-24 h-24 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 mb-8 border border-red-500/20 shadow-2xl shadow-red-500/10">
-          <ShieldAlert size={48} />
+        <div className="relative mb-12">
+          <div className="w-24 h-24 bg-red-500/10 rounded-[32px] flex items-center justify-center text-red-500 border border-red-500/20 shadow-2xl shadow-red-500/10 relative z-10">
+            <ShieldAlert size={48} strokeWidth={1.5} />
+          </div>
+          <div className="absolute inset-0 bg-red-500/20 blur-3xl rounded-full scale-150 opacity-20" />
         </div>
-        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter mb-4 text-center uppercase">Access Denied</h2>
-        <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center max-w-md leading-relaxed bg-slate-50 dark:bg-slate-800/40 px-8 py-4 rounded-[24px] border border-slate-100 dark:border-slate-800/50">
-          This portal is reserved exclusively for <span className="text-red-500">Class Teachers</span>. You are not currently assigned to any classroom management profile.
-        </p>
+
+        <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-[0.1em] mb-6 text-center uppercase">Access Denied</h2>
+
+        <div className="bg-slate-50 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-100 dark:border-white/5 rounded-[32px] p-10 max-w-lg w-full text-center shadow-2xl">
+          <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] leading-relaxed">
+            This portal is reserved exclusively for <span className="text-red-500 bg-red-500/5 px-2 py-0.5 rounded-lg border border-red-500/10">Class Teachers</span>. You are not currently assigned to any classroom management profile.
+          </p>
+        </div>
       </div>
     );
   }
@@ -309,21 +316,19 @@ const SStudentRecord = () => {
           <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-sm shrink-0">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2.5 rounded-[18px] transition-all ${
-                viewMode === 'grid' 
-                  ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
+              className={`p-2.5 rounded-[18px] transition-all ${viewMode === 'grid'
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
             >
               <CiGrid32 size={20} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2.5 rounded-[18px] transition-all ${
-                viewMode === 'list' 
-                  ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
+              className={`p-2.5 rounded-[18px] transition-all ${viewMode === 'list'
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
             >
               <List size={20} />
             </button>
@@ -343,8 +348,8 @@ const SStudentRecord = () => {
             currentItems.map((s) => {
               const isMonitor = s._id === monitorId;
               return (
-                <div 
-                  key={s._id} 
+                <div
+                  key={s._id}
                   className={`bg-white dark:bg-slate-900 rounded-[32px] border shadow-sm overflow-hidden transition-all hover:shadow-md hover:-translate-y-1 group relative flex flex-col ${isMonitor ? 'border-emerald-500/30' : 'border-slate-100 dark:border-slate-800'}`}
                   onClick={() => handleStudentClick(s)}
                 >
@@ -381,7 +386,7 @@ const SStudentRecord = () => {
                       </div>
                       <div className="text-center">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Role</p>
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleToggleMonitor(s._id); }}
                           className={`mx-auto w-8 h-8 flex items-center justify-center rounded-lg transition-all ${isMonitor ? 'bg-amber-500 text-white' : 'text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}
                         >
@@ -498,7 +503,7 @@ const SStudentRecord = () => {
           )}
         </div>
 
-        <div ref={teacherScrollRef} className="flex items-stretch gap-5 overflow-x-auto pb-4 snap-x snap-mandatory" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
+        <div ref={teacherScrollRef} className="flex items-stretch gap-5 overflow-x-auto pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {assignedTeachers.length > 0 ? (
             assignedTeachers.map((t) => (
               <div
@@ -507,11 +512,10 @@ const SStudentRecord = () => {
               >
                 {/* Avatar */}
                 <div className="relative mb-4">
-                  <div className={`w-24 h-24 rounded-[32px] flex items-center justify-center text-3xl font-black shadow-lg overflow-hidden ring-2 transition-transform duration-500 group-hover:scale-105 ${
-                    t.profilePhoto 
-                      ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-emerald-500/20 ring-emerald-400 dark:ring-emerald-500'
-                      : 'bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-emerald-500/10 ring-emerald-400 dark:ring-emerald-600 border border-emerald-300 dark:border-emerald-700'
-                  }`}>
+                  <div className={`w-24 h-24 rounded-[32px] flex items-center justify-center text-3xl font-black shadow-lg overflow-hidden ring-2 transition-transform duration-500 group-hover:scale-105 ${t.profilePhoto
+                    ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-emerald-500/20 ring-emerald-400 dark:ring-emerald-500'
+                    : 'bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-emerald-500/10 ring-emerald-400 dark:ring-emerald-600 border border-emerald-300 dark:border-emerald-700'
+                    }`}>
                     {t.profilePhoto ? (
                       <img src={t.profilePhoto} alt={t.firstName} className="w-full h-full object-cover" />
                     ) : (

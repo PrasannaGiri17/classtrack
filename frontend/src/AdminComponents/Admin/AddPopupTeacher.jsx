@@ -27,6 +27,8 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [schoolConfig, setSchoolConfig] = useState(null);
   const [allSubjects, setAllSubjects] = useState([]);
+  const [emailError, setEmailError] = useState("");
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -137,8 +139,36 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
     }
   };
 
+  const handleEmailBlur = async () => {
+    if (!formData.email || !formData.email.includes("@")) return;
+
+    try {
+      setIsCheckingEmail(true);
+      const params = { email: formData.email };
+      if (teacherToEdit) {
+        params.excludeId = teacherToEdit._id;
+        params.role = 'teacher';
+      }
+      
+      const res = await axios.get("http://localhost:7000/api/auth/check-email", { params });
+      if (res.data.exists) {
+        setEmailError("This email is already registered.");
+      } else {
+        setEmailError("");
+      }
+    } catch (err) {
+      console.error("Email check failed:", err);
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (emailError) {
+      setPopup({ message: emailError, type: "error" });
+      return;
+    }
     setIsSubmitting(true);
     const parts = formData.name.trim().split(/\s+/);
     const firstName = parts[0] || "";
@@ -290,14 +320,28 @@ const AddPopupTeacher = ({ isOpen, onClose, onSuccess, teacherToEdit = null }) =
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-bold text-slate-400 tracking-widest ml-1 uppercase">Official Email</label>
-                  <input name="email" type="email" required onChange={handleChange} value={formData.email} placeholder="faculty@example.com" className="w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-bold dark:text-white shadow-inner" />
+                  <input 
+                    name="email" 
+                    type="email" 
+                    required 
+                    onChange={(e) => {
+                      handleChange(e);
+                      if (emailError) setEmailError("");
+                    }} 
+                    onBlur={handleEmailBlur}
+                    value={formData.email} 
+                    placeholder="faculty@example.com" 
+                    className={`w-full px-5 py-3.5 bg-slate-50 dark:bg-slate-800/50 border-none rounded-xl outline-none focus:ring-2 text-sm font-bold dark:text-white shadow-inner transition-all ${emailError ? "ring-2 ring-red-500/50" : "focus:ring-emerald-500/20"}`} 
+                  />
+                  {emailError && <p className="text-[10px] font-bold text-red-500 ml-1 mt-1">{emailError}</p>}
+                  {isCheckingEmail && <p className="text-[10px] font-bold text-emerald-500 ml-1 mt-1 animate-pulse">Checking availability...</p>}
                 </div>
               </div>
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 pt-4 border-t dark:border-slate-800">
             <button type="button" onClick={onClose} className="px-6 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 font-medium hover:bg-slate-800 transition-all active:scale-95">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="px-8 py-2.5 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all font-bold shadow-lg shadow-emerald-500/20 active:scale-95">{isSubmitting ? '...' : (teacherToEdit ? 'Update' : 'Enroll Teacher')}</button>
+            <button type="submit" disabled={isSubmitting || !!emailError || isCheckingEmail} className="px-8 py-2.5 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all font-bold shadow-lg shadow-emerald-500/20 active:scale-95">{isSubmitting ? '...' : (teacherToEdit ? 'Update' : 'Enroll Teacher')}</button>
           </div>
         </form>
       </div>

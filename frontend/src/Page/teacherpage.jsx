@@ -16,8 +16,10 @@ import {
     ArrowLeft,
     Shield,
     Pencil,
+    Trash2,
     Loader2
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import teacherService from "../Api/teacherService";
 import gradeService from "../Api/gradeService";
 import axios from "axios";
@@ -50,7 +52,10 @@ const TeacherPage = () => {
     const [teacher, setTeacher] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [pendingPhoto, setPendingPhoto] = useState(null);
+    const { user } = useAuth();
+    const role = user?.role || 'admin';
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -232,6 +237,19 @@ const TeacherPage = () => {
         }
     };
 
+    const handleDelete = async () => {
+        try {
+            await teacherService.deleteTeacher(id);
+            toast({ type: 'success', message: 'Faculty record deleted successfully.' });
+            navigate('/admin/teacher');
+        } catch (err) {
+            console.error("Deletion failed:", err);
+            toast({ type: 'error', message: 'Failed to delete faculty record.' });
+        } finally {
+            setIsDeleteConfirmOpen(false);
+        }
+    };
+
     const getInitials = (firstName, lastName) => {
         return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
     };
@@ -368,15 +386,24 @@ const TeacherPage = () => {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setIsEditPopupOpen(true)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0"
-                            >
-                                <Pencil size={12} />
-                                Edit
-                            </button>
-                        </div>
+                        {role === 'admin' && (
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setIsEditPopupOpen(true)}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0"
+                                >
+                                    <Pencil size={12} />
+                                    Edit
+                                </button>
+                                <button
+                                    onClick={() => setIsDeleteConfirmOpen(true)}
+                                    className="flex items-center justify-center w-10 h-10 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all border border-red-500/20 shadow-sm hover:shadow-red-500/20 hover:-translate-y-0.5 active:translate-y-0"
+                                    title="Delete Faculty"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -615,6 +642,16 @@ const TeacherPage = () => {
                     toast({ type: 'success', message: "Faculty record updated successfully." });
                 }}
                 teacherToEdit={teacher}
+            />
+
+            <ConfirmDialog
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setIsDeleteConfirmOpen(false)}
+                onConfirm={handleDelete}
+                title="Delete Faculty Record?"
+                message={`Are you sure you want to permanently delete the record for ${teacher.firstName} ${teacher.lastName}? This action cannot be undone.`}
+                confirmText="Delete"
+                confirmColor="bg-red-500"
             />
         </div >
     );

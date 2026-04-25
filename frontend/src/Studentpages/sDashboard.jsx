@@ -278,77 +278,66 @@ const SDashboard = () => {
               console.warn("Failed to fetch dashboard attendance", e);
             }
 
-            // Fetch Term GPA (Latest Published)
+            // Fetch Term GPA (Latest available result across years)
             try {
               const { year: currentYear } = getNepaliDateInfo(new Date());
-              let activeTerm = null;
+              let foundResult = null;
               let activeYear = currentYear;
-              let examConfigData = await examService.getExamData(currentYear);
 
-              const getLatestPublished = (config) => {
-                if (!config || !config.termStatuses) return null;
-                const published = config.termStatuses
-                  .filter(t => t.isPublished)
-                  .sort((a, b) => (TERM_ORDER[b.term] || 0) - (TERM_ORDER[a.term] || 0));
-                return published.length > 0 ? published[0].term : null;
-              };
-
-              activeTerm = getLatestPublished(examConfigData);
-
-              if (!activeTerm) {
-                // Try previous year
-                activeYear = currentYear - 1;
-                examConfigData = await examService.getExamData(activeYear);
-                activeTerm = getLatestPublished(examConfigData);
+              // Check current year and 2 previous years for any results
+              for (let y = currentYear; y >= currentYear - 2; y--) {
+                const results = await resultService.getStudentResults(data._id, y).catch(() => []);
+                if (results && results.length > 0) {
+                  // Sort results in this year by term order
+                  const sorted = results.sort((a, b) => (TERM_ORDER[b.term] || 0) - (TERM_ORDER[a.term] || 0));
+                  foundResult = sorted[0];
+                  activeYear = y;
+                  break;
+                }
               }
 
-              if (activeTerm) {
-                // Fetch ALL results for the student for this specific year
-                const studentResults = await resultService.getStudentResults(data._id, activeYear);
-                const studentResultForTerm = studentResults.find(r => r.term === activeTerm);
+              if (foundResult) {
+                const activeTerm = foundResult.term;
+                // Use historical grade/section from the result record itself
+                const targetGradeId = foundResult.gradeId?._id || foundResult.gradeId;
+                const targetSectionName = foundResult.sectionName;
 
-                if (studentResultForTerm) {
-                  // Use historical grade/section from the result record itself
-                  const targetGradeId = studentResultForTerm.gradeId?._id || studentResultForTerm.gradeId;
-                  const targetSectionName = studentResultForTerm.sectionName;
+                const allGradeResults = await resultService.getResultsByGradeSectionTerm(targetGradeId, undefined, activeTerm, activeYear);
 
-                  const allGradeResults = await resultService.getResultsByGradeSectionTerm(targetGradeId, undefined, activeTerm, activeYear);
+                if (allGradeResults && allGradeResults.length > 0) {
+                  const uniqueResultsMap = new Map();
+                  allGradeResults.forEach(r => {
+                    const sid = r.studentId?._id?.toString() || r.studentId?.toString();
+                    if (sid) uniqueResultsMap.set(sid, r);
+                  });
+                  const uniqueGradeResults = Array.from(uniqueResultsMap.values());
 
-                  if (allGradeResults && allGradeResults.length > 0) {
-                    const uniqueResultsMap = new Map();
-                    allGradeResults.forEach(r => {
-                      const sid = r.studentId?._id?.toString() || r.studentId?.toString();
-                      if (sid) uniqueResultsMap.set(sid, r);
-                    });
-                    const uniqueGradeResults = Array.from(uniqueResultsMap.values());
+                  // Ranking
+                  const sortedByGrade = uniqueGradeResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
+                  const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
 
-                    // Ranking
-                    const sortedByGrade = uniqueGradeResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
-                    const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
+                  const sectionResults = uniqueGradeResults.filter(r =>
+                    (r.sectionName || "").toString().trim().toLowerCase() === (targetSectionName || "").toString().trim().toLowerCase()
+                  );
+                  const sortedBySection = sectionResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
+                  const sectionRankIdx = sortedBySection.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
 
-                    const sectionResults = uniqueGradeResults.filter(r =>
-                      (r.sectionName || "").toString().trim().toLowerCase() === (targetSectionName || "").toString().trim().toLowerCase()
-                    );
-                    const sortedBySection = sectionResults.sort((a, b) => (Number(b.summary?.percentage) || 0) - (Number(a.summary?.percentage) || 0));
-                    const sectionRankIdx = sortedBySection.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === data._id?.toString());
+                  const getRankSuffix = (n) => {
+                    if (n === -1) return "---";
+                    const i = n + 1;
+                    const j = i % 10, k = i % 100;
+                    if (j === 1 && k !== 11) return i + "st";
+                    if (j === 2 && k !== 12) return i + "nd";
+                    if (j === 3 && k !== 13) return i + "rd";
+                    return i + "th";
+                  };
 
-                    const getRankSuffix = (n) => {
-                      if (n === -1) return "---";
-                      const i = n + 1;
-                      const j = i % 10, k = i % 100;
-                      if (j === 1 && k !== 11) return i + "st";
-                      if (j === 2 && k !== 12) return i + "nd";
-                      if (j === 3 && k !== 13) return i + "rd";
-                      return i + "th";
-                    };
+                  setGradeRank(getRankSuffix(gradeRankIdx));
+                  setClassRank(getRankSuffix(sectionRankIdx));
+                  setActiveTermDisplay(`${activeTerm} ${activeYear}`);
 
-                    setGradeRank(getRankSuffix(gradeRankIdx));
-                    setClassRank(getRankSuffix(sectionRankIdx));
-                    setActiveTermDisplay(`${activeTerm} ${activeYear}`);
-
-                    if (studentResultForTerm.summary && studentResultForTerm.summary.gpa) {
-                      setTermGPA(Number(studentResultForTerm.summary.gpa).toFixed(2));
-                    }
+                  if (foundResult.summary && foundResult.summary.gpa) {
+                    setTermGPA(Number(foundResult.summary.gpa).toFixed(2));
                   }
                 }
               }

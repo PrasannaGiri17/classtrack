@@ -2,8 +2,9 @@ const Event = require('../models/Event');
 const Holiday = require('../models/Holiday');
 const Exam = require('../models/Exam');
 const Student = require('../models/studentModel');
+const { Grade, Subject } = require('../models/School');
 const Section = require('../models/Section');
-const School = require('../models/School'); // Assuming School model exists, though we default to 1
+const { School } = require('../models/School'); 
 
 // @desc    Create a new calendar event
 // @route   POST /api/calendar/events
@@ -174,46 +175,80 @@ exports.getEvents = async (req, res) => {
       }).populate('schedules.entries.subjectId')
     ]);
 
+    // Resolve student info once if needed
+    // Resolve student info once if needed
+    let studentClass = null;
+    if (role === 'student') {
+      const studentId = req.user.studentId || req.user._id;
+      
+      // Try finding student by primary ID sources
+      let student = await Student.findById(studentId).populate('classId');
+      if (!student) {
+        student = await Student.findOne({ 
+          $or: [{ _id: req.user._id }, { email: req.user.email }], 
+          schoolId: req.schoolId 
+        }).populate('classId');
+      }
+      
+      if (student) {
+        // Resolve class number from multiple potential sources
+        const resolvedGradeNum = student.studentClass || 
+                                student.classId?.gradeNumber || 
+                                (student.classId && typeof student.classId === 'object' ? student.classId.gradeNumber : null);
+        
+        if (resolvedGradeNum !== null && resolvedGradeNum !== undefined) {
+           studentClass = Number(resolvedGradeNum);
+        } else if (student.sectionId) {
+           // Fallback: Check if we can find the grade via their section
+           const gradeViaSection = await Grade.findOne({ "sections._id": student.sectionId });
+           if (gradeViaSection) studentClass = Number(gradeViaSection.gradeNumber);
+        }
+      }
+
+      // Final fallback: check the user document itself for classId (sometimes used as grade name/number)
+      if (studentClass === null && req.user.classId) {
+        const val = Number(req.user.classId);
+        if (!isNaN(val)) studentClass = val;
+      }
+    }
+
     // Map and filter Exams based on role
     let mappedExams = [];
+    const fromStr = from ? from.split('T')[0] : null;
+    const toStr = to ? to.split('T')[0] : null;
+
     for (const examData of examDocs) {
       if (examData && examData.schedules) {
         // 1. Map individual entries for specific grade (Students only)
-        if (role === 'student') {
-          const studentId = req.user.studentId || req.user._id;
-          const student = await Student.findById(studentId);
-          const studentClass = student ? student.studentClass : null;
+        if (role === 'student' && studentClass !== null) {
+          const targetGrade = studentClass;
+          
+          examData.schedules.forEach(schedule => {
+            // Check if this schedule is for the student's grade
+            const scheduleGrade = Number(schedule.gradeNumber);
+            if (scheduleGrade === targetGrade) {
+              schedule.entries.forEach(entry => {
+                if (entry.date) {
+                  const entryDateISO = new Date(entry.date).toISOString().split('T')[0];
+                  
+                  // Apply date range filter using strings for timezone robustness
+                  if (fromStr && toStr && (entryDateISO < fromStr || entryDateISO > toStr)) return;
 
-          if (studentClass !== null) {
-            const publishedTerms = (examData.termStatuses || [])
-              .filter(ts => ts.isPublished)
-              .map(ts => ts.term);
-
-            examData.schedules.forEach(schedule => {
-              const isPublished = publishedTerms.includes(schedule.term);
-              if (!isPublished) return;
-
-              if (schedule.gradeNumber != null && Number(schedule.gradeNumber) === Number(studentClass)) {
-                schedule.entries.forEach(entry => {
-                  if (entry.date) {
-                    const entryDate = new Date(entry.date);
-                    if ((from && to) && (entryDate < new Date(from) || entryDate > new Date(to))) return;
-
-                    mappedExams.push({
-                      _id: `exam-${entry._id}`,
-                      title: `Exam: ${entry.subjectId ? (entry.subjectId.subjectName || entry.subjectId) : 'Subject'}`,
-                      type: 'EXAMS',
-                      description: `${schedule.term} (${examData.academicYear}) - Day ${entry.slotOrder || ''}`,
-                      startDate: entryDate,
-                      endDate: entryDate,
-                      color: 'blue',
-                      audience: 'Students'
-                    });
-                  }
-                });
-              }
-            });
-          }
+                  mappedExams.push({
+                    _id: `exam-granular-${entry._id}-${examData._id}`,
+                    title: `Exam: ${entry.subjectId?.subjectName || entry.subject || 'Subject Exam'}`,
+                    type: 'EXAMS',
+                    description: `${schedule.term} (${examData.academicYear}) - Day ${entry.slotOrder || ''}`,
+                    startDate: entry.date,
+                    endDate: entry.date,
+                    color: 'blue',
+                    audience: 'Students',
+                    isExam: true
+                  });
+                }
+              });
+            }
+          });
         }
 
         // 2. Map "Exam Week" summary (Visible to Everyone if published/available)
@@ -231,16 +266,20 @@ exports.getEvents = async (req, res) => {
           });
         });
 
-        // Determine which terms to show summaries for
+        // Show summary to students if published OR if we want them to see the upcoming block
         const publishedTerms = (examData.termStatuses || [])
-          .filter(ts => ts.isPublished || (role === 'admin' || role === 'teacher')) // Show unpublished to staff
+          .filter(ts => ts.isPublished || ts.isOpen || role === 'admin' || role === 'teacher') 
           .map(ts => ts.term);
 
         Object.keys(termSummary).forEach(term => {
           const { min, max } = termSummary[term];
-          if (min && max && (publishedTerms.includes(term) || role === 'admin')) {
+          if (min && max && (publishedTerms.includes(term) || role === 'admin' || role === 'teacher')) {
             // Apply date filter
-            if ((from && to) && (max < new Date(from) || min > new Date(to))) return;
+            if (fromStr && toStr) {
+               const minISO = min.toISOString().split('T')[0];
+               const maxISO = max.toISOString().split('T')[0];
+               if (maxISO < fromStr || minISO > toStr) return;
+            }
 
             mappedExams.push({
               _id: `exam-week-${term.replace(/\s+/g, '-')}-${examData.academicYear}`,
@@ -250,7 +289,7 @@ exports.getEvents = async (req, res) => {
               startDate: min,
               endDate: max,
               color: 'blue',
-              audience: role === 'student' ? 'Students' : (role === 'admin' ? 'Admins' : 'Teachers')
+              audience: 'All'
             });
           }
         });
@@ -314,9 +353,8 @@ exports.getEvents = async (req, res) => {
       };
     });
 
-    const allEvents = [...events, ...mappedHolidays, ...mappedExams].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-
-    res.json(allEvents);
+    const sortedEvents = [...events, ...mappedHolidays, ...mappedExams].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    res.json(sortedEvents);
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json({ message: 'Server error fetching events', error: error.message });

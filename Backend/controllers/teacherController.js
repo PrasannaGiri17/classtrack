@@ -284,6 +284,14 @@ const updateTeacher = async (req, res) => {
       .populate("primarySubject", "subjectName")
       .populate("secondarySubject", "subjectName");
 
+    // SYNC: Update User model if email changed
+    if (req.body.email && req.body.email !== exists.email) {
+      await User.findOneAndUpdate(
+        { teacherId: updatedTeacher._id },
+        { $set: { email: req.body.email.trim() } }
+      );
+    }
+
     res.status(200).json({ message: "Teacher record updated successfully.", teacher: updatedTeacher });
   } catch (error) {
     res.status(400).json({ message: error.message });

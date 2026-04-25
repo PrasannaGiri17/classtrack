@@ -23,6 +23,40 @@ function getTokenFromHeader(req) {
 
 
 
+// ✅ Check Email Availability
+exports.checkEmail = async (req, res) => {
+  try {
+    const { email, excludeId, role } = req.query;
+    if (!email) return res.status(400).json({ message: "Email required" });
+
+    // Check in User model
+    const query = { email: email.trim() };
+    if (excludeId) {
+      // If excludeId is provided, we check if ANY OTHER user has this email
+      // We need to know if the excludeId is for the User model or the profile model
+      // Usually, it's easier to check if the email exists and if it belongs to someone else
+      const existing = await User.findOne(query);
+      if (existing) {
+        // Check if this user belongs to the one we're editing
+        const isSameUser = (role === 'teacher' && existing.teacherId?.toString() === excludeId) ||
+                           (role === 'student' && existing.studentId?.toString() === excludeId) ||
+                           (role === 'admin' && existing.adminId?.toString() === excludeId) ||
+                           (existing._id.toString() === excludeId);
+        
+        if (!isSameUser) return res.json({ exists: true, message: "Email already in use" });
+      }
+    } else {
+      const existing = await User.findOne(query);
+      if (existing) return res.json({ exists: true, message: "Email already in use" });
+    }
+
+    return res.json({ exists: false });
+  } catch (err) {
+    console.error("CHECK EMAIL ERROR:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 /* ---------- REGISTER ---------- */
 exports.register = async (req, res) => {
   try {

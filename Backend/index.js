@@ -39,8 +39,15 @@ const schoolNotificationRoutes = require("./routes/schoolNotificationRoutes");
 
 
 
+const { checkAndSendHolidayNotifications } = require("./services/holidayNotificationService");
+const { checkAndSendExamNotifications } = require("./services/examNotificationService");
+
 const app = express();
 const port = 7000;
+
+// Run notification checks every hour to ensure 24h advance notice
+setInterval(checkAndSendHolidayNotifications, 3600000); 
+setInterval(checkAndSendExamNotifications, 3600000); 
 
 // middlewares
 // middlewares
@@ -95,4 +102,7 @@ app.use("/api/school-notifications", schoolNotificationRoutes);
 
 app.listen(port, () => {
   console.log(`Backend server is running on http://localhost:${port}`);
+  // Initial check on startup
+  checkAndSendHolidayNotifications();
+  checkAndSendExamNotifications();
 });

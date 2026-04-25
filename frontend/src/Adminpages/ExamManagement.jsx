@@ -56,7 +56,7 @@ const ExamManagement = () => {
           examService.getExamData(selectedYear),
           gradeService.getGrades()
         ]);
-        
+
         // If no exam configuration exists for this year, initialize with defaults
         const finalExamData = eData || {
           config: { termsCount: 3, includeMidTerm: true, termDates: {} },
@@ -65,7 +65,7 @@ const ExamManagement = () => {
 
         setExamData({ ...finalExamData, allGrades: gradesData });
         setGrades(gradesData.map(g => g.gradeNumber.toString()));
-        
+
         if (!localStorage.getItem('resGrade')) {
           if (gradesData.length > 0) {
             const firstGrade = gradesData[0];
@@ -166,7 +166,7 @@ const ExamManagement = () => {
       try {
         const gradeDoc = examData?.allGrades?.find(g => g.gradeNumber.toString() === analyticsGrade);
         const data = await resultService.getAnalytics(selectedYear, gradeDoc?._id, null, resPhase);
-        
+
         // Transform gradeAverages: map _id to readable "G{grade}"
         const transformedGrade = data.gradeAverages.map(item => ({
           grade: `G${item.grade}`,
@@ -260,7 +260,7 @@ const ExamManagement = () => {
       const matchesSection = previewMode === 'individual' || resSection === 'All' || r.section === resSection;
       const matchesSearch = r.name.toLowerCase().includes(resultSearch.toLowerCase()) ||
         r.studentId.toLowerCase().includes(resultSearch.toLowerCase());
-      
+
       return matchesGrade && matchesSection && matchesSearch;
     });
   }, [realStudents, realResults, resultSearch, resGrade, resSection, resPhase, examData, previewMode]);
@@ -372,21 +372,21 @@ const ExamManagement = () => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const primaryColor = [16, 185, 129]; // Emerald Green
     const accentColor = [15, 23, 42]; // Slate 900
-    
+
     // --- 1. HEADER SECTION ---
     doc.setFillColor(...accentColor);
     doc.rect(0, 0, pageWidth, 45, 'F');
-    
+
     const schoolName = localStorage.getItem("schoolName") || "CLASS TRACK SCHOOL";
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
     doc.text(schoolName.toUpperCase(), pageWidth / 2, 18, { align: 'center' });
-    
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text("Official Academic Performance Report", pageWidth / 2, 26, { align: 'center' });
-    
+
     doc.setFillColor(...primaryColor);
     doc.roundedRect(pageWidth / 2 - 35, 32, 70, 8, 2, 2, 'F');
     doc.setTextColor(255, 255, 255);
@@ -400,36 +400,36 @@ const ExamManagement = () => {
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text("STUDENT PROFILE", 14, infoY);
-    
+
     doc.setDrawColor(226, 232, 240);
     doc.line(14, infoY + 2, pageWidth - 14, infoY + 2);
-    
+
     doc.setFont("helvetica", "normal");
     const labelX1 = 14, valX1 = 45;
     const labelX2 = 110, valX2 = 140;
-    
+
     doc.setTextColor(100, 116, 139);
     doc.text("Student Name:", labelX1, infoY + 10);
     doc.setTextColor(...accentColor);
     doc.setFont("helvetica", "bold");
     doc.text(result.name.toUpperCase(), valX1, infoY + 10);
-    
+
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
     doc.text("Student ID:", labelX2, infoY + 10);
     doc.setTextColor(...accentColor);
     doc.text(result.studentId || 'N/A', valX2, infoY + 10);
-    
+
     doc.setTextColor(100, 116, 139);
     doc.text("Grade / Class:", labelX1, infoY + 18);
     doc.setTextColor(...accentColor);
     doc.text(`Grade ${result.grade} - ${result.section}`, valX1, infoY + 18);
-    
+
     doc.setTextColor(100, 116, 139);
     doc.text("Academic Year:", labelX1, infoY + 26);
     doc.setTextColor(...accentColor);
     doc.text(selectedYear, valX1, infoY + 26);
-    
+
     doc.setTextColor(100, 116, 139);
     doc.text("Issue Date:", labelX2, infoY + 26);
     doc.setTextColor(...accentColor);
@@ -443,7 +443,7 @@ const ExamManagement = () => {
       data ? data.total : '—',
       data ? calculateGrade(data.total) : '—'
     ]);
-    
+
     autoTable(doc, {
       startY: infoY + 35,
       head: [['Subject Name', 'Theory', 'Practical', 'Total', 'Grade']],
@@ -460,24 +460,24 @@ const ExamManagement = () => {
     doc.rect(14, finalY, pageWidth - 28, 30, 'F');
     doc.setDrawColor(226, 232, 240);
     doc.rect(14, finalY, pageWidth - 28, 30, 'D');
-    
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...accentColor);
     doc.text("OVERALL PERFORMANCE", 20, finalY + 8);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
     doc.text("Average Percentage:", 20, finalY + 18);
     doc.text("Grade Point Average (GPA):", 20, finalY + 25);
-    
+
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...primaryColor);
     doc.setFontSize(14);
     doc.text(`${result.percentage}%`, 75, finalY + 18);
     doc.text(result.gpa, 75, finalY + 25);
-    
+
     const finalGrade = calculateGrade(parseFloat(result.percentage));
     doc.setFillColor(...primaryColor);
     doc.circle(pageWidth - 35, finalY + 15, 10, 'F');
@@ -529,7 +529,7 @@ const ExamManagement = () => {
               icon={Calendar}
               color="bg-emerald-500"
               title="Exam Schedule"
-              description="Create and manage exam schedules by class and section. Define dates, times, and subject mapping for upcoming academic assessments."
+              description="Create and manage exam schedules for each grade . Introduce the dates, times, and subject mapping for upcoming academic exams."
               buttonLabel="MANAGE EXAM SCHEDULE"
               onClick={() => setActiveView('schedule')}
             />
@@ -537,7 +537,7 @@ const ExamManagement = () => {
               icon={Settings2}
               color="bg-emerald-600"
               title="Examination Control"
-              description="Oversee grading systems, manage marking portals for faculty, track academic outcomes, and verify official transcripts across all departments."
+              description="Publish Results of students, open and close marking portals for teachers, track academic outcomes, and verify official transcripts across all grades."
               buttonLabel="MANAGE CONTROL MODULE"
               onClick={() => setActiveView('control-module')}
             />

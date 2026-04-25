@@ -100,11 +100,11 @@ const SExamManagement = () => {
         const gradeId = studentData.gradeId?._id || studentData.classId || studentData.studentClass;
         if (gradeId) {
           try {
-             const gradeTermData = await resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm, selectedYear);
-             setAllGradeResults(gradeTermData || []);
-          } catch(err) {
-             console.warn("Failed to fetch grade results for ranking", err);
-             setAllGradeResults([]);
+            const gradeTermData = await resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm, selectedYear);
+            setAllGradeResults(gradeTermData || []);
+          } catch (err) {
+            console.warn("Failed to fetch grade results for ranking", err);
+            setAllGradeResults([]);
           }
         }
       } catch (error) {
@@ -117,10 +117,30 @@ const SExamManagement = () => {
   }, [studentData, selectedTerm, selectedYear]);
 
   const termsList = useMemo(() => {
-    if (examConfig?.termStatuses) {
-      return examConfig.termStatuses.map(t => t.term);
+    const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
+    const terms = [];
+
+    // 1. Build terms based on school config
+    if (examConfig?.config) {
+      const { termsCount = 2, includeMidTerm = true } = examConfig.config;
+      for (let i = 0; i < termsCount; i++) {
+        const ord = ordinals[i] || `${i + 1}th`;
+        if (includeMidTerm) terms.push(`${ord} Mid Term`);
+        terms.push(`${ord} Term`);
+      }
+    } else {
+      // Basic Fallback
+      terms.push('First Mid Term', 'First Term', 'Second Mid Term', 'Second Term');
     }
-    return ['First Mid Term', 'First Term', 'Second Mid Term', 'Second Term'];
+
+    // 2. Map to include publication status
+    return terms.map(termName => {
+      const status = examConfig?.termStatuses?.find(ts => ts.term === termName);
+      return {
+        name: termName,
+        isPublished: status ? status.isPublished : false
+      };
+    });
   }, [examConfig]);
 
   const generateReportCard = () => {
@@ -133,22 +153,22 @@ const SExamManagement = () => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const primaryColor = [16, 185, 129]; // Emerald Green
     const accentColor = [15, 23, 42]; // Slate 900
-    
+
     // --- 1. HEADER SECTION ---
     doc.setFillColor(...accentColor);
     doc.rect(0, 0, pageWidth, 45, 'F');
-    
+
     // Header Info
     const schoolName = localStorage.getItem("schoolName") || "CLASS TRACK SCHOOL";
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
     doc.text(schoolName.toUpperCase(), pageWidth / 2, 18, { align: 'center' });
-    
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text("Academic Performance Assessment Report", pageWidth / 2, 26, { align: 'center' });
-    
+
     // Report Title / Term
     doc.setFillColor(...primaryColor);
     doc.roundedRect(pageWidth / 2 - 35, 32, 70, 8, 2, 2, 'F');
@@ -163,39 +183,39 @@ const SExamManagement = () => {
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text("STUDENT PROFILE", 14, infoY);
-    
+
     doc.setDrawColor(226, 232, 240); // Slate 200
     doc.line(14, infoY + 2, pageWidth - 14, infoY + 2);
-    
+
     doc.setFont("helvetica", "normal");
     const labelX1 = 14, valX1 = 45;
     const labelX2 = 110, valX2 = 140;
-    
+
     // Row 1
     doc.setTextColor(100, 116, 139); // Slate 500
     doc.text("Student Name:", labelX1, infoY + 10);
     doc.setTextColor(...accentColor);
     doc.setFont("helvetica", "bold");
     doc.text(`${studentData?.firstName} ${studentData?.lastName || ''}`.toUpperCase(), valX1, infoY + 10);
-    
+
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "normal");
     doc.text("Student ID:", labelX2, infoY + 10);
     doc.setTextColor(...accentColor);
     doc.text(studentData?.studentId || 'N/A', valX2, infoY + 10);
-    
+
     // Row 2
     doc.setTextColor(100, 116, 139);
     doc.text("Grade / Class:", labelX1, infoY + 18);
     doc.setTextColor(...accentColor);
     doc.text(`Grade ${studentData?.studentClass || 'N/A'} - ${studentData?.sectionId?.sectionName || 'N/A'}`, valX1, infoY + 18);
-    
+
     // Row 3
     doc.setTextColor(100, 116, 139);
     doc.text("Academic Year:", labelX1, infoY + 26);
     doc.setTextColor(...accentColor);
     doc.text(selectedYear, valX1, infoY + 26);
-    
+
     doc.setTextColor(100, 116, 139);
     doc.text("Issue Date:", labelX2, infoY + 26);
     doc.setTextColor(...accentColor);
@@ -209,7 +229,7 @@ const SExamManagement = () => {
       (row.theory || 0) + (row.practical || 0),
       row.grade
     ]);
-    
+
     autoTable(doc, {
       startY: infoY + 35,
       head: [['Subject Name', 'Theory', 'Practical', 'Total', 'Grade']],
@@ -233,30 +253,30 @@ const SExamManagement = () => {
 
     // --- 4. SUMMARY SECTION ---
     const finalY = (doc).lastAutoTable.finalY + 15;
-    
+
     doc.setFillColor(248, 250, 252); // Slate 50
     doc.rect(14, finalY, pageWidth - 28, 30, 'F');
     doc.setDrawColor(226, 232, 240);
     doc.rect(14, finalY, pageWidth - 28, 30, 'D');
-    
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...accentColor);
     doc.text("OVERALL ASSESSMENT", 20, finalY + 8);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
     doc.text("Cumulative Grade Point (CGPA):", 20, finalY + 18);
     doc.text("Performance Description:", 20, finalY + 25);
-    
+
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...primaryColor);
     doc.setFontSize(14);
     doc.text(overallGpa, 75, finalY + 18);
     doc.setFontSize(9);
     doc.text("EXCELLENT PERFORMANCE", 65, finalY + 25);
-    
+
     // Grade Circle / Big Grade
     doc.setFillColor(...primaryColor);
     doc.circle(pageWidth - 35, finalY + 15, 10, 'F');
@@ -278,14 +298,14 @@ const SExamManagement = () => {
     // --- 6. SIGNATURE SECTION ---
     const sigY = scaleY + 30;
     doc.setDrawColor(200, 200, 200);
-    
+
     const sigWidth = 40;
     const sigX1 = 14, sigX2 = pageWidth / 2 - sigWidth / 2, sigX3 = pageWidth - 14 - sigWidth;
-    
+
     doc.line(sigX1, sigY, sigX1 + sigWidth, sigY);
     doc.line(sigX2, sigY, sigX2 + sigWidth, sigY);
     doc.line(sigX3, sigY, sigX3 + sigWidth, sigY);
-    
+
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
     doc.text("Class Teacher", sigX1 + sigWidth / 2, sigY + 5, { align: 'center' });
@@ -428,9 +448,9 @@ const SExamManagement = () => {
 
     const sortedByGrade = uniqueGradeResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
     const gradeRankIdx = sortedByGrade.findIndex(r => (r.studentId?._id?.toString() || r.studentId?.toString()) === studentData._id?.toString());
-    
+
     const currentSectionName = (studentData.sectionId?.sectionName || studentData.section || "").toString().trim().toLowerCase();
-    const sectionResults = uniqueGradeResults.filter(r => 
+    const sectionResults = uniqueGradeResults.filter(r =>
       (r.sectionName || "").toString().trim().toLowerCase() === currentSectionName
     );
     const sortedBySection = sectionResults.sort((a, b) => (b.summary?.percentage || 0) - (a.summary?.percentage || 0));
@@ -464,7 +484,7 @@ const SExamManagement = () => {
           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-none uppercase">Exam Details</h1>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.25em] mt-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Performance Assessment Hub
+            All the Academic year's Results
           </p>
         </div>
       </div>
@@ -529,17 +549,17 @@ const SExamManagement = () => {
                 className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
               >
                 {selectedYear} BS
-                <ChevronDown 
-                  size={18} 
-                  className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isYearDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
+                <ChevronDown
+                  size={18}
+                  className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isYearDropdownOpen ? 'rotate-180' : 'rotate-0'}`}
                 />
               </button>
 
               {isYearDropdownOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-[60]" 
-                    onClick={() => setIsYearDropdownOpen(false)} 
+                  <div
+                    className="fixed inset-0 z-[60]"
+                    onClick={() => setIsYearDropdownOpen(false)}
                   />
                   <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
                     <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
@@ -550,11 +570,10 @@ const SExamManagement = () => {
                             setSelectedYear(year);
                             setIsYearDropdownOpen(false);
                           }}
-                          className={`w-full px-5 py-3 text-[10px] font-black text-left rounded-xl transition-all uppercase tracking-widest ${
-                            selectedYear === year 
-                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                          className={`w-full px-5 py-3 text-[10px] font-black text-left rounded-xl transition-all uppercase tracking-widest ${selectedYear === year
+                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
-                          }`}
+                            }`}
                         >
                           {year} BS
                         </button>
@@ -574,35 +593,40 @@ const SExamManagement = () => {
                 onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
                 className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
               >
-                {selectedTerm}
-                <ChevronDown 
-                  size={18} 
-                  className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
+                <div className="flex items-center gap-2">
+                  {selectedTerm}
+                  {!isPublished && <Lock size={12} className="text-amber-500 shrink-0" />}
+                </div>
+                <ChevronDown
+                  size={18}
+                  className={`absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-emerald-500 transition-all ${isTermDropdownOpen ? 'rotate-180' : 'rotate-0'}`}
                 />
               </button>
 
               {isTermDropdownOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-[60]" 
-                    onClick={() => setIsTermDropdownOpen(false)} 
+                  <div
+                    className="fixed inset-0 z-[60]"
+                    onClick={() => setIsTermDropdownOpen(false)}
                   />
                   <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
                     <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
-                      {termsList.map(term => (
+                      {termsList.map(termObj => (
                         <button
-                          key={term}
+                          key={termObj.name}
                           onClick={() => {
-                            setSelectedTerm(term);
+                            setSelectedTerm(termObj.name);
                             setIsTermDropdownOpen(false);
                           }}
-                          className={`w-full px-5 py-3 text-[10px] font-black text-left rounded-xl transition-all uppercase tracking-widest ${
-                            selectedTerm === term 
-                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                          className={`w-full px-5 py-3 text-[10px] font-black text-left rounded-xl transition-all uppercase tracking-widest flex items-center justify-between group/item ${selectedTerm === termObj.name
+                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-emerald-500'
-                          }`}
+                            }`}
                         >
-                          {term}
+                          <span>{termObj.name}</span>
+                          {!termObj.isPublished && (
+                            <Lock size={12} className={`${selectedTerm === termObj.name ? 'text-white/80' : 'text-amber-500'}`} />
+                          )}
                         </button>
                       ))}
                     </div>

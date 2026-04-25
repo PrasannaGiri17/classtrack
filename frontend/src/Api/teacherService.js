@@ -23,11 +23,17 @@ const updateTeacher = async (id, teacherData) => {
   return response.data;
 };
 
+const deleteTeacher = async (id) => {
+  const response = await axios.delete(`${API_URL}/${id}`);
+  return response.data;
+};
+
 const teacherService = {
   getAllTeachers,
   getTeacherById,
   addTeacher,
-  updateTeacher
+  updateTeacher,
+  deleteTeacher
 };
 
 export default teacherService;

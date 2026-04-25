@@ -139,10 +139,16 @@ const DetailedCalendar = ({ currentDate, onMonthChange, events = [], mode = 'AD'
             const activeEvents = getEventsForDay(day);
 
             const isToday = isTodayDate(day);
-            const isExam = activeEvents.some(e => e.type === 'EXAMS' || e.type === 'CLASS TEST');
-            const isHoliday = activeEvents.some(e => e.type === 'HOLIDAY');
-            const isHomeWork = activeEvents.some(e => e.type === 'HOMEWORK');
-            const isEvent = activeEvents.some(e => e.type === 'EVENT' || e.type === 'event');
+            const isExam = activeEvents.some(e => {
+              const t = e.type?.toUpperCase() || '';
+              return t === 'EXAMS' || t === 'EXAM' || t === 'CLASS TEST';
+            });
+            const isHoliday = activeEvents.some(e => e.type?.toUpperCase() === 'HOLIDAY');
+            const isHomeWork = activeEvents.some(e => e.type?.toUpperCase() === 'HOMEWORK');
+            const isEvent = activeEvents.some(e => {
+              const t = e.type?.toUpperCase() || '';
+              return t === 'EVENT';
+            });
 
             // Calculate if this date is a Saturday
             // (startDay + day - 1) % 7 will be 6 for Saturday

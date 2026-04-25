@@ -15,9 +15,10 @@ import { toast } from '../../MainSystemComponents/Toast';
 import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
 import examService from '../../Api/examService';
 import gradeService from '../../Api/gradeService';
-import notificationService from '../../Api/notificationService';
+import schoolNotificationService from '../../Api/schoolNotificationService';
 import CustomNepaliHolidayCalendar from '../../MainSystemComponents/CustomNepaliHolidayCalendar';
 import PortalPopup from '../../MainSystemComponents/PortalPopup';
+import { convertADtoBS } from "@adhikarisaroj795/nepali-calendar-react";
 
 // Term ordinals used throughout - must match backend canonical names
 const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
@@ -43,7 +44,12 @@ const SchedulingView = () => {
   // const [mappingSession, setMappingSession] = useState(SESSIONS[0]); // REMOVED
   const [mappingTerm, setMappingTerm] = useState("First Term");
   const [mappingGrade, setMappingGrade] = useState("");
-  const [mappingYear, setMappingYear] = useState(2082); // NEW: Manage yearly data
+
+  // Calculate current BS year for dynamic filtering
+  const todayStr = new Date().toISOString().split('T')[0];
+  const currentBSYear = parseInt(convertADtoBS(todayStr).split('-')[0]);
+
+  const [mappingYear, setMappingYear] = useState(currentBSYear);
   const [slots, setSlots] = useState([]);
   const [isMappingSaved, setIsMappingSaved] = useState(false);
 
@@ -270,16 +276,17 @@ const SchedulingView = () => {
       const userDataStr = localStorage.getItem('user');
       const userData = userDataStr ? JSON.parse(userDataStr) : {};
 
-      await notificationService.createNotification({
-        title: `Exam Routine – ${mappingTerm} ${mappingYear}`,
-        message: `The official exam schedule for the ${mappingTerm} (${mappingYear}) has been finalized.`,
-        priority: "important",
-        targetGroup: "All School",
-        sender: userData.fullName || "School Administration",
-        senderId: userData._id || "ADMIN",
-        senderType: "admin",
-        routine_table
-      });
+      // Create notifications for Students and Teachers specifically (Excluding Admin)
+      const commonNotificationData = {
+        title: `Exam Routine Published – ${mappingTerm} ${mappingYear}`,
+        message: `The exam routine for ${mappingTerm} (${mappingYear}) has been published. You can now view your specific subject dates and times on the Academic Calendar.`,
+        sender: userData.fullName || "School Administration"
+      };
+
+      await Promise.all([
+        schoolNotificationService.createNotification({ ...commonNotificationData, receiver: 'student' }),
+        schoolNotificationService.createNotification({ ...commonNotificationData, receiver: 'teacher' })
+      ]);
 
       setIsMappingSaved(true);
       toast({ type: 'success', message: `Schedule published for ${mappingYear}!` });
@@ -317,6 +324,41 @@ const SchedulingView = () => {
     if (field === 'date' && isSaturday(value)) {
       toast({ type: 'error', message: 'Saturday exams are not allowed!' });
       return;
+    }
+
+    // Validation for Term Range Collisions
+    if (field === 'date' && value) {
+      // 1. Calculate the hypothetical new sequence for this term starting from 'index'
+      let hypotheticalSequence = [value];
+      let currentD = value;
+      for (let i = index + 1; i < newSlots.length; i++) {
+        const nextDate = getNextWorkingDate(currentD);
+        hypotheticalSequence.push(nextDate);
+        currentD = nextDate;
+      }
+
+      // 2. Check each hypothetical date against existing term ranges
+      for (const [termName, termDates] of Object.entries(yearSetup.termDates || {})) {
+        if (termName === mappingTerm || !termDates || termDates.length === 0) continue;
+
+        // Determine range for the other term
+        const sorted = [...termDates].filter(d => d).sort((a, b) => new Date(a) - new Date(b));
+        if (sorted.length === 0) continue;
+
+        const rangeStart = new Date(sorted[0]);
+        const rangeEnd = new Date(sorted[sorted.length - 1]);
+
+        for (const checkDateStr of hypotheticalSequence) {
+          const checkDate = new Date(checkDateStr);
+          if (checkDate >= rangeStart && checkDate <= rangeEnd) {
+            toast({
+              type: 'error',
+              message: `Schedule Collision! Date ${checkDateStr} falls within the ${termName} range (${sorted[0]} to ${sorted[sorted.length - 1]}).`
+            });
+            return;
+          }
+        }
+      }
     }
 
     newSlots[index] = { ...newSlots[index], [field]: value };
@@ -411,7 +453,7 @@ const SchedulingView = () => {
                   onChange={(e) => setMappingYear(Number(e.target.value))}
                   className="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 text-sm font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all cursor-pointer"
                 >
-                  {[2080, 2081, 2082, 2083, 2084, 2085].map(y => (
+                  {[currentBSYear, currentBSYear + 1].map(y => (
                     <option key={y} value={y}>{y} BS</option>
                   ))}
                 </select>
@@ -494,7 +536,7 @@ const SchedulingView = () => {
                   onChange={(e) => setMappingYear(Number(e.target.value))}
                   className="appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-xs font-bold text-slate-700 dark:text-white capitalize outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer"
                 >
-                  {[2080, 2081, 2082, 2083, 2084, 2085].map(y => (
+                  {[currentBSYear, currentBSYear + 1].map(y => (
                     <option key={y} value={y} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{y} BS</option>
                   ))}
                 </select>

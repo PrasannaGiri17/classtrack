@@ -20,6 +20,7 @@ import {
     ShieldCheck,
     FileText,
     Pencil,
+    Trash2,
     Layers,
     Save,
     Check,
@@ -346,7 +347,7 @@ const AttendanceSummaryCard = ({ yearly, studentId }) => {
     );
 };
 
-const StudentProfileHeader = ({ student, onUpdate, onEditClick, role }) => {
+const StudentProfileHeader = ({ student, onUpdate, onEditClick, onDeleteClick, role }) => {
     const navigate = useNavigate();
     const [currentAvatar, setCurrentAvatar] = useState(student.profilePhoto || student.avatarUrl);
     const fileInputRef = useRef(null);
@@ -589,15 +590,24 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick, role }) => {
                         <p className="text-sm font-black text-slate-800 dark:text-white tracking-tight">{student.classTeacher}</p>
                     </div>
 
-                    {/* Edit Button */}
+                    {/* Action Buttons */}
                     {role === 'admin' && (
-                        <button
-                            onClick={onEditClick}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0"
-                        >
-                            <Pencil size={13} />
-                            Edit Student
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={onEditClick}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0"
+                            >
+                                <Pencil size={13} />
+                                Edit Student
+                            </button>
+                            <button
+                                onClick={onDeleteClick}
+                                className="flex items-center justify-center w-10 h-10 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all border border-red-500/20 shadow-sm hover:shadow-red-500/20 hover:-translate-y-0.5 active:translate-y-0"
+                                title="Delete Student"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -804,6 +814,7 @@ const StudentPage = () => {
     const [selectedTerm, setSelectedTerm] = useState('First Term');
     const [availableTerms, setAvailableTerms] = useState(['First Term', 'Second Term', 'Third Term']);
     const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [examConfig, setExamConfig] = useState(null);
     const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
@@ -1071,6 +1082,19 @@ const StudentPage = () => {
         }
     };
 
+    const handleDelete = async () => {
+        try {
+            await studentService.deleteStudent(id);
+            toast({ type: 'success', message: 'Student record deleted successfully.' });
+            navigate(`/${role}/student-record`);
+        } catch (err) {
+            console.error("Deletion failed:", err);
+            toast({ type: 'error', message: 'Failed to delete student record.' });
+        } finally {
+            setIsDeleteConfirmOpen(false);
+        }
+    };
+
     if (!isLoaded) {
         return <Loading text="Fetching student profile..." fullScreen={true} />;
     }
@@ -1093,6 +1117,7 @@ const StudentPage = () => {
                     student={student}
                     onUpdate={handleUpdateStudent}
                     onEditClick={() => setIsEditPopupOpen(true)}
+                    onDeleteClick={() => setIsDeleteConfirmOpen(true)}
                     role={role}
                 />
 
@@ -1266,6 +1291,16 @@ const StudentPage = () => {
                 }}
                 mode="edit"
                 studentData={student}
+            />
+
+            <ConfirmDialog
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setIsDeleteConfirmOpen(false)}
+                onConfirm={handleDelete}
+                title="Delete Student Record?"
+                message={`Are you sure you want to permanently delete the record for ${student.name}? This action cannot be undone.`}
+                confirmText="Delete"
+                confirmColor="bg-red-500"
             />
         </div>
     );
