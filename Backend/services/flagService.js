@@ -19,17 +19,28 @@ const MONTH_NAMES = [
 /**
  * Main service function: calculate and save flags for all active students.
  */
-async function calculateAndSaveFlags(schoolId) {
+async function calculateAndSaveFlags(schoolId, academicYearArg) {
   const summary = { processed: 0, errors: [] };
+  const currentBSYear = require('../utils/nepaliYear').getCurrentNepaliYear();
+  const academicYear = academicYearArg || currentBSYear;
+
+  console.log(`[flagService] Starting flag calculation for school ${schoolId}, year ${academicYear}`);
 
   try {
+    // Find exam config for the specific year or the most recent one
     const examDoc = await Exam.findOne({ 
+      schoolId, 
+      academicYear,
+      'config.termDates': { $exists: true, $ne: {} } 
+    }).lean() || await Exam.findOne({ 
       schoolId, 
       'config.termDates': { $exists: true, $ne: {} } 
     }).sort({ academicYear: -1 }).lean();
-    if (!examDoc) throw new Error(`No exam config found for schoolId ${schoolId}`);
 
-    const academicYear = examDoc.academicYear || 2083;
+    if (!examDoc) {
+      console.warn(`[flagService] No exam config found for schoolId ${schoolId}. Skipping.`);
+      return summary;
+    }
     const termDates = examDoc.config?.termDates || {};
     
     // Sort and filter non-mid terms
@@ -91,56 +102,85 @@ async function calculateAndSaveFlags(schoolId) {
 
     const students = await Student.find({ schoolId, status: 'active' }).lean();
 
+    // Extract Exam publication statuses from the already fetched examDoc
+    const publishedTerms = new Set(
+      (examDoc?.termStatuses || [])
+        .filter(ts => ts.isPublished)
+        .map(ts => ts.term)
+    );
+
     for (const student of students) {
       try {
-        const results = await Result.find({ studentId: student._id, schoolId }).lean();
+        const results = await Result.find({ studentId: student._id, schoolId, academicYear }).lean();
         const expected = gradeSubjectCountMap[student.gradeId?.toString()] || 0;
         
-        const basisResult = resolveLastResultBasis(results, expected);
-        if (!basisResult) {
-          summary.processed++;
-          continue;
-        }
-
-        // Find relevant interval
-        const interval = termIntervals.find(i => i.term === basisResult.term);
-        if (!interval) {
-          summary.processed++;
-          continue;
-        }
-
-        // Calculate Precise Attendance within Interval
-        const { attendancePct, count } = await calculatePreciseAttendance(
-          student._id,
-          schoolId,
-          student.sectionId,
-          interval.start,
-          interval.end,
-          holidaySet,
-          academicYear,
-          bsToAdMap
-        );
-
-        // Academic Percentage: Already provided in basisResult.summary.percentage 
-        // as per the new rules in StudentFlag model helpers.
-
-        // Upsert Flag
-        const updatedFlag = await upsertStudentFlag({
-          schoolId,
-          student,
-          result: basisResult,
-          attendancePct,
-          attendanceMonths: [`${interval.term} range`]
+        // Find all "complete" and "published" results for this student
+        const visibleResults = results.filter(r => {
+          const termStr = r.term || "";
+          const termLower = termStr.toLowerCase();
+          const isMid = termLower.includes('mid');
+          const hasEnoughMarks = (r.marks?.length || 0) >= expected;
+          const isPublished = publishedTerms.has(termStr);
+          
+          return !isMid && hasEnoughMarks && isPublished;
         });
 
-        // Update Student master flag
-        if (updatedFlag) {
-          await Student.findByIdAndUpdate(student._id, { flag: updatedFlag.flagColor });
+        if (visibleResults.length === 0) {
+          summary.processed++;
+          continue;
+        }
+
+        // Sort results by term priority to find the "latest visible" one
+        const termMapping = { 'First Term': 1, 'first': 1, 'Second Term': 2, 'second': 2, 'Third Term': 3, 'third': 3 };
+        const sortedResults = [...visibleResults].sort((a, b) => {
+          const prioA = termMapping[a.term] || 0;
+          const prioB = termMapping[b.term] || 0;
+          return prioB - prioA;
+        });
+
+        const latestResult = sortedResults[0];
+
+        // Process each visible result to update its respective flag
+        for (const basisResult of visibleResults) {
+          const interval = termIntervals.find(i => i.term === basisResult.term);
+          if (!interval) continue;
+
+          // Determine Attendance Range:
+          // If this is the "latest" result for the year, use Year-to-Date (startDate to Now).
+          // Otherwise, use the term's fixed range (interval.start to interval.end).
+          const isLatest = basisResult._id.toString() === latestResult._id.toString();
+          const rangeStart = isLatest ? startDate : interval.start;
+          const rangeEnd = isLatest ? new Date() : interval.end;
+
+          const { attendancePct } = await calculatePreciseAttendance(
+            student._id,
+            schoolId,
+            student.sectionId,
+            rangeStart,
+            rangeEnd,
+            holidaySet,
+            academicYear,
+            bsToAdMap
+          );
+
+          // Upsert Flag for this specific term
+          const updatedFlag = await upsertStudentFlag({
+            schoolId,
+            student,
+            result: basisResult,
+            attendancePct,
+            attendanceMonths: [`${basisResult.term} basis`]
+          });
+
+          // If this was the latest flag, also update the Student master flag color
+          if (isLatest && updatedFlag) {
+            await Student.findByIdAndUpdate(student._id, { flag: updatedFlag.flagColor });
+          }
         }
 
         summary.processed++;
       } catch (studentErr) {
-        console.error(`Flag error for student ${student._id}:`, studentErr);
+        console.error(`[flagService] Flag error for student ${student._id}:`, studentErr);
         summary.errors.push({ studentId: student._id, error: studentErr.message });
       }
     }

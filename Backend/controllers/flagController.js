@@ -1,6 +1,7 @@
-// controllers/flagController.js
 const { StudentFlag } = require('../models/StudentFlag');
 const { calculateAndSaveFlags } = require('../services/flagService');
+const Exam = require('../models/Exam');
+const Student = require('../models/studentModel');
 
 /**
  * POST /api/flags/calculate
@@ -70,10 +71,47 @@ const getStudentFlagHistory = async (req, res) => {
     const { studentId } = req.params;
 
     const flags = await StudentFlag.find({ studentId })
-      .sort({ academicYear: -1, termPair: 1 })
+      .sort({ academicYear: -1, termPair: -1 })
       .lean();
 
-    return res.status(200).json(flags);
+    if (flags.length === 0) return res.status(200).json([]);
+
+    // To ensure consistency, we filter out flags whose results are NOT published in the Exam config
+    // We fetch unique school+year pairs to get the relevant Exam configs
+    const schoolYearPairs = [...new Set(flags.map(f => `${f.schoolId}-${f.academicYear}`))];
+    const examConfigs = {};
+
+    for (const pair of schoolYearPairs) {
+      const [schoolId, academicYear] = pair.split('-').map(Number);
+      const examDoc = await Exam.findOne({ schoolId, academicYear }).lean();
+      if (examDoc) {
+        const publishedSet = new Set(
+          (examDoc.termStatuses || [])
+            .filter(ts => ts.isPublished)
+            .map(ts => ts.term.toLowerCase()) // store lowercase for robust mapping
+        );
+        examConfigs[pair] = publishedSet;
+      }
+    }
+
+    // Filter flags based on publication status
+    // Mapping termPair 'first'/'second'/'third' to full terms 'First Term' etc.
+    const termPairMap = {
+      'first': 'first term',
+      'second': 'second term',
+      'third': 'third term'
+    };
+
+    const visibleFlags = flags.filter(flag => {
+      const pairKey = `${flag.schoolId}-${flag.academicYear}`;
+      const publishedTerms = examConfigs[pairKey];
+      if (!publishedTerms) return true; // fallback if no config found
+
+      const termKey = termPairMap[flag.termPair] || flag.termPair.toLowerCase();
+      return publishedTerms.has(termKey);
+    });
+
+    return res.status(200).json(visibleFlags);
   } catch (err) {
     console.error('getStudentFlagHistory error:', err);
     return res.status(500).json({ message: 'Internal server error.', error: err.message });

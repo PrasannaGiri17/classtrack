@@ -391,10 +391,17 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick, onDeleteClick, r
             icon: 'text-emerald-500',
             accent: 'bg-emerald-500',
             label: 'Green Flagged'
+        },
+        none: {
+            banner: 'bg-slate-300 dark:bg-slate-400',
+            badge: 'bg-slate-500/10 text-slate-500',
+            icon: 'text-slate-500',
+            accent: 'bg-slate-300',
+            label: 'Not Flagged'
         }
     };
 
-    const currentTheme = flagThemes[flag] || flagThemes.green;
+    const currentTheme = (student.flagDetails && flag) ? (flagThemes[flag] || flagThemes.none) : flagThemes.none;
 
     const handleImageClick = () => fileInputRef.current?.click();
 
@@ -461,20 +468,20 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick, onDeleteClick, r
                         <div className="flex items-center gap-2">
                             <i className="fa-solid fa-circle-info text-[9px] text-slate-400"></i>
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                                Flag Logic
+                                {student.flagDetails ? 'Flag Logic' : 'No Data to Flag'}
                             </span>
                         </div>
                         <div className="flex flex-col gap-0.5 mt-1">
                             <div className="flex justify-between items-center gap-4">
                                 <span className="text-[8px] text-slate-400 font-bold">Attendance:</span>
-                                <span className={`text-[9px] font-black ${student.flagDetails?.attendancePct >= 80 ? 'text-emerald-400' : student.flagDetails?.attendancePct >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
-                                    {student.flagDetails?.attendancePct?.toFixed(1)}%
+                                <span className={`text-[9px] font-black ${student.flagDetails ? (student.flagDetails.attendancePct >= 80 ? 'text-emerald-400' : student.flagDetails.attendancePct >= 60 ? 'text-amber-400' : 'text-red-400') : 'text-slate-500'}`}>
+                                    {student.flagDetails?.attendancePct != null ? `${student.flagDetails.attendancePct.toFixed(1)}%` : 'No Data'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center gap-4">
                                 <span className="text-[8px] text-slate-400 font-bold">Academic:</span>
-                                <span className={`text-[9px] font-black ${student.flagDetails?.termScore >= 75 ? 'text-emerald-400' : student.flagDetails?.termScore >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
-                                    {student.flagDetails?.termScore?.toFixed(1)}%
+                                <span className={`text-[9px] font-black ${student.flagDetails ? (student.flagDetails.termScore >= 75 ? 'text-emerald-400' : student.flagDetails.termScore >= 60 ? 'text-amber-400' : 'text-red-400') : 'text-slate-500'}`}>
+                                    {student.flagDetails?.termScore != null ? `${student.flagDetails.termScore.toFixed(1)}%` : 'No Data'}
                                 </span>
                             </div>
                         </div>
@@ -519,7 +526,7 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick, onDeleteClick, r
                                     </div>
                                 </div>
                             </div>
-                            <div className={`absolute bottom-1 right-1 w-8 h-8 ${currentTheme.accent} rounded-xl flex items-center justify-center text-white border-4 border-[#0b1220] shadow-lg z-20 transition-colors`}>
+                            <div className={`absolute bottom-1 right-1 w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-white border-4 border-[#0b1220] shadow-lg z-20 transition-colors`}>
                                 <Shield size={14} fill="currentColor" />
                             </div>
                             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} accept="image/*" />
@@ -535,7 +542,7 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick, onDeleteClick, r
 
                             <div className="flex flex-wrap items-center justify-center md:justify-start gap-5">
                                 <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10">
-                                    <Hash size={14} className={currentTheme.icon} />
+                                    <Hash size={14} className="text-emerald-500" />
                                     <span className="text-xs font-black uppercase tracking-[0.1em] text-slate-700 dark:text-slate-300">{student.studentId}</span>
                                 </div>
                             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ClipboardCheck,
   Search,
@@ -31,6 +32,7 @@ const NEPALI_MONTHS = [
 ];
 
 const AttendancePage = () => {
+  const navigate = useNavigate();
   // Initialize with current BS date
   const todayAD = new Date().toISOString().split('T')[0];
   const todayBS = convertADtoBS(todayAD);
@@ -516,7 +518,7 @@ const AttendancePage = () => {
                   Roll No
                 </th>
                 <th className="sticky left-[80px] z-20 bg-slate-50 dark:bg-slate-800 pl-6 pr-6 py-8 border-none min-w-[260px] transition-colors text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Student Identity
+                  Student Name
                 </th>
                 {daysArray.map(day => {
                   const isHoliday = holidays.includes(day);
@@ -571,7 +573,10 @@ const AttendancePage = () => {
                     </div>
                   </td>
                   <td className="sticky left-[80px] z-20 bg-white dark:bg-slate-900 pl-6 pr-6 py-5 border-none transition-colors pointer-events-none">
-                    <div className="flex items-center gap-4 min-w-0 pointer-events-auto">
+                    <div 
+                      className="flex items-center gap-4 min-w-0 pointer-events-auto cursor-pointer hover:opacity-70 transition-opacity"
+                      onClick={() => navigate(`/teacher/student/${s._id}`)}
+                    >
                       {s.profilePhoto ? (
                         <img src={s.profilePhoto} alt={s.firstName} className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0" />
                       ) : (
@@ -589,6 +594,8 @@ const AttendancePage = () => {
                     const status = attendanceRecords[s._id]?.[day];
                     const isHoliday = holidays.includes(day);
                     const isFuture = isFutureDate(day);
+                    const isToday = (selectedMonth === NEPALI_MONTHS[currentBSMonth - 1] && selectedYear === currentBSYear && day === todayDayNum);
+                    const isPast = !isFuture && !isToday;
                     return (
                       <td
                         key={day}
@@ -605,7 +612,7 @@ const AttendancePage = () => {
                             <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover/cell:scale-110 transition-transform">
                               <Check size={24} strokeWidth={4} />
                             </div>
-                          ) : status === 'A' ? (
+                          ) : (status === 'A' || (!status && !isHoliday && isPast)) ? (
                             <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-red-500/20 group-hover/cell:scale-110 transition-transform">
                               <Circle size={12} fill="currentColor" />
                             </div>

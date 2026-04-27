@@ -99,7 +99,7 @@ const saveAttendance = async (req, res) => {
     res.status(200).json({ message: "Attendance saved successfully", attendance });
 
     // Trigger flag recalculation in background to keep colors in sync
-    calculateAndSaveFlags(Number(req.schoolId)).catch(err => console.error("Auto flag update error:", err));
+    calculateAndSaveFlags(Number(req.schoolId), year).catch(err => console.error("Auto flag update error:", err));
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
