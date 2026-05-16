@@ -44,7 +44,10 @@ const NotificationPage = () => {
   const [grades, setGrades] = useState([]);
   const [teacherSubjects, setTeacherSubjects] = useState([]); // Teacher's own subject names
   const [loading, setLoading] = useState(true);
-  const [readIds, setReadIds] = useState(new Set());
+  const [readIds, setReadIds] = useState(() => {
+    const saved = localStorage.getItem('readAnnouncementIds');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
 
   // Delete Dialog State
@@ -139,7 +142,7 @@ const NotificationPage = () => {
 
   const filteredAnnouncements = useMemo(() => {
     return announcements.filter(a => {
-      const matchesPriority = filterPriority === 'all' || a.priority === filterPriority;
+      const matchesPriority = filterPriority === 'all' || a.priority?.toLowerCase() === filterPriority?.toLowerCase();
       const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.message.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesMine = !showOnlyMine || a.senderId === CURRENT_ADMIN_ID;
@@ -236,25 +239,33 @@ const NotificationPage = () => {
 
   const handleOpenPreview = (item) => {
     setPreviewItem(item);
-    setReadIds(prev => new Set(prev).add(item._id));
+    setReadIds(prev => {
+      const newReadIds = new Set(prev).add(item._id);
+      localStorage.setItem('readAnnouncementIds', JSON.stringify(Array.from(newReadIds)));
+      return newReadIds;
+    });
   };
 
   const getPriorityStyles = (p) => {
-    switch (p) {
+    const priority = p?.toLowerCase().trim();
+    switch (priority) {
       case 'urgent': return 'bg-emerald-600 text-white border-emerald-500 shadow-sm';
       case 'warning': return 'bg-red-500 text-white border-red-400 shadow-sm';
       case 'important': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-      case 'syllabus': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'syllabus':
+      case 'syallbus': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
   };
 
   const getPriorityIcon = (p) => {
-    switch (p) {
+    const priority = p?.toLowerCase().trim();
+    switch (priority) {
       case 'urgent': return <AlertCircle size={14} />;
       case 'warning': return <AlertTriangle size={14} />;
       case 'important': return <Info size={14} />;
-      case 'syllabus': return <BookOpen size={14} />;
+      case 'syllabus':
+      case 'syallbus': return <BookOpen size={14} />;
       default: return <Bell size={14} />;
     }
   };
@@ -275,7 +286,7 @@ const NotificationPage = () => {
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Announcements</h1>
-            <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2">Campus-wide Notification Dispatch</p>
+            <p className="text-[10px] font-bold text-slate-400 tracking-widest mt-2 uppercase">All School Announcements</p>
           </div>
         </div>
 
@@ -374,7 +385,7 @@ const NotificationPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight group-hover:text-emerald-600 transition-colors leading-tight">{a.title}</h3>
+                      <h3 className={`text-xl font-black tracking-tight group-hover:text-emerald-600 transition-colors leading-tight ${!isRead ? 'text-emerald-600' : 'text-slate-900 dark:text-white'}`}>{a.title}</h3>
                       <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed mt-2.5 max-w-4xl line-clamp-2">{a.message}</p>
                     </div>
                   </div>
@@ -384,20 +395,20 @@ const NotificationPage = () => {
                       <Calendar size={12} className="text-emerald-500" />
                       {formatTimestamp(a.createdAt)}
                     </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-emerald-600/70 border border-emerald-500/10 flex items-center gap-2">
-                          {a.senderId === CURRENT_ADMIN_ID ? 'Your Announcement' : `${a.sender} (${a.senderType})`}
-                        </div>
-  
-                        {a.senderId === CURRENT_ADMIN_ID && (
-                          <button
-                            onClick={(e) => handleDeleteClick(e, a)}
-                            className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-emerald-600/70 border border-emerald-500/10 flex items-center gap-2">
+                        {a.senderId === CURRENT_ADMIN_ID ? 'Your Announcement' : `${a.sender} (${a.senderType})`}
                       </div>
+
+                      {a.senderId === CURRENT_ADMIN_ID && (
+                        <button
+                          onClick={(e) => handleDeleteClick(e, a)}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -440,7 +451,7 @@ const NotificationPage = () => {
                   <Target size={16} />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Target Scope</p>
+                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Announcement For:</p>
                   <p className="text-xs font-black text-slate-700 dark:text-slate-300">{previewItem.targetGroup}</p>
                 </div>
               </div>
@@ -450,7 +461,7 @@ const NotificationPage = () => {
                   <User size={16} />
                 </div>
                 <div className="text-left">
-                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Sender</p>
+                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Annoucement By:</p>
                   <p className="text-xs font-black text-slate-700 dark:text-slate-300">
                     {previewItem.senderId === CURRENT_ADMIN_ID ? 'Your Announcement' : `${previewItem.sender} (${previewItem.senderType})`}
                   </p>
@@ -458,13 +469,13 @@ const NotificationPage = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 justify-end text-right">
-                <div className="text-right">
-                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Timestamp</p>
-                  <p className="text-xs font-black text-slate-700 dark:text-slate-300">{formatTimestamp(previewItem.createdAt)}</p>
-                </div>
+              <div className="flex items-center gap-3 justify-end">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                   <Clock size={16} />
+                </div>
+                <div className="text-left">
+                  <p className="text-[9px] font-black text-slate-400 tracking-widest">Sent At:</p>
+                  <p className="text-xs font-black text-slate-700 dark:text-slate-300">{formatTimestamp(previewItem.createdAt)}</p>
                 </div>
               </div>
             </div>

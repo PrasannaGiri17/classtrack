@@ -633,9 +633,9 @@ const SDashboard = () => {
               <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Announcements</h3>
             </div>
-            <button onClick={() => navigate('/student/activities')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
+            <button onClick={() => navigate('/student/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
-          <div className="space-y-4 max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="space-y-4 max-h-[365px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {announcements.map((item, idx) => (
               <div key={item._id || item.id || idx} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.priority === 'urgent' ? 'bg-red-500' :

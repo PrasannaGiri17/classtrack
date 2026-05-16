@@ -3,6 +3,7 @@ require("dotenv").config(); // load .env first
 
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const connectDB = require("./database");
 
 const studentRoutes = require("./routes/studentRoutes");
@@ -36,6 +37,8 @@ const khaltiPaymentRoutes = require("./routes/khaltiPayment");
 const esewaPaymentRoutes = require("./routes/esewaPayment");
 const flagRoutes = require("./routes/flagRoutes");
 const schoolNotificationRoutes = require("./routes/schoolNotificationRoutes");
+const chatbotRoutes = require("./routes/chatbotRoutes");
+
 
 
 
@@ -58,6 +61,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // connect MongoDB
 connectDB();
@@ -98,6 +102,8 @@ app.use("/api/payment/khalti", khaltiPaymentRoutes);
 app.use("/api/payment/esewa", esewaPaymentRoutes);
 app.use("/api/flags", flagRoutes);
 app.use("/api/school-notifications", schoolNotificationRoutes);
+app.use("/api/chatbot", chatbotRoutes);
+
 
 
 app.listen(port, () => {

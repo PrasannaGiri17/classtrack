@@ -1,39 +1,29 @@
-import axios from "axios";
+import api from "../Utils/axiosInstance";
 
-const API_URL = "http://localhost:7000/api/admins";
-
-// Helper to get auth header with Bearer token
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  };
-};
+const API_URL = "/admins";
 
 const getAllAdmins = async () => {
-  const response = await axios.get(API_URL, getAuthHeaders());
+  const response = await api.get(API_URL);
   return response.data;
 };
 
 const getAdminById = async (id) => {
-  const response = await axios.get(`${API_URL}/${id}`, getAuthHeaders());
+  const response = await api.get(`${API_URL}/${id}`);
   return response.data;
 };
 
 const addAdmin = async (adminData) => {
-  const response = await axios.post(API_URL, adminData, getAuthHeaders());
+  const response = await api.post(API_URL, adminData);
   return response.data;
 };
 
 const updateAdmin = async (id, adminData) => {
-  const response = await axios.put(`${API_URL}/${id}`, adminData, getAuthHeaders());
+  const response = await api.put(`${API_URL}/${id}`, adminData);
   return response.data;
 };
 
 const deleteAdmin = async (id) => {
-    const response = await axios.delete(`${API_URL}/${id}`, getAuthHeaders());
+    const response = await api.delete(`${API_URL}/${id}`);
     return response.data;
 };
 

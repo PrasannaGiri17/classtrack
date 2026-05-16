@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, Sun, Moon, Check, ArrowRight, User, X, Users, Building2, SquareUser } from 'lucide-react';
 import { FaRegUser } from "react-icons/fa6";
+import { TbMessageChatbot } from "react-icons/tb";
 import axios from 'axios';
+
 
 const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
@@ -46,8 +48,10 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       calendar: 'Calendar',
       exam: 'Examination',
       notification: 'Notifications',
-      fees: 'Fee Management'
+      fees: 'Fee Management',
+      messagebot: 'Chatbot Message'
     };
+
     return pageNames[activePage] || 'Dashboard';
   };
 
@@ -105,6 +109,8 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight transition-colors">{getPageDisplayName()}</h2>
         <p className="text-xs font-medium text-slate-400 dark:text-slate-500 transition-colors">{formattedDate}</p>
       </div>
+
+
 
       {/* Enhanced Search Bar with Suggestions */}
       <div className="flex-1 max-w-md mx-8 relative" ref={searchRef}>
@@ -178,8 +184,17 @@ const SuNavbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
       {/* Actions */}
       <div className="flex items-center gap-3 relative">
+        {/* Message Bot */}
+        <button
+          onClick={() => navigate('/super-admin/messagebot')}
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+          title="SU Message Bot"
+        >
+          <TbMessageChatbot className="w-5 h-5" />
+        </button>
 
         {/* Dark Mode Toggle */}
+
         <button
           onClick={toggleDarkMode}
           className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"

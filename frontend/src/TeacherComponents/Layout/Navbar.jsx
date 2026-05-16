@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Sun, Moon, Check, ArrowRight, User, MessageSquare, X, CheckCheck } from 'lucide-react';
+import { Search, Bell, Sun, Moon, Check, ArrowRight, User, MessageSquare, X, CheckCheck, ClipboardList } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import teacherService from '../../Api/teacherService';
 import messageService from '../../Api/messageService';
@@ -205,7 +205,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
   const handleMarkAsRead = async (id) => {
     try {
       await schoolNotificationService.markAsRead(id);
-      setNotifications(prev => prev.map(n => 
+      setNotifications(prev => prev.map(n =>
         n._id === id ? { ...n, readBy: [...(n.readBy || []), userId] } : n
       ));
     } catch (error) {
@@ -390,7 +390,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
             <div className="absolute top-full right-[4rem] mt-3 w-96 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-none z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">Notifications</h3>
-                <button 
+                <button
                   onClick={handleMarkAllRead}
                   className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
                 >
@@ -404,8 +404,8 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
                   </div>
                 ) : notifications.length > 0 ? (
                   notifications.map((notif) => (
-                    <div 
-                      key={notif._id} 
+                    <div
+                      key={notif._id}
                       onClick={() => {
                         if (!notif.readBy?.includes(userId)) {
                           handleMarkAsRead(notif._id);

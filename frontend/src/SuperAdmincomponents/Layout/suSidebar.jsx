@@ -28,13 +28,11 @@ const SuSidebar = ({ activePage }) => {
   return (
     <div className="flex flex-col h-full">
       {/* Branding */}
-      <div className="h-[72px] flex items-center px-6 border-b border-slate-50 dark:border-slate-800 transition-colors">
+      <div className="h-20 flex items-center px-6 border-b border-slate-50 dark:border-slate-800 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100 dark:shadow-none">
-            <School className="text-white w-6 h-6" />
-          </div>
+          <img src="/1.png" alt="ClassTrack" className="w-12 h-12 object-contain" />
           <div>
-            <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none">ClassTrack</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none">ClassTrack</h1>
           </div>
         </div>
       </div>

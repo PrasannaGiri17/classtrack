@@ -7,7 +7,7 @@ const NotificationSchema = new mongoose.Schema(
     message: { type: String, required: true },
     priority: { 
       type: String, 
-      enum: ["urgent", "important", "normal", "warning"], 
+      enum: ["urgent", "important", "normal", "warning", "syllabus"], 
       default: "normal" 
     },
     targetGroup: { type: String, required: true }, // e.g., "All School", "Grade 8", etc.

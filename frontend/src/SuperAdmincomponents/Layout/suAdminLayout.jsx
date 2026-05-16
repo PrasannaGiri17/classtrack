@@ -38,7 +38,9 @@ const SuAdminLayout = () => {
     else if (path.includes('/notification')) setActivePage('notification');
     else if (path.includes('/fees')) setActivePage('fees');
     else if (path.includes('/messages')) setActivePage('messages');
+    else if (path.includes('/messagebot')) setActivePage('messagebot');
   }, [location.pathname]);
+
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 

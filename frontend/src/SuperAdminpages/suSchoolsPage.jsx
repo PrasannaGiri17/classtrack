@@ -366,7 +366,7 @@ const SuSchoolsPage = () => {
           <form onSubmit={handleAddSchool} className="p-6 sm:p-8 overflow-y-auto flex-1 custom-scrollbar">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
               {/* Left Column: School Details */}
-              <div className="space-y-6">
+              <div className="space-y-6 pb-4">
                 {/* Section Header */}
                 <div className="flex items-center gap-3">
                   <User size={16} className="text-emerald-500" />
@@ -447,7 +447,7 @@ const SuSchoolsPage = () => {
                     <input
                       type="file"
                       required
-                      className="w-full px-4 py-3 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white dark:file:bg-[#0f172a] file:text-emerald-600 dark:file:text-emerald-500 hover:file:bg-slate-50 dark:hover:file:bg-slate-800 transition-all cursor-pointer"
+                      className="w-full px-4 py-[11px] bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white dark:file:bg-[#0f172a] file:text-emerald-600 dark:file:text-emerald-500 hover:file:bg-slate-50 dark:hover:file:bg-slate-800 transition-all cursor-pointer"
                       onChange={e => setNewSchool({ ...newSchool, kycDocument: e.target.files?.[0]?.name || '' })}
                     />
                   </div>

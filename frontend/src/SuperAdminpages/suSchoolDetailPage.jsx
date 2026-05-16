@@ -5,9 +5,10 @@ import {
   ArrowLeft, MapPin, Phone, Mail, Globe, Users, BookOpen,
   GraduationCap, Award, Facebook, Instagram, Twitter,
   Building2, User, ShieldCheck, CheckCircle2, Calendar, Bookmark, Quote, Trash2,
-  Clock, Download, FileText
+  Clock, Download, FileText, Settings, X, Check, Pencil
 } from 'lucide-react';
 import ConfirmDialog from '../MainSystemComponents/ConfirmDialog';
+import PortalPopup from '../MainSystemComponents/PortalPopup';
 import { toast } from '../MainSystemComponents/Toast';
 
 // Using a placeholder icon for TikTok since lucide-react doesn't have a dedicated one
@@ -34,6 +35,9 @@ const SuSchoolDetailPage = () => {
   const [school, setSchool] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editedSchool, setEditedSchool] = useState({});
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   useEffect(() => {
     const fetchSchoolDetails = async () => {
@@ -101,6 +105,64 @@ const SuSchoolDetailPage = () => {
     if (id) fetchSchoolDetails();
   }, [id]);
 
+  const handleUpdateSchool = async (e) => {
+    e.preventDefault();
+    setUpdateLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', editedSchool.name || '');
+      formData.append('address', editedSchool.address || '');
+      formData.append('motto', editedSchool.motto || '');
+      formData.append('website', editedSchool.website || '');
+      formData.append('email', editedSchool.email || '');
+      formData.append('logo', editedSchool.logo || '');
+      formData.append('coverImage', editedSchool.coverImage || '');
+
+      const phoneNumbers = [
+        { phoneNumber: editedSchool.contactNumber, isPrimary: true, type: 'main' },
+        ...(editedSchool.otherNumber ? [{ phoneNumber: editedSchool.otherNumber, isPrimary: false, type: 'other' }] : [])
+      ];
+      formData.append('phoneNumbers', JSON.stringify(phoneNumbers));
+
+      const socialLinks = [
+        { platform: 'facebook', url: editedSchool.social?.facebook || '#' },
+        { platform: 'instagram', url: editedSchool.social?.instagram || '#' },
+        { platform: 'tiktok', url: editedSchool.social?.tiktok || '#' },
+      ];
+      formData.append('socialLinks', JSON.stringify(socialLinks));
+
+      if (editedSchool.kycFile) {
+        formData.append('kycDocument', editedSchool.kycFile);
+      }
+
+      const response = await axios.put(`http://localhost:7000/api/school/update/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      // Update local state with the new data from response
+      const updatedData = response.data.school;
+      setSchool(prev => ({
+        ...prev,
+        ...updatedData,
+        social: {
+          facebook: updatedData.socialLinks?.find(s => s.platform === 'facebook')?.url || '#',
+          instagram: updatedData.socialLinks?.find(s => s.platform === 'instagram')?.url || '#',
+          tiktok: updatedData.socialLinks?.find(s => s.platform === 'tiktok')?.url || '#',
+        },
+        contactNumbers: updatedData.phoneNumbers?.map(n => `${n.phoneNumber} (${n.type})`) || []
+      }));
+
+      setIsEditModalOpen(false);
+      toast({ type: 'success', message: "School details updated successfully!" });
+    } catch (error) {
+      console.error("Error updating school:", error);
+      toast({ type: 'error', message: error.response?.data?.message || "Failed to update school." });
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
   const confirmDeleteSchool = async () => {
     try {
       const response = await axios.delete(`http://localhost:7000/api/school/delete/${id}`);
@@ -157,8 +219,22 @@ const SuSchoolDetailPage = () => {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
 
-          {/* Delete Button */}
-          <div className="absolute top-6 right-6">
+          {/* Action Buttons */}
+          <div className="absolute top-6 right-6 flex items-center gap-3">
+            <button
+              onClick={() => {
+                setEditedSchool({
+                  ...school,
+                  contactNumber: school.contactNumbers?.[0]?.split(' ')[0] || '',
+                  otherNumber: school.contactNumbers?.[1]?.split(' ')[0] || '',
+                });
+                setIsEditModalOpen(true);
+              }}
+              className="p-3 bg-white/90 dark:bg-[#0f172a]/90 hover:bg-emerald-500 hover:text-white text-slate-600 dark:text-slate-300 rounded-full shadow-lg backdrop-blur-md transition-all hover:-translate-y-0.5 border border-white/20"
+              title="Edit School"
+            >
+              <Pencil size={20} />
+            </button>
             <button
               onClick={() => setDeleteDialog(true)}
               className="p-3 bg-red-500/90 hover:bg-red-600 text-white rounded-full shadow-lg shadow-red-500/20 backdrop-blur-md transition-all hover:-translate-y-0.5"
@@ -219,16 +295,19 @@ const SuSchoolDetailPage = () => {
             </div>
 
             {/* Social Links */}
-            <div className="flex items-center gap-3">
-              <a href={school.social.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-100 dark:bg-[#1e293b] flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-[#1877F2] hover:text-white transition-all">
-                <Facebook size={20} />
-              </a>
-              <a href={school.social.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-100 dark:bg-[#1e293b] flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-[#E4405F] hover:text-white transition-all">
-                <Instagram size={20} />
-              </a>
-              <a href={school.social.tiktok} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-100 dark:bg-[#1e293b] flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-black dark:hover:bg-white dark:hover:text-black hover:text-white transition-all">
-                <TikTokIcon size={20} />
-              </a>
+            <div className="flex flex-col items-end gap-3 lg:self-end">
+
+              <div className="flex items-center gap-3">
+                <a href={school.social.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-100 dark:bg-[#1e293b] flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-[#1877F2] hover:text-white transition-all">
+                  <Facebook size={20} />
+                </a>
+                <a href={school.social.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-100 dark:bg-[#1e293b] flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-[#E4405F] hover:text-white transition-all">
+                  <Instagram size={20} />
+                </a>
+                <a href={school.social.tiktok} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-slate-100 dark:bg-[#1e293b] flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-black dark:hover:bg-white dark:hover:text-black hover:text-white transition-all">
+                  <TikTokIcon size={20} />
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -319,10 +398,10 @@ const SuSchoolDetailPage = () => {
         <div className="space-y-6">
 
           {/* Admin Profile */}
-          <div className="bg-[#0f172a] rounded-[24px] border border-slate-800/60 p-5 shadow-sm">
+          <div className="bg-white dark:bg-[#0f172a] rounded-[24px] border border-slate-200 dark:border-slate-800/60 p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <ShieldCheck size={20} className="text-emerald-500" />
-              <h2 className="text-xl font-bold text-white tracking-tight">School Administrator</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">School Administrator</h2>
             </div>
 
             <div className="flex items-center gap-5">
@@ -332,21 +411,21 @@ const SuSchoolDetailPage = () => {
                   <img
                     src={school.admin.photo}
                     alt={school.admin.name}
-                    className="w-20 h-20 rounded-full object-cover border-2 border-slate-700/50 relative z-10 p-0.5 bg-slate-900 shadow-xl"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700/50 relative z-10 p-0.5 bg-white dark:bg-slate-900 shadow-xl"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-[#1e293b] flex items-center justify-center text-slate-400 border-2 border-slate-700/50 relative z-10 shadow-xl">
+                  <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-[#1e293b] flex items-center justify-center text-slate-400 border-2 border-slate-200 dark:border-slate-700/50 relative z-10 shadow-xl">
                     <User size={32} className="opacity-50" />
                   </div>
                 )}
-                <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1.5 rounded-full shadow-lg z-20 border-2 border-[#0f172a]">
+                <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1.5 rounded-full shadow-lg z-20 border-2 border-white dark:border-[#0f172a]">
                   <CheckCircle2 size={12} />
                 </div>
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-xl font-bold text-white tracking-tight mb-1 truncate">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-1 truncate">
                   {school.admin.name}
                 </h3>
                 <div className="flex items-center gap-3 group/link mt-1">
@@ -356,7 +435,7 @@ const SuSchoolDetailPage = () => {
                   <div className="min-w-0 flex-1">
                     <a
                       href={`mailto:${school.admin.email}`}
-                      className="text-xs font-semibold text-slate-300 hover:text-emerald-400 transition-colors whitespace-nowrap overflow-hidden text-ellipsis block"
+                      className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-400 transition-colors whitespace-nowrap overflow-hidden text-ellipsis block"
                       title={school.admin.email}
                     >
                       {school.admin.email}
@@ -400,6 +479,175 @@ const SuSchoolDetailPage = () => {
         title="Confirm School Deletion"
         message="Are you sure you want to delete this school? All associated admin and user records will also be permanently removed. This action cannot be undone."
       />
+
+      {/* Edit Modal */}
+      <PortalPopup isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+        <div className="bg-white dark:bg-[#0f172a] rounded-[24px] w-full max-w-5xl shadow-2xl border border-slate-200 dark:border-slate-800/60 overflow-hidden flex flex-col max-h-[90vh] text-slate-800 dark:text-slate-200 font-sans">
+          {/* Header */}
+          <div className="p-6 sm:p-8 border-b border-slate-200 dark:border-slate-800/60 flex justify-between items-start">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-emerald-500/20">
+                <Settings size={24} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Edit School: {school.name}</h2>
+                <p className="text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wider font-bold text-[10px]">Update School Record</p>
+              </div>
+            </div>
+            <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1">
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleUpdateSchool} className="p-6 sm:p-8 overflow-y-auto flex-1 custom-scrollbar">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
+              {/* Left Column: School Details */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Building2 size={16} className="text-emerald-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Basic Information</span>
+                  <div className="h-px bg-slate-200 dark:bg-slate-800/60 flex-1"></div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">School Name</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                    value={editedSchool.name || ''}
+                    onChange={e => setEditedSchool({ ...editedSchool, name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Motto</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                    value={editedSchool.motto || ''}
+                    onChange={e => setEditedSchool({ ...editedSchool, motto: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Address</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                    value={editedSchool.address || ''}
+                    onChange={e => setEditedSchool({ ...editedSchool, address: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Contact Number</label>
+                    <input
+                      type="tel"
+                      required
+                      maxLength={10}
+                      className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                      value={editedSchool.contactNumber || ''}
+                      onChange={e => setEditedSchool({ ...editedSchool, contactNumber: e.target.value.replace(/\D/g, '') })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Other Number</label>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                      value={editedSchool.otherNumber || ''}
+                      onChange={e => setEditedSchool({ ...editedSchool, otherNumber: e.target.value.replace(/\D/g, '') })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Change KYC Document</label>
+                  <input
+                    type="file"
+                    className="w-full px-4 py-3 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-white dark:file:bg-[#0f172a] file:text-emerald-600 dark:file:text-emerald-500 hover:file:bg-slate-50 dark:hover:file:bg-slate-800 transition-all cursor-pointer"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setEditedSchool({ ...editedSchool, kycFile: file });
+                      }
+                    }}
+                  />
+                  <p className="text-[10px] text-slate-400 mt-2 italic">* Upload a new file only if you want to replace the current KYC document.</p>
+                </div>
+              </div>
+
+              {/* Right Column: Media & Contact */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Globe size={16} className="text-emerald-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Media & Digital</span>
+                  <div className="h-px bg-slate-200 dark:bg-slate-800/60 flex-1"></div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Website</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                    value={editedSchool.website || ''}
+                    onChange={e => setEditedSchool({ ...editedSchool, website: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Logo URL</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                    value={editedSchool.logo || ''}
+                    onChange={e => setEditedSchool({ ...editedSchool, logo: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Cover Image URL</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                    value={editedSchool.coverImage || ''}
+                    onChange={e => setEditedSchool({ ...editedSchool, coverImage: e.target.value })}
+                  />
+                </div>
+
+              </div>
+            </div>
+
+            <div className="flex justify-end items-center gap-6 pt-6 mt-8 border-t border-slate-200 dark:border-slate-800/60">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-sm font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                disabled={updateLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={updateLoading}
+                className="px-8 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 font-bold flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                {updateLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                ) : (
+                  <Check size={18} strokeWidth={3} />
+                )}
+                SAVE CHANGES
+              </button>
+            </div>
+          </form>
+        </div>
+      </PortalPopup>
     </div>
   );
 };

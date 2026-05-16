@@ -104,13 +104,35 @@ const addSchool = async (req, res) => {
       return res.status(400).json({ message: "Admin email already exists in the system." });
     }
 
+    // Handle file upload
+    const kycDoc = req.file ? req.file.filename : kycDocument;
+
+    // Parse complex fields if they are sent as strings (common with FormData)
+    const parsedPhoneNumbers = typeof phoneNumbers === 'string' ? JSON.parse(phoneNumbers) : phoneNumbers;
+    const parsedSocialLinks = typeof socialLinks === 'string' ? JSON.parse(socialLinks) : socialLinks;
+    const parsedGradeSpan = typeof gradeSpan === 'string' ? JSON.parse(gradeSpan) : gradeSpan;
+
     // 4) Create the School
     const newSchool = new School({
       _id: nextSchoolId, // Provide _id explicitly since schema uses Mixed and doesn't auto-generate
       schoolId: nextSchoolId,
-      name, address, email: email || adminEmail, logo, website, motto, establishedYear,
-      affiliation, principalName, kycDocument, status: status || 'Pending', coverImage,
-      gradeSpan, maxSectionsPerGrade, phoneNumbers, socialLinks, admissionFee
+      name, 
+      address, 
+      email: email || adminEmail, 
+      logo, 
+      website, 
+      motto, 
+      establishedYear,
+      affiliation, 
+      principalName, 
+      kycDocument: kycDoc, 
+      status: status || 'Pending', 
+      coverImage,
+      gradeSpan: parsedGradeSpan, 
+      maxSectionsPerGrade, 
+      phoneNumbers: parsedPhoneNumbers, 
+      socialLinks: parsedSocialLinks, 
+      admissionFee
     });
 
     await newSchool.save();
@@ -170,10 +192,32 @@ const addSchool = async (req, res) => {
 const updateSchool = async (req, res) => {
   try {
     const lookupId = !isNaN(req.params.id) ? Number(req.params.id) : req.params.id;
+    
+    const updateData = { ...req.body };
+
+    // Handle file upload
+    if (req.file) {
+      updateData.kycDocument = req.file.filename;
+    }
+
+    // Parse complex fields if they are sent as strings
+    if (typeof updateData.phoneNumbers === 'string') {
+      updateData.phoneNumbers = JSON.parse(updateData.phoneNumbers);
+    }
+    if (typeof updateData.socialLinks === 'string') {
+      updateData.socialLinks = JSON.parse(updateData.socialLinks);
+    }
+    if (typeof updateData.gradeSpan === 'string') {
+      updateData.gradeSpan = JSON.parse(updateData.gradeSpan);
+    }
+    if (typeof updateData.operatingHours === 'string') {
+      updateData.operatingHours = JSON.parse(updateData.operatingHours);
+    }
+
     const updatedSchool = await School.findOneAndUpdate(
         { schoolId: lookupId },
-        { $set: req.body },
-        { new: true, runValidators: true, upsert: true }
+        { $set: updateData },
+        { new: true, runValidators: true }
     );
 
     if (!updatedSchool) {
@@ -182,6 +226,7 @@ const updateSchool = async (req, res) => {
 
     res.status(200).json({ message: "School updated successfully", school: updatedSchool });
   } catch (error) {
+    console.error("Update School Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

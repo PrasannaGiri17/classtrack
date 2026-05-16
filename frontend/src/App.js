@@ -8,6 +8,8 @@ import SuSchoolsPage from './SuperAdminpages/suSchoolsPage';
 import SuDashboard from './SuperAdminpages/suDashboard';
 import SuAdminLayout from './SuperAdmincomponents/Layout/suAdminLayout';
 import SuLoginPage from './SuperAdminpages/suLoginPage';
+import SuMessagebot from './SuperAdminpages/SuMessagebot';
+
 
 import AdminLayout from './AdminComponents/Layout/AdminLayout';
 import DashboardPage from './Adminpages/Dashboard';
@@ -123,7 +125,9 @@ function App() {
               <Route path="school" element={<SuSchoolsPage />} />
               <Route path="school/:id" element={<SuSchoolDetailPage />} />
               <Route path="messages" element={<MessagesPage />} />
+              <Route path="messagebot" element={<SuMessagebot />} />
             </Route>
+
             
             <Route path="/admin" element={
               token && user && user.role === "admin" && !user.mustChangePassword

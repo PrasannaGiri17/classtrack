@@ -223,7 +223,7 @@ const TDashboard = () => {
     };
 
     fetchDashboardData();
-    
+
     const fetchNotifications = async () => {
       try {
         setIsNotifLoading(true);
@@ -512,23 +512,28 @@ const TDashboard = () => {
             </div>
             <button onClick={() => navigate('/teacher/notification')} className="text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:underline">View All</button>
           </div>
-          <div className="space-y-4 max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {announcements.map((item, idx) => (
-              <div key={item._id || item.id || idx} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.priority === 'urgent' ? 'bg-red-500' :
-                    item.priority === 'warning' ? 'bg-amber-500' :
-                      item.priority === 'important' ? 'bg-blue-500' : 'bg-slate-400'
-                  }`} />
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</h4>
+          <div className="space-y-4 max-h-[400px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {announcements.map((item, idx) => {
+              const priority = item.priority?.toLowerCase().trim();
+              return (
+                <div key={item._id || item.id || idx} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${priority === 'urgent' ? 'bg-emerald-600' :
+                    priority === 'warning' ? 'bg-red-500' :
+                      priority === 'important' ? 'bg-emerald-500' : 
+                        priority === 'syllabus' || priority === 'syallbus' ? 'bg-blue-500' : 'bg-slate-400'
+                    }`} />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</h4>
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${priority === 'urgent' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                    priority === 'warning' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+                      priority === 'important' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                        priority === 'syllabus' || priority === 'syallbus' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                          'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                    }`}>{item.priority || 'normal'}</span>
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${item.priority === 'urgent' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
-                    item.priority === 'warning' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
-                      item.priority === 'important' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
-                        'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                  }`}>{item.priority || 'normal'}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

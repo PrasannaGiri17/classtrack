@@ -20,7 +20,8 @@ import {
   Check,
   ArrowRight,
   Clock,
-  Trash2
+  Trash2,
+  BookOpen
 } from 'lucide-react';
 import notificationService from '../Api/notificationService';
 import NotificationModal from '../AdminComponents/NotificationModal';
@@ -42,7 +43,10 @@ const NotificationPage = () => {
   const [grades, setGrades] = useState([]);
   const [subjects, setSubjects] = useState([]); // All unique subjects across all grades
   const [loading, setLoading] = useState(true);
-  const [readIds, setReadIds] = useState(new Set());
+  const [readIds, setReadIds] = useState(() => {
+    const saved = localStorage.getItem('readAnnouncementIds');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
 
   // Delete Dialog State
@@ -133,7 +137,7 @@ const NotificationPage = () => {
   const filteredAnnouncements = useMemo(() => {
 
     return announcements.filter(a => {
-      const matchesPriority = filterPriority === 'all' || a.priority === filterPriority;
+      const matchesPriority = filterPriority === 'all' || a.priority?.toLowerCase() === filterPriority?.toLowerCase();
       const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.message.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesMine = !showOnlyMine || a.senderId === CURRENT_ADMIN_ID;
@@ -222,23 +226,33 @@ const NotificationPage = () => {
 
   const handleOpenPreview = (item) => {
     setPreviewItem(item);
-    setReadIds(prev => new Set(prev).add(item._id));
+    setReadIds(prev => {
+      const newReadIds = new Set(prev).add(item._id);
+      localStorage.setItem('readAnnouncementIds', JSON.stringify(Array.from(newReadIds)));
+      return newReadIds;
+    });
   };
 
   const getPriorityStyles = (p) => {
-    switch (p) {
+    const priority = p?.toLowerCase().trim();
+    switch (priority) {
       case 'urgent': return 'bg-emerald-600 text-white border-emerald-500 shadow-sm';
       case 'warning': return 'bg-red-500 text-white border-red-400 shadow-sm';
       case 'important': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      case 'syllabus':
+      case 'syallbus': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
   };
 
   const getPriorityIcon = (p) => {
-    switch (p) {
+    const priority = p?.toLowerCase().trim();
+    switch (priority) {
       case 'urgent': return <AlertCircle size={14} />;
       case 'warning': return <AlertTriangle size={14} />;
       case 'important': return <Info size={14} />;
+      case 'syllabus':
+      case 'syallbus': return <BookOpen size={14} />;
       default: return <Bell size={14} />;
     }
   };
@@ -283,6 +297,7 @@ const NotificationPage = () => {
             <option value="important">Important</option>
             <option value="urgent">Urgent</option>
             <option value="warning">Warnings</option>
+            <option value="syllabus">Syllabus</option>
           </select>
           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
         </div>
@@ -374,7 +389,7 @@ const NotificationPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight group-hover:text-emerald-600 transition-colors leading-tight">{a.title}</h3>
+                      <h3 className={`text-xl font-black tracking-tight group-hover:text-emerald-600 transition-colors leading-tight ${!isRead ? 'text-emerald-600' : 'text-slate-900 dark:text-white'}`}>{a.title}</h3>
                       <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed mt-2.5 max-w-4xl line-clamp-2">{a.message}</p>
                     </div>
                   </div>

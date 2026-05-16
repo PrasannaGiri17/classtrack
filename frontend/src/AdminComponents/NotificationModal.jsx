@@ -88,6 +88,7 @@ const NotificationModal = ({
                                 <option value="important">IMPORTANT (GREEN)</option>
                                 <option value="urgent">URGENT (DARK GREEN)</option>
                                 <option value="warning">SERIOUS WARNING (RED)</option>
+                                <option value="syllabus">SYLLABUS (BLUE)</option>
                             </select>
                             <ChevronDown size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500" />
                         </div>

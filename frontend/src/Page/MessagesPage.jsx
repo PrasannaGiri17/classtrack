@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+
 import {
     Search,
     Send,
@@ -26,68 +28,17 @@ import PortalPopup from '../MainSystemComponents/PortalPopup';
 import Loading from '../MainSystemComponents/Loading';
 
 import messageService from '../Api/messageService';
-import { Sparkles } from 'lucide-react';
+import { TbMessageChatbot } from "react-icons/tb";
 
 const BOT_USER = {
     uid: 'bot',
     name: 'ClassTrack Assistant',
-    role: 'AI Assistant',
+    role: 'ChatBot',
     isBot: true
 };
 
-const BOT_ANSWERS = {
-    // Shared
-    "how do i send a message?": "You can send messages by selecting a person from your contacts in this Messages portal and typing in the chat box.",
-    "how do i check notifications?": "Click on 'Notification' in your sidebar or the bell icon in the top header to see recent alerts, messages, and system updates.",
 
-    // Student Specific (based on sidebar)
-    "how do i view my classroom?": "Go to the 'Classroom' section in your sidebar to see your enrolled classes, subjects, and teacher information.",
-    "where can i find my assignments?": "All your coursework is listed under 'Assignments / Content'. You can download materials and track your submission status there.",
-    "how do i pay my school fees?": "Visit the 'Fee Payment' page in your sidebar to view your due amount, payment history, and complete online transactions via Khalti.",
-    "where is my class routine?": "Your weekly schedule is available in the 'Routine' section. You can check subject timings and teacher names for each period.",
-    "how do i view exam results?": "Results for mid-terms and finals are posted in the 'Exam' section once published by the administration.",
-    "what is class diary?": "The Class Diary shows daily updates, homework notes, and important logs shared by your teachers for each subject.",
 
-    // Teacher Specific (based on sidebar)
-    "how do i take attendance?": "Go to the 'Attendance' section in your sidebar. Select your class and section to mark students as present, absent, or late.",
-    "how do i post an announcement?": "Use the 'Announcements' feature in your sidebar to send broadcast messages and updates to all your students and parents.",
-    "how do i manage assignments?": "Navigate to 'Assignments' to create new tasks, upload reference materials, and grade student submissions.",
-    "how do i update class diary?": "Teachers can log daily progress and homework in the 'Diary' section to keep students and parents informed.",
-    "where can i see my routine?": "Your teaching schedule is located in the 'Routine' section, showing your assigned periods across different classes.",
-    "how do i view classes?": "The 'Classroom' tab shows all classes where you are assigned as a teacher or co-teacher.",
-
-    // Admin/General
-    "how do i add a student?": "To add a student, go to 'Student Record' in the Admin sidebar and click the 'Add Student' button at the top right.",
-    "how do i view grades?": "Teachers can view and export grades from the 'Grade Management' section. Students can view their progress in the 'Classroom' tab.",
-    "how do i generate a report?": "Navigate to the designated feature page (like Student Record or Attendance) and look for the 'Export' or 'PDF' icon in the header.",
-    "what is a status flag?": "Status flags (green, yellow, red) help track student academic standing. Green is active, Yellow is at risk, and Red needs immediate attention."
-};
-
-const BOT_QUICK_REPLIES = {
-    student: [
-        "How do I pay my school fees?",
-        "Where can I find my assignments?",
-        "Where is my class routine?",
-        "How do I view my classroom?",
-        "What is Class Diary?",
-        "How do I send a message?"
-    ],
-    teacher: [
-        "How do I take attendance?",
-        "How do I post an announcement?",
-        "How do I manage assignments?",
-        "How do I update Class Diary?",
-        "Where can I see my routine?",
-        "How do I view my classroom?"
-    ],
-    admin: [
-        "How do I add a student?",
-        "How do I send a message?",
-        "How do I view grades?",
-        "How do I generate a report?",
-        "What is a status flag?"
-    ]
-};
 
 const MessagesPage = () => {
     const location = useLocation();
@@ -108,8 +59,11 @@ const MessagesPage = () => {
     const [conversations, setConversations] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [messages, setMessages] = useState([]);
+    const [botQA, setBotQA] = useState([]);
+    const [botQuickReplies, setBotQuickReplies] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+
     const [activeTab, setActiveTab] = useState('all');
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -189,8 +143,34 @@ const MessagesPage = () => {
     };
 
     useEffect(() => {
+        const fetchBotData = async () => {
+            try {
+                const response = await axios.get('http://localhost:7000/api/chatbot');
+                if (response.data.success) {
+                    const allQA = response.data.data;
+                    setBotQA(allQA);
+
+                    // Map the response data into botQuickReplies filtered by currentUser.role
+                    const filtered = allQA.filter(qa => qa.role === currentUser.role || qa.role === 'all');
+                    const quickReplies = filtered.slice(0, 6).map(qa => {
+                        const q = qa.question;
+                        return q.charAt(0).toUpperCase() + q.slice(1);
+                    });
+                    setBotQuickReplies(quickReplies);
+                }
+            } catch (error) {
+                console.error("Error fetching bot data:", error);
+                setBotQuickReplies([]);
+            }
+        };
+
+        fetchBotData();
+    }, [currentUser.role]);
+
+    useEffect(() => {
         fetchContacts();
     }, [searchQuery]);
+
 
     // Fetch Conversations list (latest messages)
     const fetchConversations = async () => {
@@ -336,7 +316,7 @@ const MessagesPage = () => {
         setSelectedImages(prev => prev.filter(img => img.id !== id));
     };
 
-    const handleBotMessage = (text) => {
+    const handleBotMessage = async (text) => {
         const userMsg = {
             id: Date.now(),
             text,
@@ -347,20 +327,39 @@ const MessagesPage = () => {
         setNewMessage('');
         setIsBotTyping(true);
 
-        const normalizedText = text.toLowerCase().trim();
-        const responseText = BOT_ANSWERS[normalizedText] || "I'm not sure about that yet. Please contact your admin for help.";
+        try {
+            const response = await axios.post('http://localhost:7000/api/chatbot/match', {
+                question: text,
+                role: currentUser.role
+            });
 
-        setTimeout(() => {
-            const botReply = {
-                id: Date.now() + 1,
-                text: responseText,
-                senderId: 'bot',
-                timestamp: new Date()
-            };
-            setBotMessages(prev => [...prev, botReply]);
-            setIsBotTyping(false);
-        }, 600); // 600ms fake typing delay
+            const responseText = response.data.answer;
+
+            setTimeout(() => {
+                const botReply = {
+                    id: Date.now() + 1,
+                    text: responseText,
+                    senderId: 'bot',
+                    timestamp: new Date()
+                };
+                setBotMessages(prev => [...prev, botReply]);
+                setIsBotTyping(false);
+            }, 600);
+        } catch (error) {
+            console.error("Chatbot API Error:", error);
+            setTimeout(() => {
+                const botReply = {
+                    id: Date.now() + 1,
+                    text: "I'm having trouble connecting to my knowledge base. Please try again later.",
+                    senderId: 'bot',
+                    timestamp: new Date()
+                };
+                setBotMessages(prev => [...prev, botReply]);
+                setIsBotTyping(false);
+            }, 600);
+        }
     };
+
 
     const handleSendMessage = async (e) => {
         if (e) e.preventDefault();
@@ -582,14 +581,14 @@ const MessagesPage = () => {
                 {/* Tabs Area: Movable tabs with Fixed AI Action */}
                 <div className="relative flex items-center px-4 py-3 border-b border-slate-50 dark:border-slate-800 transition-colors">
                     <div className="flex-1 min-w-0 relative">
-                        <div 
+                        <div
                             ref={tabsRef}
                             onMouseDown={handleMouseDown}
                             onMouseLeave={handleMouseLeave}
                             onMouseUp={handleMouseUp}
                             onMouseMove={handleMouseMove}
                             className={`flex items-center gap-2 overflow-x-auto scrollbar-hide scroll-smooth flex-nowrap pr-8 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
-                            style={{ 
+                            style={{
                                 scrollSnapType: isDragging ? 'none' : 'x mandatory',
                                 WebkitOverflowScrolling: 'touch'
                             }}
@@ -611,7 +610,7 @@ const MessagesPage = () => {
                         {/* Gradient Fade Indicator */}
                         <div className="absolute top-0 right-0 h-full w-10 bg-gradient-to-l from-white dark:from-slate-900 to-transparent pointer-events-none z-10" />
                     </div>
-                    
+
                     <div className="flex-shrink-0 ml-2">
                         <button
                             onClick={() => setSelectedUser(BOT_USER)}
@@ -619,9 +618,9 @@ const MessagesPage = () => {
                                 ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-200 dark:shadow-none'
                                 : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:text-emerald-500 hover:border-emerald-200 shadow-sm'
                                 }`}
-                            title="AI Assistant"
+                            title="ChatBot"
                         >
-                            <Sparkles size={18} fill={selectedUser?.uid === 'bot' ? "currentColor" : "none"} />
+                            <TbMessageChatbot size={20} />
                         </button>
                     </div>
                 </div>
@@ -641,7 +640,7 @@ const MessagesPage = () => {
                                 <div className="relative">
                                     {convo.isBot ? (
                                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-                                            <Sparkles size={22} fill="currentColor" />
+                                            <TbMessageChatbot size={24} />
                                         </div>
                                     ) : (
                                         <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
@@ -704,7 +703,7 @@ const MessagesPage = () => {
                             <div className="flex items-center gap-4">
                                 {selectedUser.isBot ? (
                                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                                        <Sparkles size={18} fill="currentColor" />
+                                        <TbMessageChatbot size={20} />
                                     </div>
                                 ) : (
                                     <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden">
@@ -835,10 +834,11 @@ const MessagesPage = () => {
                                                             : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none border border-slate-50 dark:border-slate-700'
                                                             }`}>
                                                             {msg.text && (
-                                                                <div className={msg.images?.length > 0 ? 'mb-2' : ''}>
+                                                                <div className={`whitespace-pre-wrap ${msg.images?.length > 0 ? 'mb-2' : ''}`}>
                                                                     {msg.text}
                                                                 </div>
                                                             )}
+
                                                             {msg.images?.length > 0 && (
                                                                 <div className={`grid gap-2 ${msg.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2 shadow-inner'}`}>
                                                                     {msg.images.map((img, i) => (
@@ -949,9 +949,9 @@ const MessagesPage = () => {
                                         </AnimatePresence>
 
                                         {/* Bot Quick Replies (Role-based) */}
-                                        {selectedUser.isBot && (
+                                        {selectedUser.isBot && botQuickReplies.length > 0 && (
                                             <div className="flex flex-wrap gap-2 mb-4 px-2">
-                                                {(BOT_QUICK_REPLIES[currentUser.role] || BOT_QUICK_REPLIES.admin).map((reply, i) => (
+                                                {botQuickReplies.map((reply, i) => (
                                                     <button
                                                         key={i}
                                                         type="button"
@@ -966,6 +966,7 @@ const MessagesPage = () => {
                                                 ))}
                                             </div>
                                         )}
+
 
                                         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                                             <input
@@ -988,7 +989,7 @@ const MessagesPage = () => {
                                             <div className="flex-1 relative group">
                                                 <input
                                                     type="text"
-                                                    placeholder={selectedUser.isBot ? "Ask the AI Assistant..." : "Type a message..."}
+                                                    placeholder={selectedUser.isBot ? "Ask the ChatBot..." : "Type a message..."}
                                                     value={newMessage}
                                                     onChange={(e) => setNewMessage(e.target.value)}
                                                     className="w-full h-12 bg-slate-50 dark:bg-slate-800 border border-transparent rounded-2xl px-6 text-sm font-medium text-slate-600 dark:text-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-300/30 transition-all outline-none"

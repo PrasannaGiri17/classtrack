@@ -46,6 +46,7 @@ import gradeService from '../Api/gradeService';
 import PhotoCropModal from '../MainSystemComponents/PhotoCropModal';
 import ForgotPasswordModal from '../TeacherComponents/Layout/ForgotPasswordModal';
 import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
+import { getDecodedToken } from '../Utils/authUtils';
 import calendarService from '../Api/calendarService';
 
 // --- Helpers ---
@@ -843,17 +844,10 @@ const StudentMePage = () => {
 
       // Deep sync: try to extract from JWT if missing (fallback for students viewing own profile)
       if (!studentId || studentId === "undefined" || studentId === "null") {
-        const token = localStorage.getItem("token");
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            if (payload.studentId) {
-              studentId = payload.studentId;
-              localStorage.setItem("studentId", studentId);
-            }
-          } catch (e) {
-            console.error("Token parse error", e);
-          }
+        const payload = getDecodedToken(localStorage.getItem("token"));
+        if (payload && payload.studentId) {
+          studentId = payload.studentId;
+          localStorage.setItem("studentId", studentId);
         }
       }
 

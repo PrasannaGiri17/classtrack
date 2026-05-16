@@ -22,6 +22,7 @@ import { toast } from "../MainSystemComponents/Toast";
 import Loading from "../MainSystemComponents/Loading";
 import ConfirmDialog from "../MainSystemComponents/ConfirmDialog";
 import PhotoCropModal from "../MainSystemComponents/PhotoCropModal";
+import { getDecodedToken } from "../Utils/authUtils";
 
 const calculateAge = (birthDate) => {
     if (!birthDate) return "";
@@ -70,15 +71,10 @@ const AdminMePage = () => {
 
                 // Deep sync: try to extract from JWT if missing
                 if (!targetId || targetId === "undefined" || targetId === "null") {
-                    const token = localStorage.getItem("token");
-                    if (token) {
-                        try {
-                            const payload = JSON.parse(atob(token.split('.')[1]));
-                            if (payload.adminId) {
-                                targetId = payload.adminId;
-                                localStorage.setItem("adminId", targetId);
-                            }
-                        } catch (e) { console.error("Token parse error", e); }
+                    const payload = getDecodedToken(localStorage.getItem("token"));
+                    if (payload && payload.adminId) {
+                        targetId = payload.adminId;
+                        localStorage.setItem("adminId", targetId);
                     }
                 }
 

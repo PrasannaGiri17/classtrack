@@ -336,8 +336,8 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="bg-emerald-600 dark:bg-emerald-700 p-8 rounded-3xl shadow-lg shadow-emerald-200 dark:shadow-none text-white relative overflow-hidden group">
-          <div className="relative z-10 h-full flex flex-col justify-between">
+        <div className="h-fit bg-emerald-600 dark:bg-emerald-700 p-8 rounded-3xl shadow-lg shadow-emerald-200 dark:shadow-none text-white relative overflow-hidden group">
+          <div className="relative z-10 flex flex-col justify-start gap-8">
             <div className="space-y-6">
               <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition-transform shadow-inner">
                 <GiChampions className="text-white w-7 h-7 drop-shadow-md" />
@@ -350,7 +350,7 @@ const DashboardPage = () => {
               </div>
             </div>
 
-            <div className="mt-8 pt-8 border-t border-white/10">
+            <div className="pt-8 border-t border-white/10">
               <p className="text-[10px] font-black text-emerald-100/60 uppercase tracking-[0.3em] mb-4">Empowering Success</p>
               <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl transition-transform hover:scale-105">
                 <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse shadow-[0_0_10px_rgba(255,255,255,1)]" />

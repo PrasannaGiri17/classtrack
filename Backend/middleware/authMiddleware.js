@@ -8,7 +8,7 @@ exports.protect = async (req, res, next) => {
       token = req.headers.authorization.split(" ")[1];
     }
 
-    if (!token) {
+    if (!token || token === "null" || token === "undefined") {
       return res.status(401).json({ message: "Not authorized to access this route" });
     }
 
@@ -18,7 +18,13 @@ exports.protect = async (req, res, next) => {
       return res.status(500).json({ message: "Internal server authentication error" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (verifyErr) {
+      console.error("JWT VERIFY ERROR:", verifyErr.message, "Token received:", token.substring(0, 10) + "...");
+      return res.status(401).json({ message: "Token is invalid or expired" });
+    }
 
     // Support Super Admin token isolation
     if (decoded.role === 'superadmin') {
@@ -28,7 +34,6 @@ exports.protect = async (req, res, next) => {
     }
 
     // Standard Multi-Tenant User check
-    const User = require("../models/UserModal"); // Use local require to avoid circular or early access issues if needed
     const currentUser = await User.findById(decoded.id);
     if (!currentUser) {
       return res.status(401).json({ message: "The user belonging to this token no longer exists" });
@@ -40,8 +45,8 @@ exports.protect = async (req, res, next) => {
     next();
 
   } catch (err) {
-    console.error("AUTH ERROR:", err);
-    return res.status(401).json({ message: "Token is invalid or expired" });
+    console.error("AUTH MIDDLEWARE GENERAL ERROR:", err);
+    return res.status(500).json({ message: "Internal server error during authentication" });
   }
 };
 
