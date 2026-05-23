@@ -71,12 +71,12 @@ const Sidebar = ({ activePage }) => {
     { key: 'discussions', icon: MessageSquare, label: 'Discussions', path: '/student/discussions' },
     { key: 'diary', icon: IoBookOutline, label: 'Class Diary', path: '/student/diary' },
     { key: 'fee', icon: CreditCard, label: 'Fee Payment', path: '/student/fee' },
-    { key: 'assignments', icon: FileText, label: 'Assignments / Content', path: '/student/assignments' },
+    { key: 'assignments', icon: FileText, label: 'Assignments', path: '/student/assignments' },
     { key: 'quiz', icon: ClipboardList, label: 'Quiz', path: '/student/quiz' },
     { key: 'routine', icon: Clock, label: 'Routine', path: '/student/routine' },
     { key: 'calendar', icon: Calendar, label: 'Calendar', path: '/student/calendar' },
     { key: 'exam', icon: PiExam, label: 'Exam', path: '/student/exam' },
-    { key: 'Announcements', icon: Bell, label: 'Announcements', path: '/student/notification' },
+    { key: 'notification', icon: Bell, label: 'Announcements', path: '/student/notification' },
   ];
 
   return (

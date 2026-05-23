@@ -44,6 +44,7 @@ const AdminLayout = () => {
     else if (path.includes("/fee")) setActivePage("fee");
     else if (path.includes("/messages")) setActivePage("messages");
     else if (path.includes("/profile")) setActivePage("profile");
+    else if (path.includes("/activities")) setActivePage("activities");
   }, [location.pathname]);
 
   // Message Notification Polling (across all admin pages)

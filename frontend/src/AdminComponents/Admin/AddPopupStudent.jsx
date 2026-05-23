@@ -165,6 +165,11 @@ export const AddPopupStudent = ({ isOpen, onClose, onSuccess, mode = 'add', stud
       setIsSubmitting(false);
       return;
     }
+    if (formData.fatherPhone && formData.motherPhone && formData.fatherPhone === formData.motherPhone) {
+      setPopup({ message: "Father's and Mother's phone numbers cannot be the same.", type: "error" });
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const schoolId = Number(localStorage.getItem("adminSchoolId") || localStorage.getItem("schoolId") || 1);

@@ -329,8 +329,8 @@ const TeacherRecord = () => {
                   <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">ID</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Faculty Details</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center uppercase">Grades</th>
-                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Core Subject</th>
-                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Elective</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Main Subject</th>
+                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest uppercase">Additional</th>
                   <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center uppercase">Actions</th>
                 </tr>
               </thead>

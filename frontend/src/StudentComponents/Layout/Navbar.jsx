@@ -66,12 +66,19 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
     const pageNames = {
       dashboard: 'Dashboard',
       classroom: 'Classroom',
+      discussions: 'Discussions',
+      diary: 'Class Diary',
+      fee: 'Fee',
+      assignments: 'Assignments',
+      quiz: 'Quiz',
       routine: 'Routine',
       calendar: 'Calendar',
       exam: 'Examination',
-      notification: 'Notifications',
+      notification: 'Announcements',
+      Announcements: 'Announcements',
       profile: 'My Profile',
-      messages: 'Messages'
+      messages: 'Messages',
+      activities: 'Notifications'
     };
     return pageNames[activePage] || 'Dashboard';
   };

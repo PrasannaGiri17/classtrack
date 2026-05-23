@@ -37,6 +37,8 @@ const Assignment = ({ activeTab, setActiveTab }) => {
     const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [detailsAssignment, setDetailsAssignment] = useState(null);
 
     const [teacherData, setTeacherData] = useState({ classes: [], subjects: [], classOptions: [] });
     const [holidays, setHolidays] = useState([]);
@@ -321,13 +323,21 @@ const Assignment = ({ activeTab, setActiveTab }) => {
         const cardId = a._id || a.id;
 
         return (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-md transition-all group">
+            <div
+                onClick={() => {
+                    setDetailsAssignment(a);
+                    setIsDetailsOpen(true);
+                }}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-md transition-all group cursor-pointer"
+            >
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="text-base font-medium text-slate-800 dark:text-slate-100">{a.title}</h4>
-                        <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-medium rounded-lg">
-                            {a.priority || 'Normal'}
-                        </span>
+                        {a.priority && a.priority.toLowerCase() !== 'normal' && (
+                            <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-medium rounded-lg">
+                                {a.priority}
+                            </span>
+                        )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-6 text-[11px] text-slate-400 font-medium mb-6">
@@ -384,7 +394,10 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                             </span>
 
                             <button
-                                onClick={() => toggleLock(cardId)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleLock(cardId);
+                                }}
                                 disabled={!past}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!past ? 'opacity-20 cursor-not-allowed bg-slate-50 text-slate-400' :
                                     statusText === 'Closed' ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 text-red-600 hover:bg-red-100'
@@ -396,7 +409,10 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                         </div>
 
                         <button
-                            onClick={() => viewFullReport(cardId)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                viewFullReport(cardId);
+                            }}
                             className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors"
                         >
                             <FileSpreadsheet size={14} />
@@ -473,13 +489,13 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                         <td className="px-4 py-5">
                                             <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
                                                 <Clock size={14} className="text-slate-300" />
-                                                {new Date(sub.submittedAt).toLocaleString('en-US', { 
-                                                    month: 'short', 
-                                                    day: 'numeric', 
-                                                    year: 'numeric', 
-                                                    hour: 'numeric', 
+                                                {new Date(sub.submittedAt).toLocaleString('en-US', {
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    year: 'numeric',
+                                                    hour: 'numeric',
                                                     minute: '2-digit',
-                                                    hour12: true 
+                                                    hour12: true
                                                 })}
                                             </div>
                                         </td>
@@ -828,6 +844,146 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                     </form>
                 </div>
             </PortalPopup>
+
+            {/* --- Details Modal --- */}
+            {isDetailsOpen && detailsAssignment && (
+                <PortalPopup isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)}>
+                    {(() => {
+                        const assignment = detailsAssignment;
+                        const past = isPastDeadline(assignment.closeTime);
+                        const statusText = assignment.isManuallyLocked ? (past ? 'Open (Late)' : 'Closed') : (past ? 'Closed' : 'Open');
+                        const onClose = () => setIsDetailsOpen(false);
+
+                        return (
+                            <div className="bg-white dark:bg-slate-900 w-[95vw] max-w-3xl max-h-[85vh] rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col pointer-events-auto">
+
+                                {/* Header */}
+                                <div className="px-10 py-8 border-b border-slate-50 dark:border-slate-800 flex items-start justify-between relative">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 shadow-lg shadow-emerald-500/10">
+                                            <FileBox size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">{assignment.title}</h3>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{assignment.subject || 'Assignment'} Details</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={onClose} className="p-2 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl transition-all active:scale-90">
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                {/* Body */}
+                                <div className="p-10 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
+
+                                    {/* Badges */}
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
+                                            <BookOpen size={14} />
+                                            <span className="font-black text-[10px] uppercase tracking-widest">{assignment.subject}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                                            <Users size={14} />
+                                            <span className="font-black text-[10px] uppercase tracking-widest">{assignment.grade || 'G6'} - {assignment.section || 'A'}</span>
+                                        </div>
+                                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${statusText === 'Open'
+                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/10 dark:text-emerald-400 dark:border-emerald-800/50'
+                                                : 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-800/50'
+                                            }`}>
+                                            {statusText === 'Open' ? <Unlock size={14} strokeWidth={3} /> : <Lock size={14} strokeWidth={3} />}
+                                            {statusText}
+                                        </div>
+                                    </div>
+
+                                    {/* Dates */}
+                                    <div className="flex flex-col sm:flex-row gap-6 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[28px] border border-slate-100 dark:border-slate-800">
+                                        <div className="flex-1 flex flex-col items-center justify-center space-y-2">
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                <FileText size={14} className="text-emerald-500" />
+                                                Created At
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                                                {new Date(assignment.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                                            </p>
+                                        </div>
+                                        <div className="w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+                                        <div className="flex-1 flex flex-col items-center justify-center space-y-2">
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                <Clock size={14} className="text-emerald-500" />
+                                                Submission Deadline
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                                                {new Date(assignment.closeTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Description */}
+                                    <div className="space-y-4">
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instruction / Description</div>
+                                        <div className="p-6 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-700 shadow-inner min-h-[100px] max-h-[35vh] overflow-y-auto custom-scrollbar">
+                                            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                                                {assignment.description}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Question Resources */}
+                                    {assignment.fileName && (
+                                        <div className="space-y-3">
+                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Question Resources / Attachments</div>
+                                            <div className="flex flex-wrap gap-3">
+                                                {(() => {
+                                                    const names = assignment.fileName.split(', ').filter(Boolean);
+                                                    return names.map((name, idx) => {
+                                                        const url = assignment.questionFileUrls?.[idx];
+                                                        return (
+                                                            <a
+                                                                key={idx}
+                                                                href={url || '#'}
+                                                                download={name}
+                                                                onClick={(e) => { e.stopPropagation(); if (!url) { e.preventDefault(); toast({ type: 'info', message: 'Attachment data is not available for download.' }); } }}
+                                                                className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 text-slate-500 hover:text-emerald-600 transition-all rounded-xl border border-slate-100 dark:border-slate-800 group/popup-file"
+                                                            >
+                                                                <Paperclip size={14} className="group-hover/popup-file:scale-110 transition-transform text-slate-400" />
+                                                                <span className="font-bold text-xs tracking-tight truncate max-w-[200px]">{name}</span>
+                                                                {url && <Download size={12} className="opacity-40 group-hover/popup-file:opacity-100 transition-opacity ml-1" />}
+                                                            </a>
+                                                        );
+                                                    });
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                </div>
+
+                                {/* Footer Buttons */}
+                                <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4 justify-end px-10 py-8 bg-slate-50/50 dark:bg-slate-800/30">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            viewFullReport(assignment._id || assignment.id);
+                                            onClose();
+                                        }}
+                                        className="flex items-center gap-3 px-8 py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
+                                    >
+                                        <FileSpreadsheet size={16} />
+                                        Full Report
+                                    </button>
+                                    <button
+                                        onClick={onClose}
+                                        className="flex items-center gap-3 px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                                    >
+                                        Close Details
+                                    </button>
+                                </div>
+
+                            </div>
+                        );
+                    })()}
+                </PortalPopup>
+            )}
         </div>
     );
 };

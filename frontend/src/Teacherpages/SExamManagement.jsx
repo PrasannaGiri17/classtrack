@@ -35,7 +35,7 @@ const ExamManagement = () => {
   const [teacherSubjects, setTeacherSubjects] = useState([]); // from teacher profile
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
-  
+
   // Automatically determine current academic year from system date
   const currentBSYear = useMemo(() => {
     const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);

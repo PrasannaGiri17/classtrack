@@ -42,7 +42,8 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       notification: 'Notifications',
       fee: 'Fee Management',
       messages: 'Messages',
-      profile: 'Admin Profile'
+      profile: 'Admin Profile',
+      activities: 'Notifications'
     };
     return pageNames[activePage] || 'Dashboard';
   };
@@ -74,7 +75,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     const handleUpdate = () => {
       setUserName(localStorage.getItem("userName") || "Admin User");
       setUserPhoto(localStorage.getItem("userPhoto") || null);
@@ -221,7 +222,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
             onFocus={() => searchQuery.trim().length >= 3 && setShowSearchResults(true)}
             className="w-full h-11 bg-slate-100 dark:bg-slate-800 border-none rounded-2xl pl-11 pr-16 text-sm focus:ring-2 focus:ring-emerald-500/20 dark:focus:ring-emerald-500/10 focus:bg-white dark:focus:bg-slate-700 transition-all outline-none dark:text-slate-200 dark:placeholder-slate-500"
           />
-          
+
           {isSearching && (
             <div className="absolute right-12 top-1/2 -translate-y-1/2 flex gap-1 items-center z-10">
               {[0, 1, 2].map((i) => (
@@ -231,8 +232,8 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
           )}
 
           {searchQuery && (
-            <button 
-              onClick={() => {setSearchQuery(""); setSearchResults([]); setShowSearchResults(false);}}
+            <button
+              onClick={() => { setSearchQuery(""); setSearchResults([]); setShowSearchResults(false); }}
               className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors z-10"
             >
               <X className="w-3 h-3 text-slate-400" />
@@ -326,8 +327,8 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
         <button
           onClick={() => setShowNotifications(!showNotifications)}
           className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all relative ${showNotifications
-              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none'
-              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400'
+            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 dark:shadow-none'
+            : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400'
             }`}
         >
           <Bell className="w-5 h-5" />
@@ -386,7 +387,7 @@ const Navbar = ({ activePage, isDarkMode, toggleDarkMode }) => {
 
         <button onClick={() => navigate('/admin/profile')} className="flex items-center gap-3 p-1.5 pr-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left group">
           <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-emerald-500/20 transition-all">
-              {userPhoto ? <img src={userPhoto} alt="Profile" className="w-full h-full object-cover" /> : <FaRegUser className="text-emerald-500 w-5 h-5" />}
+            {userPhoto ? <img src={userPhoto} alt="Profile" className="w-full h-full object-cover" /> : <FaRegUser className="text-emerald-500 w-5 h-5" />}
           </div>
           <div className="hidden sm:block">
             <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight transition-colors">{userName}</p>

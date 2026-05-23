@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import mainlogo from "../../Assests/temp-logo.png";
+import mainlogo from "../../Assests/1.png";
 import reset from "../../Assests/reset.png";
 import FailedPopup from "../../Components/SmallerComponents/FailedPopup";
 

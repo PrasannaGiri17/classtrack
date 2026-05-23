@@ -555,7 +555,7 @@ const SQuizPage = () => {
             <Brain className="text-emerald-500 w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none uppercase">Student Assessment Portal</h1>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none uppercase">Play Quiz</h1>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Available Quizzes & Results History</p>
           </div>
         </div>
@@ -632,7 +632,7 @@ const SQuizPage = () => {
               {q.status === 'Available' ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); startQuiz(q); }}
-                  className="w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[28px] text-xs font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-slate-900/10 dark:shadow-none hover:bg-emerald-600 dark:hover:bg-emerald-500 dark:hover:text-white flex items-center justify-center gap-3 active:scale-95 group-hover:translate-y-[-4px]"
+                  className="w-full py-5 bg-emerald-600 dark:bg-emerald-500 text-white rounded-[28px] text-xs font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-emerald-600/10 dark:shadow-none hover:bg-emerald-700 dark:hover:bg-emerald-400 flex items-center justify-center gap-3 active:scale-95 group-hover:translate-y-[-4px]"
                 >
                   Start Assessment <ChevronRight size={18} />
                 </button>

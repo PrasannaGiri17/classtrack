@@ -58,6 +58,7 @@ const StudentLayout = () => {
     else if (path.includes('/quiz')) setActivePage('quiz');
     else if (path.includes('/profile')) setActivePage('profile');
     else if (path.includes('/messages')) setActivePage('messages');
+    else if (path.includes('/activities')) setActivePage('activities');
   }, [location.pathname]);
 
   // Message Notification Polling (across all student pages)

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import mainlogo from "../../Assests/temp-logo.png";
+import mainlogo from "../../Assests/1.png";
 import forget from "../../Assests/forget.png";
 import FailedPopup from "../../Components/SmallerComponents/FailedPopup";
 

@@ -477,7 +477,8 @@ const SExamManagement = () => {
 
       {/* Page Header */}
       <div className="flex items-center gap-5">
-        <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-xl shadow-emerald-500/5 transition-transform hover:scale-105">
+        <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-xl shadow-emerald-500/5 transition-transform hover:scale-105">
+
           <FileText className="text-emerald-500 w-7 h-7" />
         </div>
         <div>
@@ -490,7 +491,9 @@ const SExamManagement = () => {
       </div>
 
       {/* 1. Student Info Card */}
-      <div className="bg-white dark:bg-slate-900/40 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-center justify-between gap-8 transition-all hover:bg-white dark:hover:bg-slate-900">
+      <div className="bg-white dark:bg-slate-900 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-center justify-between gap-8 transition-all hover:bg-white dark:hover:bg-slate-900">
+
+
         <div className="flex items-center gap-8">
           {/* Avatar */}
           <div className="relative group">
@@ -546,7 +549,8 @@ const SExamManagement = () => {
             <div className="relative">
               <button
                 onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
-                className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
+
               >
                 {selectedYear} BS
                 <ChevronDown
@@ -561,7 +565,8 @@ const SExamManagement = () => {
                     className="fixed inset-0 z-[60]"
                     onClick={() => setIsYearDropdownOpen(false)}
                   />
-                  <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                  <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+
                     <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
                       {YEARS.map(year => (
                         <button
@@ -591,7 +596,8 @@ const SExamManagement = () => {
             <div className="relative">
               <button
                 onClick={() => setIsTermDropdownOpen(!isTermDropdownOpen)}
-                className="w-full bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-emerald-500/30 rounded-[18px] pl-6 pr-14 py-3 text-[10px] font-black text-slate-800 dark:text-slate-100 outline-none transition-all cursor-pointer shadow-sm hover:shadow-lg uppercase tracking-widest text-left relative group text-ellipsis overflow-hidden"
+
               >
                 <div className="flex items-center gap-2">
                   {selectedTerm}
@@ -609,7 +615,8 @@ const SExamManagement = () => {
                     className="fixed inset-0 z-[60]"
                     onClick={() => setIsTermDropdownOpen(false)}
                   />
-                  <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-[#0b1220] border border-slate-200 dark:border-slate-800 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+                  <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[24px] shadow-2xl overflow-hidden z-[70] animate-in fade-in zoom-in-95 duration-200 p-2">
+
                     <div className="max-h-60 overflow-y-auto scrollbar-hide space-y-1">
                       {termsList.map(termObj => (
                         <button
@@ -651,7 +658,9 @@ const SExamManagement = () => {
       </div>
 
       {/* 3. Performance Matrix Content */}
-      <div className={`bg-white dark:bg-slate-900/40 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all ${isLoading ? 'opacity-50 blur-sm pointer-events-none' : 'opacity-100 blur-0'}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all ${isLoading ? 'opacity-50 blur-sm pointer-events-none' : 'opacity-100 blur-0'}`}>
+
+
         {isPublished ? (
           hasData ? (
             <>
@@ -659,7 +668,9 @@ const SExamManagement = () => {
               <div className="w-full overflow-x-auto scrollbar-hide">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/20">
+
+
                       <th className="pl-12 pr-6 py-8 text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] w-[40%]">Subject Name</th>
                       <th className="px-6 py-8 text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] text-right">Theory</th>
                       <th className="px-6 py-8 text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] text-right">Practical</th>
@@ -671,10 +682,14 @@ const SExamManagement = () => {
                       <tr
                         key={row.subject}
                         className={`group transition-all hover:bg-slate-50/80 dark:hover:bg-emerald-900/5 ${idx % 2 === 1 ? 'bg-slate-50/30 dark:bg-slate-800/10' : ''}`}
+
+
                       >
                         <td className="pl-12 pr-6 py-6">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center transition-colors group-hover:bg-emerald-500 group-hover:text-white shrink-0">
+
+
                               <BookOpen size={16} />
                             </div>
                             <span className="text-base font-black text-slate-700 dark:text-slate-200 tracking-tight uppercase">{row.subject}</span>
@@ -703,7 +718,9 @@ const SExamManagement = () => {
               </div>
 
               {/* Overall Summary Row */}
-              <div className="px-12 py-12 bg-slate-50/50 dark:bg-emerald-500/[0.02] border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-10">
+              <div className="px-12 py-12 bg-slate-50/50 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-10">
+
+
                 <div className="flex flex-wrap items-center gap-12">
                   <div className="space-y-2">
                     <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] leading-none">Term Final Grade</p>
@@ -730,7 +747,9 @@ const SExamManagement = () => {
 
                 <div className="flex flex-col sm:flex-row items-center gap-6">
                   {/* Grade Rank */}
-                  <div className="flex items-center gap-4 bg-white dark:bg-slate-900/60 rounded-[24px] px-6 py-4 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                  <div className="flex items-center gap-4 bg-white dark:bg-slate-800/50 rounded-[24px] px-6 py-4 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+
+
                     <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform duration-500">
                       <Medal size={24} />
                     </div>
@@ -743,7 +762,9 @@ const SExamManagement = () => {
                   </div>
 
                   {/* Class Rank */}
-                  <div className="flex items-center gap-4 bg-white dark:bg-slate-900/60 rounded-[24px] px-6 py-4 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                  <div className="flex items-center gap-4 bg-white dark:bg-slate-800/50 rounded-[24px] px-6 py-4 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+
+
                     <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform duration-500">
                       <Trophy size={24} />
                     </div>
@@ -758,7 +779,9 @@ const SExamManagement = () => {
               </div>
 
               {/* Footer Ledger */}
-              <div className="p-8 border-t border-slate-50 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/50 flex flex-wrap items-center justify-center gap-10">
+              <div className="p-8 border-t border-slate-50 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/40 flex flex-wrap items-center justify-center gap-10">
+
+
                 <div className="flex items-center gap-3">
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Excellence</span>
@@ -776,6 +799,8 @@ const SExamManagement = () => {
           ) : (
             <div className="py-32 flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in duration-500 px-10">
               <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800/50 rounded-[32px] flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 shadow-inner">
+
+
                 <BookOpen size={40} className="text-slate-300 dark:text-slate-600" />
               </div>
               <div className="max-w-md">
@@ -789,6 +814,8 @@ const SExamManagement = () => {
         ) : (
           <div className="py-32 flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in duration-500 px-10">
             <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800/50 rounded-[32px] flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 shadow-inner">
+
+
               <Lock size={40} className="text-slate-300 dark:text-slate-600" />
             </div>
             <div className="max-w-md">
