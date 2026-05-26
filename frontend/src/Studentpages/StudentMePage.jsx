@@ -1022,10 +1022,13 @@ const StudentMePage = () => {
   const fetchResults = async () => {
     if (!student._id) return;
     try {
+      const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+      const [currentBSYear] = todayBS.split('-').map(Number);
+
       const [allGradeResults, grades, examConfigData] = await Promise.all([
-        resultService.getResultsByGradeSectionTerm(student.gradeId?._id || student.classId, null, selectedTerm),
+        resultService.getResultsByGradeSectionTerm(student.gradeId?._id || student.classId, null, selectedTerm, currentBSYear),
         gradeService.getGrades(),
-        examService.getExamData()
+        examService.getExamData(currentBSYear)
       ]);
 
       setExamConfig(examConfigData);

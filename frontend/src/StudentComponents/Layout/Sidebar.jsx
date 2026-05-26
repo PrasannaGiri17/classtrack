@@ -83,8 +83,12 @@ const Sidebar = ({ activePage }) => {
     <div className="flex flex-col h-full">
       {/* Branding */}
       <div className="h-[72px] flex items-center px-6 border-b border-slate-50 dark:border-slate-800 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden">
+        <div
+          className="flex items-center gap-3 cursor-pointer group/logo"
+          onClick={() => navigate('/student/school')}
+          title="View School Profile"
+        >
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover/logo:ring-emerald-400 transition-all duration-200">
             {schoolInfo.logo ? (
               <img src={schoolInfo.logo} alt="School Logo" className="w-full h-full object-cover" />
             ) : (
@@ -94,7 +98,7 @@ const Sidebar = ({ activePage }) => {
             )}
           </div>
           <div className="max-w-[140px]">
-            <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight truncate leading-tight">
+            <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight truncate leading-tight group-hover/logo:text-emerald-600 dark:group-hover/logo:text-emerald-400 transition-colors">
               {schoolInfo.name || "School Name"}
             </h1>
             <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em] block mt-0.5">

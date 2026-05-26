@@ -44,7 +44,6 @@ import gradeService from '../Api/gradeService';
 import examService from '../Api/examService';
 import feeService from '../Api/feeService';
 import calendarService from '../Api/calendarService';
-import flagService from '../Api/flagService';
 import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
 import Loading from '../MainSystemComponents/Loading';
 import { useAuth } from '../context/AuthContext';
@@ -393,10 +392,10 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick, onDeleteClick, r
             label: 'Green Flagged'
         },
         none: {
-            banner: 'bg-slate-300 dark:bg-slate-400',
-            badge: 'bg-slate-500/10 text-slate-500',
-            icon: 'text-slate-500',
-            accent: 'bg-slate-300',
+            banner: 'bg-slate-400 dark:bg-slate-600',
+            badge: 'bg-slate-400/10 text-slate-400',
+            icon: 'text-slate-400',
+            accent: 'bg-slate-400',
             label: 'Not Flagged'
         }
     };
@@ -460,7 +459,11 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick, onDeleteClick, r
                             </span>
                         </div>
                         <p className="text-xs font-black text-white whitespace-nowrap leading-tight mt-1">
-                            {student.flagDetails?.termScore || student.flagDetails?.finalTermScore ? (((student.flagDetails.termScore || student.flagDetails.finalTermScore) / 100) * 4).toFixed(2) : "0.00"} <span className="text-slate-400 font-bold ml-0.5">GPA</span>
+                            {student.flagDetails?.gpa
+                                ? student.flagDetails.gpa.toFixed(2)
+                                : student.flagDetails?.termScore
+                                    ? ((student.flagDetails.termScore / 100) * 4).toFixed(2)
+                                    : "No Data"} <span className="text-slate-400 font-bold ml-0.5">GPA</span>
                         </p>
                     </div>
 
@@ -471,20 +474,24 @@ const StudentProfileHeader = ({ student, onUpdate, onEditClick, onDeleteClick, r
                                 {student.flagDetails ? 'Flag Logic' : 'No Data to Flag'}
                             </span>
                         </div>
-                        <div className="flex flex-col gap-0.5 mt-1">
-                            <div className="flex justify-between items-center gap-4">
-                                <span className="text-[8px] text-slate-400 font-bold">Attendance:</span>
-                                <span className={`text-[9px] font-black ${student.flagDetails ? (student.flagDetails.attendancePct >= 80 ? 'text-emerald-400' : student.flagDetails.attendancePct >= 60 ? 'text-amber-400' : 'text-red-400') : 'text-slate-500'}`}>
-                                    {student.flagDetails?.attendancePct != null ? `${student.flagDetails.attendancePct.toFixed(1)}%` : 'No Data'}
-                                </span>
+                        {student.flagDetails ? (
+                            <div className="flex flex-col gap-0.5 mt-1">
+                                <div className="flex justify-between items-center gap-4">
+                                    <span className="text-[8px] text-slate-400 font-bold">Attendance:</span>
+                                    <span className={`text-[9px] font-black ${student.flagDetails.attendancePct >= 80 ? 'text-emerald-400' : student.flagDetails.attendancePct >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
+                                        {student.flagDetails.attendancePct.toFixed(1)}%
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center gap-4">
+                                    <span className="text-[8px] text-slate-400 font-bold">Academic:</span>
+                                    <span className={`text-[9px] font-black ${student.flagDetails.termScore >= 75 ? 'text-emerald-400' : student.flagDetails.termScore >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
+                                        {student.flagDetails.termScore.toFixed(1)}%
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex justify-between items-center gap-4">
-                                <span className="text-[8px] text-slate-400 font-bold">Academic:</span>
-                                <span className={`text-[9px] font-black ${student.flagDetails ? (student.flagDetails.termScore >= 75 ? 'text-emerald-400' : student.flagDetails.termScore >= 60 ? 'text-amber-400' : 'text-red-400') : 'text-slate-500'}`}>
-                                    {student.flagDetails?.termScore != null ? `${student.flagDetails.termScore.toFixed(1)}%` : 'No Data'}
-                                </span>
-                            </div>
-                        </div>
+                        ) : (
+                            <span className="text-[9px] font-black text-slate-500 mt-1">No Published Results</span>
+                        )}
                     </div>
                 </div>
 
@@ -828,13 +835,14 @@ const StudentPage = () => {
     const [isTermDropdownOpen, setIsTermDropdownOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null); // { year, gradeId, gradeNumber }
     const [availableRecords, setAvailableRecords] = useState([]);
+    const [isResultPublished, setIsResultPublished] = useState(false);
 
     const fetchResults = async (studentId, currentClass, sectionName, gradeId, year) => {
         try {
             const [allGradeResults, grades, examConfig] = await Promise.all([
                 resultService.getResultsByGradeSectionTerm(gradeId, null, selectedTerm, year),
                 gradeService.getGrades(),
-                examService.getExamData()
+                examService.getExamData(year)
             ]);
 
             if (examConfig?.termStatuses) {
@@ -847,6 +855,7 @@ const StudentPage = () => {
                 t => t.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
             );
             const published = termStatus?.isPublished === true;
+            setIsResultPublished(published);
 
             if (!published) {
                 setStudent(prev => ({
@@ -952,17 +961,17 @@ const StudentPage = () => {
                 const realStudentId = studentData._id;
 
                 // 2. Fetch other data using the resolved student ID
-                const [yearlyRes, holidaysList, flagRes, allResults] = await Promise.allSettled([
-                    attendanceService.getStudentYearlyAttendance(realStudentId, curY || 2081),
+                const [yearlyRes, holidaysList, examRes, allResults] = await Promise.allSettled([
+                    attendanceService.getStudentYearlyAttendance(realStudentId, curY || 2083),
                     calendarService.getEvents(startAD, endAD),
-                    flagService.getLatestFlag(realStudentId),
+                    examService.getExamData(curY || 2083),
                     resultService.getStudentResults(realStudentId)
                 ]);
 
                 const data = studentData;
                 const yearlyData = yearlyRes.status === 'fulfilled' ? yearlyRes.value : null;
                 const holidaysData = holidaysList.status === 'fulfilled' ? holidaysList.value : [];
-                const latestFlag = flagRes.status === 'fulfilled' ? (Array.isArray(flagRes.value) ? flagRes.value[0] : flagRes.value) : null;
+                const examConfig = examRes.status === 'fulfilled' ? examRes.value : null;
                 const resultsData = allResults.status === 'fulfilled' ? allResults.value : [];
 
                 const holidayDates = new Set(holidaysData.filter(e => e.type === 'HOLIDAY').map(e => new Date(e.startDate).toISOString().split('T')[0]));
@@ -1019,10 +1028,10 @@ const StudentPage = () => {
                 // Add current academic record if not present
                 const curGradeId = data.classId?._id?.toString() || data.classId?.toString();
                 if (curGradeId) {
-                    const currentKey = `${curY || 2081}-${curGradeId}`;
+                    const currentKey = `${curY || 2083}-${curGradeId}`;
                     if (!recordsMap.has(currentKey)) {
                         recordsMap.set(currentKey, {
-                            year: curY || 2081,
+                            year: curY || 2083,
                             gradeId: curGradeId,
                             gradeNumber: data.studentClass
                         });
@@ -1033,8 +1042,60 @@ const StudentPage = () => {
                 setAvailableRecords(recordsList);
 
                 // Default selection is current record or first record
-                const initialRecord = recordsList.find(r => r.year === (curY || 2081)) || recordsList[0] || null;
+                const initialRecord = recordsList.find(r => r.year === (curY || 2083)) || recordsList[0] || null;
                 setSelectedRecord(initialRecord);
+
+                // Step 1: Only use current year's results
+                const currentYearResults = (resultsData || []).filter(r => r.academicYear === (curY || 2083));
+
+                // Step 2: Build publishedTermSet from current year's examConfig only
+                const termStatuses = examConfig?.termStatuses || [];
+                const termOrder = termStatuses.map(ts => ts.term);
+                const termPriority = {};
+                termOrder.forEach((term, index) => { termPriority[term] = index + 1; });
+
+                const publishedTermSet = new Set(
+                    termStatuses.filter(ts => ts.isPublished).map(ts => ts.term)
+                );
+
+                // Step 3: Filter to published, non-mid, current year results only
+                // Then pick the one with the HIGHEST termPriority (latest published term)
+                const latestResult = currentYearResults
+                    .filter(r =>
+                        !r.term?.toLowerCase().includes('mid') &&
+                        publishedTermSet.has(r.term)
+                    )
+                    .sort((a, b) => (termPriority[b.term] || 0) - (termPriority[a.term] || 0))[0] || null;
+
+                // Default marksheet to the latest published term (including mid-terms)
+                const latestPublishedTerm = currentYearResults
+                    .filter(r => publishedTermSet.has(r.term))
+                    .sort((a, b) => (termPriority[b.term] || 0) - (termPriority[a.term] || 0))[0]?.term || null;
+                if (latestPublishedTerm) {
+                    setSelectedTerm(latestPublishedTerm);
+                }
+
+                let flagColor = 'none';
+                let flagDetailsVal = null;
+
+                if (latestResult) {
+                    const attendancePct = finalYearly.rate;
+                    const percentage = parseFloat(latestResult.summary?.percentage || 0);
+                    const gpa = parseFloat(latestResult.summary?.gpa || 0);
+
+                    flagColor =
+                        attendancePct < 70 || percentage < 60 ? 'red' :
+                            attendancePct < 80 || (percentage >= 60 && percentage < 70) ? 'yellow' :
+                                'green';
+
+                    flagDetailsVal = {
+                        attendancePct,
+                        termScore: percentage,
+                        gpa,
+                        term: latestResult.term,
+                        academicYear: latestResult.academicYear
+                    };
+                }
 
                 setStudent(prev => ({
                     ...prev,
@@ -1048,8 +1109,8 @@ const StudentPage = () => {
                     dateOfBirth: data.birthdate ? new Date(data.birthdate).toISOString().split('T')[0].split('-').reverse().join('/') : null,
                     yearlyAttendance: finalYearly,
                     feeStatus: finalFeeStatus,
-                    flag: latestFlag?.flagColor || data.flag || "green",
-                    flagDetails: latestFlag
+                    flag: flagColor,
+                    flagDetails: flagDetailsVal
                 }));
 
                 // Remove redundant call as useEffect will handle it
@@ -1069,6 +1130,7 @@ const StudentPage = () => {
 
     useEffect(() => {
         if (id && selectedRecord && selectedTerm) {
+            setIsResultPublished(false);
             fetchResults(id, selectedRecord.gradeNumber, student.section, selectedRecord.gradeId, selectedRecord.year);
         }
     }, [id, selectedRecord, selectedTerm, student.section]);
@@ -1251,40 +1313,32 @@ const StudentPage = () => {
                             </div>
                         </div>
                     </div>
-                    {(() => {
-                        const termStatus = examConfig?.termStatuses?.find(
-                            t => t.term.toLowerCase().trim() === selectedTerm.toLowerCase().trim()
-                        );
-                        const isPublished = termStatus?.isPublished === true;
-
-                        if (!isPublished) {
-                            return (
-                                <div className="flex flex-col items-center justify-center py-20 gap-8">
-                                    <div className="w-20 h-20 rounded-[28px] bg-slate-100 dark:bg-slate-800/80 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
-                                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                        </svg>
-                                    </div>
-                                    <div className="text-center space-y-3">
-                                        <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Results Not Available</h4>
-                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest max-w-sm mx-auto">
-                                            Academic records for{' '}
-                                            <span className="text-emerald-500 font-black">{selectedTerm}</span>{' '}
-                                            have not been finalized or published by the examination board yet.
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 px-5 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
-                                            <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
-                                        </svg>
-                                        <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">Pending Publication</span>
-                                    </div>
-                                </div>
-                            );
-                        }
-                        return <MarksheetSection marksheet={student.marksheet} />;
-                    })()}
+                    {!isResultPublished ? (
+                        <div className="flex flex-col items-center justify-center py-20 gap-8">
+                            <div className="w-20 h-20 rounded-[28px] bg-slate-100 dark:bg-slate-800/80 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                            </div>
+                            <div className="text-center space-y-3">
+                                <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Results Not Available</h4>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest max-w-sm mx-auto">
+                                    Academic records for{' '}
+                                    <span className="text-emerald-500 font-black">{selectedTerm}</span>{' '}
+                                    have not been finalized or published by the examination board yet.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 px-5 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+                                    <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+                                </svg>
+                                <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em]">Pending Publication</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <MarksheetSection marksheet={student.marksheet} />
+                    )}
                 </div>
             </div>
 

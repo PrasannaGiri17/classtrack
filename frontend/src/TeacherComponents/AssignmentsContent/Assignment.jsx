@@ -27,6 +27,10 @@ import PortalPopup from '../../MainSystemComponents/PortalPopup';
 import teacherService from '../../Api/teacherService';
 import calendarService from '../../Api/calendarService';
 import assignmentService from '../../Api/assignmentService';
+import {
+    sendAssignmentNotification,
+    scheduleDeadlineReminder
+} from '../../Api/assignmentNotificationService';
 import CustomNepaliHolidayCalendar from '../../MainSystemComponents/CustomNepaliHolidayCalendar';
 
 const Assignment = ({ activeTab, setActiveTab }) => {
@@ -229,6 +233,47 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                 questionFiles: []
             }));
             toast({ type: 'success', message: 'Homework portal created.' });
+
+            // ── Trigger 1: Immediate NEW_ASSIGNMENT notification ─────────────
+            const notifGrade = saved.grade || grade;
+            const notifSection = saved.section || section;
+            const notifSubject = saved.subject || entry.subject;
+            const teacherName = localStorage.getItem('userName') || 'Teacher';
+
+            sendAssignmentNotification({
+                title: 'New Assignment',
+                message: `${notifSubject} assignment portal has been opened`,
+                sender: teacherName,
+                targetGrade: notifGrade,
+                targetSection: notifSection,
+                payload: {
+                    title: saved.title,
+                    subject: notifSubject,
+                    grade: notifGrade,
+                    section: notifSection,
+                    deadline: saved.closeTime,
+                    postedAt: saved.createdAt || new Date().toISOString(),
+                },
+            });
+
+            // ── Trigger 2: 24-hour DEADLINE_REMINDER ─────────────────────────
+            scheduleDeadlineReminder(
+                {
+                    title: 'Deadline Reminder',
+                    message: `Don't forget to submit your ${notifSubject} assignment due in 24 hours`,
+                    sender: teacherName,
+                    targetGrade: notifGrade,
+                    targetSection: notifSection,
+                    payload: {
+                        title: saved.title,
+                        subject: notifSubject,
+                        grade: notifGrade,
+                        section: notifSection,
+                        deadline: saved.closeTime,
+                    },
+                },
+                saved.closeTime
+            );
         } catch (error) {
             toast({ type: 'error', message: 'Failed to create assignment.' });
         }
@@ -810,6 +855,7 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                                         }}
                                                         holidays={holidays}
                                                         showTime={true}
+                                                        disablePastDates={true}
                                                     />
                                                 </motion.div>
                                             )}
@@ -887,8 +933,8 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                                             <span className="font-black text-[10px] uppercase tracking-widest">{assignment.grade || 'G6'} - {assignment.section || 'A'}</span>
                                         </div>
                                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${statusText === 'Open'
-                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/10 dark:text-emerald-400 dark:border-emerald-800/50'
-                                                : 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-800/50'
+                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/10 dark:text-emerald-400 dark:border-emerald-800/50'
+                                            : 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-800/50'
                                             }`}>
                                             {statusText === 'Open' ? <Unlock size={14} strokeWidth={3} /> : <Lock size={14} strokeWidth={3} />}
                                             {statusText}

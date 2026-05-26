@@ -820,6 +820,7 @@ const QuizPage = () => {
                             }}
                             holidays={holidays}
                             showTime={true}
+                            disablePastDates={true}
                           />
                         </motion.div>
                       )}
@@ -859,6 +860,7 @@ const QuizPage = () => {
                             }}
                             holidays={holidays}
                             showTime={true}
+                            disablePastDates={true}
                           />
                         </motion.div>
                       )}

@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { 
   Users, Search, Trash2, Plus, ChevronLeft, ChevronRight, 
   Loader2, AlertCircle, Pencil, List, Filter, ChevronDown, 
-  ArrowUpAZ, ArrowDownZA, Flag 
+  ArrowUpAZ, ArrowDownZA 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CiGrid32 } from "react-icons/ci";
@@ -47,26 +47,12 @@ const StudentRecord = () => {
     }
   };
 
-  const getFlagColor = (flag) => {
-    switch (flag) {
-      case "red": return "bg-red-500 shadow-red-500/20 ring-red-500/10";
-      case "amber":
-      case "yellow": return "bg-amber-500 shadow-amber-500/20 ring-amber-500/10";
-      case "green": return "bg-emerald-500 shadow-emerald-500/20 ring-emerald-500/10";
-      default: return "bg-slate-300 dark:bg-slate-700 shadow-slate-500/10 ring-slate-500/5";
-    }
-  };
-
   const filtered = Array.isArray(students) ? [...students]
     .filter(s => {
       const matchesSearch = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
         String(s.studentId || "").toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesFlag = activeFilter === "red" || activeFilter === "amber" || activeFilter === "green" 
-        ? s.flag === activeFilter 
-        : true;
-
-      return matchesSearch && matchesFlag;
+      return matchesSearch;
     })
     .sort((a, b) => {
       // Apply active filter sorting
@@ -165,9 +151,6 @@ const StudentRecord = () => {
                       { id: "all", label: "All Students", icon: Users, color: "text-slate-400" },
                       { id: "grade-asc", label: "Grade Ascending", icon: ArrowUpAZ, color: "text-emerald-400" },
                       { id: "grade-desc", label: "Grade Descending", icon: ArrowDownZA, color: "text-emerald-400" },
-                      { id: "red", label: "Red Flag", color: "bg-red-500" },
-                      { id: "amber", label: "Yellow Flag", color: "bg-amber-500" },
-                      { id: "green", label: "Green Flag", color: "bg-emerald-500" },
                     ].map((opt) => (
                       <button
                         key={opt.id}
@@ -292,11 +275,18 @@ const StudentRecord = () => {
                       </span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-4 mt-auto pt-4 border-t border-slate-50 dark:border-slate-800/50">
-                    <div className="text-center flex flex-col items-center">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Status Flag</p>
-                      <div className={`w-4 h-4 rounded-md ring-4 shadow-lg ${getFlagColor(s.flag)}`} />
-                    </div>
+                  <div className="mt-auto pt-4 border-t border-slate-50 dark:border-slate-800/50 flex justify-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPopupMode("edit");
+                        setSelectedStudent(s);
+                        setIsPopupOpen(true);
+                      }}
+                      className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-emerald-500 transition-colors uppercase tracking-widest"
+                    >
+                      <Pencil size={12} /> Edit Record
+                    </button>
                   </div>
                 </div>
               </div>
@@ -315,7 +305,6 @@ const StudentRecord = () => {
                   <th className="pl-12 pr-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Id</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Student Details</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest">Grade</th>
-                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center">Flag</th>
                   <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 tracking-widest text-center">Actions</th>
                 </tr>
               </thead>
@@ -349,9 +338,6 @@ const StudentRecord = () => {
                           }`}>
                           {s.status === 'graduated' ? 'GRADUATED' : `Grade ${s.studentClass}`}
                         </span>
-                      </td>
-                      <td className="px-6 py-6 text-center">
-                        <div className={`mx-auto w-4 h-4 rounded-md ring-4 shadow-lg transition-transform hover:scale-110 ${getFlagColor(s.flag)}`} />
                       </td>
                       <td className="pr-12 pl-6 py-6 text-center">
                         <div className="flex items-center justify-center transition-all">

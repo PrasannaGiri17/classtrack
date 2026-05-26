@@ -142,7 +142,7 @@ const ControlView = ({
             </div>
           </div>
 
-          {/* Section 2: Performance Analytics */}
+          {/* Section 2: Performance Analytics
           <div className="p-10 border-b border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
               <div className="flex items-center gap-3">
@@ -185,6 +185,7 @@ const ControlView = ({
               </div>
             </div>
           </div>
+          */}
 
           {/* Section 3: Verified Result Preview */}
           <div className="p-10 bg-white dark:bg-slate-950/40">
@@ -357,25 +358,46 @@ const ControlView = ({
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-end">
-                      <div className="xl:col-span-4 grid grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800">
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 tracking-tight mb-1">Percentage</p>
-                          <p className="text-4xl font-black text-slate-900 dark:text-white leading-none tracking-tighter">{currentResult.percentage}%</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-black text-slate-400 tracking-tight mb-1">Grade Point</p>
-                          <p className="text-4xl font-black text-indigo-600 leading-none tracking-tighter">{currentResult.gpa}</p>
-                        </div>
-                        <div className="col-span-2 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                          <div className={`px-5 py-2 rounded-xl text-[11px] font-black tracking-tight border shadow-sm ${currentResult.status === 'Passed' ? 'bg-emerald-500 text-white border-emerald-400' :
-                            currentResult.status === 'Failed' ? 'bg-red-500 text-white border-red-400' :
-                              'bg-slate-400 text-white border-slate-300'
-                            }`}>
-                            {currentResult.status}
+                      {/* Summary card — only shown when every subject has a published result */}
+                      {(() => {
+                        const allSubjectsPublished = Object.values(currentResult.marks).every(data => data != null);
+                        return (
+                          <div className="xl:col-span-4 grid grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-800/50 p-8 rounded-[32px] border border-slate-100 dark:border-slate-800">
+                            {allSubjectsPublished ? (
+                              <>
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-400 tracking-tight mb-1">Percentage</p>
+                                  <p className="text-4xl font-black text-slate-900 dark:text-white leading-none tracking-tighter">{currentResult.percentage}%</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] font-black text-slate-400 tracking-tight mb-1">Grade Point</p>
+                                  <p className="text-4xl font-black text-indigo-600 leading-none tracking-tighter">{currentResult.gpa}</p>
+                                </div>
+                                <div className="col-span-2 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                                  <div className={`px-5 py-2 rounded-xl text-[11px] font-black tracking-tight border shadow-sm ${currentResult.status === 'Passed' ? 'bg-emerald-500 text-white border-emerald-400' :
+                                    currentResult.status === 'Failed' ? 'bg-red-500 text-white border-red-400' :
+                                      'bg-slate-400 text-white border-slate-300'
+                                    }`}>
+                                    {currentResult.status}
+                                  </div>
+                                  <p className="text-[9px] font-bold text-slate-400 tracking-tight">Validated by System</p>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="col-span-2 flex flex-col items-center justify-center py-4 gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                                  <span className="text-xl">⏳</span>
+                                </div>
+                                <p className="text-[10px] font-black text-slate-400 tracking-tight text-center leading-relaxed">
+                                  Results pending<br />
+                                  <span className="text-amber-500">Not all subjects published</span>
+                                </p>
+                                <p className="text-[9px] font-bold text-slate-300 dark:text-slate-600 tracking-tight">Awaiting all subject results</p>
+                              </div>
+                            )}
                           </div>
-                          <p className="text-[9px] font-bold text-slate-400 tracking-tight">Validated by System</p>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       <div className="xl:col-span-8 flex flex-col">
                         <p className="text-[11px] font-black text-slate-400 tracking-tight mb-6 flex items-center gap-2">
@@ -457,18 +479,32 @@ const ControlView = ({
                               </span>
                             </td>
                             <td className="px-6 py-5 text-center">
-                              <p className="text-sm font-black text-indigo-600 leading-none">{student.gpa}</p>
+                              {Object.values(student.marks).every(d => d != null) ? (
+                                <p className="text-sm font-black text-indigo-600 leading-none">{student.gpa}</p>
+                              ) : (
+                                <span className="text-[9px] font-black text-amber-500 tracking-tight">Pending</span>
+                              )}
                             </td>
                             <td className="px-6 py-5 text-center">
-                              <p className="text-sm font-black text-slate-700 dark:text-slate-200 leading-none">{student.percentage}%</p>
+                              {Object.values(student.marks).every(d => d != null) ? (
+                                <p className="text-sm font-black text-slate-700 dark:text-slate-200 leading-none">{student.percentage}%</p>
+                              ) : (
+                                <span className="text-[9px] font-black text-amber-500 tracking-tight">Pending</span>
+                              )}
                             </td>
                             <td className="pr-10 py-5 text-center">
-                              <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black tracking-tight border ${student.status === 'Passed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                student.status === 'Failed' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                  'bg-slate-100 dark:bg-slate-800 text-slate-400 border-transparent'
-                                }`}>
-                                {student.status}
-                              </span>
+                              {Object.values(student.marks).every(d => d != null) ? (
+                                <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black tracking-tight border ${student.status === 'Passed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                  student.status === 'Failed' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                    'bg-slate-100 dark:bg-slate-800 text-slate-400 border-transparent'
+                                  }`}>
+                                  {student.status}
+                                </span>
+                              ) : (
+                                <span className="px-4 py-1.5 rounded-xl text-[9px] font-black tracking-tight border bg-amber-500/10 text-amber-500 border-amber-500/20">
+                                  Pending
+                                </span>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -482,7 +518,7 @@ const ControlView = ({
                   </div>
                 )}
               </div>
-            )}}
+            )}
             {/* 
             <div className="mt-12 pt-12 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between mb-10 px-4">

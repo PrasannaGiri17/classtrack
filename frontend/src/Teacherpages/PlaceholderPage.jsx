@@ -7,7 +7,7 @@ const PlaceholderPage = ({ title }) => {
         <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
       <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 transition-colors">{title}</h1>
-      <p className="text-slate-500 dark:text-slate-400 max-w-md">This section is currently under active development. Our AI-driven school management features are being prepared for your campus.</p>
+      <p className="text-slate-500 dark:text-slate-400 max-w-md">This section is currently under active development. Our AI-driven school management features are being prepared for your School.</p>
     </div>
   );
 };

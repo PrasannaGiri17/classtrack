@@ -530,7 +530,7 @@ const SDashboard = () => {
           ) : (
             <>
               {diaryEntries.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 items-start content-start">
                   {currentHomework.map((hw) => (
                     <HomeworkCard key={hw._id} hw={hw} />
                   ))}
@@ -606,8 +606,8 @@ const SDashboard = () => {
               </div>
             ) : recentNotifications.length > 0 ? (
               recentNotifications.map((notif) => (
-                <div key={notif._id} className="flex gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
-                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                <div key={notif._id} className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow shrink-0">
                     <Bell className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
                   </div>
                   <div>

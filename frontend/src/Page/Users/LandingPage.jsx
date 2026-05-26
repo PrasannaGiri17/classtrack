@@ -198,8 +198,8 @@ export default function LandingPage() {
                                 { icon: LayoutDashboard, title: "Dashboard", desc: "Real-time attendance overview, weekly analytics charts and key metrics at a glance." },
                                 { icon: Users, title: "Teacher Management", desc: "Faculty profiles, subject assignments, and grade allocation in one unified view." },
                                 { icon: School, title: "School Hub", desc: "School setup, grade & sections, subjects, and routine structure management." },
-                                { icon: Calendar, title: "Academic Calendar", desc: "Schedule holidays, exams, and campus events with automated reminders." },
-                                { icon: Bell, title: "Announcements", desc: "Campus-wide notification dispatch system for students, parents, and staff." },
+                                { icon: Calendar, title: "Academic Calendar", desc: "Schedule holidays, exams, and School events with automated reminders." },
+                                { icon: Bell, title: "Announcements", desc: "School-wide notification dispatch system for students, parents, and staff." },
                                 { icon: BookOpen, title: "Classroom", desc: "Student enrollment, class teacher assignment, and daily activity tracking." }
                             ].map((feature, i) => (
                                 <FadeInUp key={i} delay={i * 0.1}>
@@ -330,7 +330,7 @@ export default function LandingPage() {
                             <div className="flex items-center justify-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-navy-700 overflow-hidden">
                                     <div className="w-full h-full bg-navy-800 flex items-center justify-center border border-navy-700">
-                                      <FaRegUser className="text-emerald-500 w-6 h-6" />
+                                        <FaRegUser className="text-emerald-500 w-6 h-6" />
                                     </div>
                                 </div>
                                 <div className="text-left">

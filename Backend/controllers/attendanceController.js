@@ -2,7 +2,7 @@ const ClassroomAttendance = require("../models/ClassroomAttendance");
 const Student = require("../models/studentModel");
 const { Grade } = require("../models/School");
 const mongoose = require("mongoose");
-const { calculateAndSaveFlags } = require('../services/flagService');
+
 
 // Get attendance records for a specific section (or entire school), year, and month
 const getAttendance = async (req, res) => {
@@ -98,8 +98,7 @@ const saveAttendance = async (req, res) => {
 
     res.status(200).json({ message: "Attendance saved successfully", attendance });
 
-    // Trigger flag recalculation in background to keep colors in sync
-    calculateAndSaveFlags(Number(req.schoolId), year).catch(err => console.error("Auto flag update error:", err));
+
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -152,21 +151,19 @@ const getStudentYearlyAttendance = async (req, res) => {
                 // convert Map to object if it's a Map
                 const dailyStatus = studentData.dailyStatus instanceof Map ? studentData.dailyStatus : new Map(Object.entries(studentData.dailyStatus));
                 dailyStatus.forEach(status => {
-                    if (status === 'P') totalPresent++;
+                    if (status === 'P' || status === 'L') totalPresent++;
                     if (status === 'A') totalAbsent++;
                 });
             }
         });
 
         const totalDays = totalPresent + totalAbsent;
-        // Academic Year 2082 normally has approx 262 total school days as per user's screenshot
-        const finalTotalDays = parseInt(year) === 2082 ? 262 : totalDays;
-        const rate = finalTotalDays > 0 ? Math.round((totalPresent / finalTotalDays) * 100) : 0;
+        const rate = totalDays > 0 ? Math.round((totalPresent / totalDays) * 100) : 0;
 
         res.status(200).json({
             present: totalPresent,
             absent: totalAbsent,
-            totalDays: finalTotalDays,
+            totalDays,
             rate
         });
     } catch (error) {

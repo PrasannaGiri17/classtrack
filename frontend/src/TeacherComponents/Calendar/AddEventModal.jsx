@@ -279,6 +279,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
                           setShowStartCalendar(false);
                         }}
                         holidays={holidays}
+                        disablePastDates={true}
                       />
                     </motion.div>
                   )}
@@ -318,6 +319,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded }) => {
                           setShowEndCalendar(false);
                         }}
                         holidays={holidays}
+                        disablePastDates={true}
                       />
                     </motion.div>
                   )}

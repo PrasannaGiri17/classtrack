@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Edit3,
   Loader2,
@@ -17,6 +17,7 @@ import {
 import PortalPopup from "../../MainSystemComponents/PortalPopup";
 import ConfirmDialog from "../../MainSystemComponents/ConfirmDialog";
 import { toast } from "../../MainSystemComponents/Toast";
+import PhotoCropModal from "../../MainSystemComponents/PhotoCropModal";
 
 /**
  * Props:
@@ -24,6 +25,7 @@ import { toast } from "../../MainSystemComponents/Toast";
  *  name: string,
  *  address: string,
  *  logo: string,
+ *  coverImage: string,
  *  schoolEmail: string,
  *  phoneNumbers: string[],
  *  socialLinks: { tiktok: string, facebook: string, instagram: string }
@@ -47,7 +49,89 @@ const InstitutionalView = ({ config, onUpdate, onSave, isLoading }) => {
   // Initialize temp state with fixed structure if empty
   const [tempPhones, setTempPhones] = useState([]);
 
+  // --- Logo crop/confirm state ---
+  const logoFileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLogoCropOpen, setIsLogoCropOpen] = useState(false);
+  const [logoRawFile, setLogoRawFile] = useState(null);
+  const [logoPending, setLogoPending] = useState(null);
+  const [isLogoConfirmOpen, setIsLogoConfirmOpen] = useState(false);
+
+  // --- Cover crop/confirm state ---
+  const coverFileInputRef = useRef(null);
+  const [isCoverUploading, setIsCoverUploading] = useState(false);
+  const [isCoverCropOpen, setIsCoverCropOpen] = useState(false);
+  const [coverRawFile, setCoverRawFile] = useState(null);
+  const [coverPending, setCoverPending] = useState(null);
+  const [isCoverConfirmOpen, setIsCoverConfirmOpen] = useState(false);
+
+  // --- Cover handlers ---
+  const handleCoverFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCoverRawFile(reader.result);
+      setIsCoverCropOpen(true);
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be re-selected
+    event.target.value = "";
+  };
+
+  const handleCoverCropDone = (cropped) => {
+    setCoverPending(cropped);
+    setIsCoverCropOpen(false);
+    setIsCoverConfirmOpen(true);
+  };
+
+  const handleCoverConfirm = () => {
+    if (coverPending) {
+      setIsCoverUploading(true);
+      setIsCoverConfirmOpen(false);
+      setTimeout(() => {
+        onUpdate({ coverImage: coverPending });
+        setIsCoverUploading(false);
+        setCoverPending(null);
+        setCoverRawFile(null);
+        toast({ type: 'success', message: 'Cover image updated successfully!' });
+      }, 800);
+    }
+  };
+
+  // --- Logo handlers ---
+  const handleLogoFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoRawFile(reader.result);
+      setIsLogoCropOpen(true);
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be re-selected
+    event.target.value = "";
+  };
+
+  const handleLogoCropDone = (cropped) => {
+    setLogoPending(cropped);
+    setIsLogoCropOpen(false);
+    setIsLogoConfirmOpen(true);
+  };
+
+  const handleLogoConfirm = () => {
+    if (logoPending) {
+      setIsUploading(true);
+      setIsLogoConfirmOpen(false);
+      setTimeout(() => {
+        onUpdate({ logo: logoPending });
+        setIsUploading(false);
+        setLogoPending(null);
+        setLogoRawFile(null);
+        toast({ type: 'success', message: 'School logo updated successfully!' });
+      }, 800);
+    }
+  };
 
   // Sync and ensure core structure
   useEffect(() => {
@@ -132,26 +216,6 @@ const InstitutionalView = ({ config, onUpdate, onSave, isLoading }) => {
     setIsPhoneModalOpen(false);
   };
 
-  const handleImageUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      // Simulate upload delay for effect (optional, or remove)
-      setTimeout(() => {
-        onUpdate({ logo: reader.result }); // reader.result is the Base64 string
-        setIsUploading(false);
-      }, 1000);
-    };
-    reader.onerror = () => {
-      console.error("File reading failed");
-      setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
-  };
 
 
   const socialPlatforms = [
@@ -164,61 +228,93 @@ const InstitutionalView = ({ config, onUpdate, onSave, isLoading }) => {
     <div className="space-y-10 relative">
       <div className="max-w-6xl mx-auto pb-20">
         <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm space-y-10 h-auto overflow-visible">
-          {/* Section 0: Header with Logo and Title */}
-          <div className="flex flex-col md:flex-row gap-10 items-center md:items-start">
-            <div className="relative group cursor-pointer w-44 h-44 shrink-0">
-              <div className="w-full h-full rounded-[32px] overflow-hidden shadow-xl ring-4 ring-white dark:ring-slate-900 ring-offset-2 ring-offset-slate-100 dark:ring-offset-slate-800 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:ring-emerald-500/20 relative z-10">
+          {/* Cover Image Hero */}
+          <div className="relative w-full h-52 md:h-64 rounded-[24px] overflow-hidden group/cover -mx-0 mb-[-60px] cursor-pointer" onClick={() => coverFileInputRef.current?.click()}>
+            {/* Cover photo */}
+            <img
+              src={config.coverImage || "https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1200"}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover/cover:scale-105"
+              alt="School Cover"
+            />
+
+            {/* Dark gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+
+            {/* Hover edit overlay */}
+            <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/20 transition-all duration-500 flex items-end justify-end p-5">
+              <div className="opacity-0 group-hover/cover:opacity-100 transition-all duration-300">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl text-slate-900 text-xs font-black tracking-wider">
+                  <Edit3 size={14} /> Change Cover
+                </div>
+              </div>
+            </div>
+
+            {/* Loading overlay for cover */}
+            {isCoverUploading && (
+              <div className="absolute inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-white animate-spin" />
+              </div>
+            )}
+
+            {/* Hidden cover upload input */}
+            <input
+              ref={coverFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleCoverFileChange}
+              disabled={isCoverUploading}
+            />
+          </div>
+
+          {/* Logo + Title row (overlaps cover) */}
+          <div className="flex flex-col md:flex-row gap-6 items-end md:items-end pt-0 px-2 relative z-10">
+            {/* Logo with antigravity hover */}
+            <div className="relative group cursor-pointer w-36 h-36 shrink-0 -mt-16 ml-4" onClick={() => logoFileInputRef.current?.click()}>
+              <div className="w-full h-full rounded-[28px] overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-900 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 transition-all duration-500 ease-out hover:scale-105 hover:-translate-y-3 hover:shadow-[0_32px_64px_-12px_rgba(16,185,129,0.45)] hover:ring-emerald-400/50 relative z-10 bg-white dark:bg-slate-800">
                 <img
                   src={config.logo}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   alt="School Logo"
                 />
-
-                {/* Anti-gravity Hover Overlay */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 backdrop-blur-[0px] group-hover:backdrop-blur-sm transition-all duration-500 flex items-center justify-center">
-                  <div className="absolute opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300 delay-75">
-                    <div className="w-10 h-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center text-slate-900 animate-bounce cursor-pointer border border-white/50 group-hover:border-white transition-all">
-                      <Edit3 size={18} className="transition-transform group-hover:rotate-6" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/15 backdrop-blur-[0px] group-hover:backdrop-blur-[2px] transition-all duration-500 flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300">
+                    <div className="w-9 h-9 bg-white/90 backdrop-blur-md rounded-xl shadow-2xl flex items-center justify-center text-slate-900">
+                      <Edit3 size={16} />
                     </div>
                   </div>
                 </div>
-
-                {/* Loading Overlay */}
                 {isUploading && (
-                  <div className="absolute inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-300">
-                    <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  <div className="absolute inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center">
+                    <Loader2 className="w-7 h-7 text-white animate-spin" />
                   </div>
                 )}
               </div>
-
-              {/* Hidden File Input */}
               <input
+                ref={logoFileInputRef}
                 type="file"
                 accept="image/*"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                onChange={handleImageUpload}
+                className="hidden"
+                onChange={handleLogoFileChange}
                 disabled={isUploading}
               />
             </div>
 
-            <div className="flex-1 space-y-4 pt-4 text-center md:text-left">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
-                  School Information
-                </h2>
-                <p className="text-base font-medium text-slate-400 leading-relaxed max-w-xl">
-                  Update your school&apos;s official identity, including name, logo, address, and contact information.
-                </p>
-              </div>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-2">
-                <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-wider">
+            {/* Title block */}
+            <div className="flex-1 space-y-1 pb-2">
+              <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">
+                School Information
+              </h2>
+              <p className="text-sm font-medium text-slate-400 max-w-lg">
+                Update your school&apos;s official identity, including name, logo, address, and contact information.
+              </p>
+              <div className="pt-1">
+                <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-wider">
                   Official Profile
-                </div>
+                </span>
               </div>
             </div>
           </div>
-
-          <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
           {/* Section 1: Core Institutional Details */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
@@ -592,6 +688,39 @@ const InstitutionalView = ({ config, onUpdate, onSave, isLoading }) => {
         onConfirm={confirmRemoveContact}
         title="Remove Contact"
         message="Are you sure you want to remove this contact line? This action cannot be undone."
+      />
+
+      {/* Cover image crop & confirm */}
+      <PhotoCropModal
+        isOpen={isCoverCropOpen}
+        image={coverRawFile}
+        aspect={16 / 9}
+        onClose={() => { setIsCoverCropOpen(false); setCoverRawFile(null); }}
+        onDone={handleCoverCropDone}
+        onChange={() => { setIsCoverCropOpen(false); coverFileInputRef.current?.click(); }}
+      />
+      <ConfirmDialog
+        isOpen={isCoverConfirmOpen}
+        onClose={() => { setIsCoverConfirmOpen(false); setCoverPending(null); }}
+        onConfirm={handleCoverConfirm}
+        title="Update Cover Image?"
+        message="Are you sure you want to replace the school's current cover image with the selected one?"
+      />
+
+      {/* Logo crop & confirm */}
+      <PhotoCropModal
+        isOpen={isLogoCropOpen}
+        image={logoRawFile}
+        onClose={() => { setIsLogoCropOpen(false); setLogoRawFile(null); }}
+        onDone={handleLogoCropDone}
+        onChange={() => { setIsLogoCropOpen(false); logoFileInputRef.current?.click(); }}
+      />
+      <ConfirmDialog
+        isOpen={isLogoConfirmOpen}
+        onClose={() => { setIsLogoConfirmOpen(false); setLogoPending(null); }}
+        onConfirm={handleLogoConfirm}
+        title="Update School Logo?"
+        message="Are you sure you want to replace the school's current logo with the selected one?"
       />
     </div>
   );

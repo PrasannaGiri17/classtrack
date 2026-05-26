@@ -273,7 +273,7 @@ const NotificationPage = () => {
           </div>
           <div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Announcements</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Campus-wide Notification Dispatch</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">School-wide Notification Dispatch</p>
           </div>
         </div>
 

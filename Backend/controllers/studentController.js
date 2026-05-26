@@ -269,6 +269,8 @@ const getStudentById = async (req, res) => {
 
     if (!student) return res.status(404).json({ message: "Student not found" });
 
+
+
     // Populate Grade and Section info to find the class teacher
     let populatedData = student.toObject();
 

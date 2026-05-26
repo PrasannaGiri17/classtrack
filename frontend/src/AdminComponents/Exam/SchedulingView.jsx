@@ -646,6 +646,7 @@ const SchedulingView = () => {
                                 updateSlot(index, 'date', formatted);
                                 setOpenCalendarId(null);
                               }}
+                              disablePastDates={true}
                             />
                           </div>
                         </>

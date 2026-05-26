@@ -37,7 +37,7 @@ const SCalendarPage = () => {
 
       // Backend now identifies schoolId and user from token
       const data = await calendarService.getEvents(from, to);
-      
+
       // Filter out broad "Exam Week" summaries for students to prioritize solo subject events
       const filteredCalendarData = data.filter(event => {
         const title = event.title?.toLowerCase() || '';
@@ -45,18 +45,18 @@ const SCalendarPage = () => {
         const isExamEvent = type === 'exams' || type === 'exam' || title.includes('exam');
 
         if (isExamEvent) {
-           const start = new Date(event.startDate);
-           const end = new Date(event.endDate || event.startDate);
-           
-           // Only filter out if it spans multiple days (broad summary ranges)
-           const isMultiDay = start.getFullYear() !== end.getFullYear() || 
-                             start.getMonth() !== end.getMonth() || 
-                             start.getDate() !== end.getDate();
-                             
-           const isWeek = title.includes('week');
-           
-           // Keep granular (single-day) exams, hide the ranges
-           return !isMultiDay && !isWeek;
+          const start = new Date(event.startDate);
+          const end = new Date(event.endDate || event.startDate);
+
+          // Only filter out if it spans multiple days (broad summary ranges)
+          const isMultiDay = start.getFullYear() !== end.getFullYear() ||
+            start.getMonth() !== end.getMonth() ||
+            start.getDate() !== end.getDate();
+
+          const isWeek = title.includes('week');
+
+          // Keep granular (single-day) exams, hide the ranges
+          return !isMultiDay && !isWeek;
         }
         return true;
       });
@@ -154,7 +154,7 @@ const SCalendarPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Academic Calendar</h1>
-          <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Manage schedules, holidays, and campus events</p>
+          <p className="text-sm font-bold text-slate-400 dark:text-slate-500  tracking-[0.2em] mt-2">Add your plans and Check School's holidays, and events</p>
         </div>
 
         <div className="flex items-center gap-4">
@@ -185,7 +185,7 @@ const SCalendarPage = () => {
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center justify-center gap-3 px-10 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+            className="flex items-center justify-center gap-3 px-10 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xs tracking-widest shadow-xl shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
           >
             <Plus size={20} />
             Add Personal Event
@@ -239,25 +239,29 @@ const SCalendarPage = () => {
               ) : filteredEvents.map((event) => {
                 const isBlue = event.type === 'EXAMS' || event.type === 'blue' || event.color === 'blue';
                 const isRed = event.type === 'HOLIDAY' || event.type === 'red' || event.color === 'red';
+                const isAmber = event.type === 'HOMEWORK' || event.type === 'amber' || event.color === 'amber';
 
                 return (
                   <div
                     key={event._id || event.id}
                     className={`p-8 rounded-[32px] border bg-white dark:bg-slate-900 shadow-sm transition-all hover:shadow-md ${isBlue ? 'border-blue-100 dark:border-blue-900/30' :
                       isRed ? 'border-red-100 dark:border-red-900/30' :
-                        'border-emerald-100 dark:border-emerald-900/30'
+                        isAmber ? 'border-amber-100 dark:border-amber-900/30' :
+                          'border-emerald-100 dark:border-emerald-900/30'
                       }`}
                   >
                     <div className="flex items-center justify-between mb-6">
                       <span className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-xl shadow-sm ${isBlue ? 'bg-blue-500 text-white' :
                         isRed ? 'bg-red-500 text-white' :
-                          'bg-emerald-500 text-white'
+                          isAmber ? 'bg-amber-500 text-white' :
+                            'bg-emerald-500 text-white'
                         }`}>
                         {event.type}
                       </span>
                       <span className={`text-sm font-black ${isBlue ? 'text-blue-600' :
                         isRed ? 'text-red-600' :
-                          'text-emerald-600'
+                          isAmber ? 'text-amber-600' :
+                            'text-emerald-600'
                         }`}>
                         {calendarMode === 'AD'
                           ? formatDateRange(event.startDate, event.endDate)
@@ -267,7 +271,8 @@ const SCalendarPage = () => {
                     </div>
                     <h4 className={`text-xl font-black mb-2 ${isBlue ? 'text-blue-900 dark:text-blue-200' :
                       isRed ? 'text-red-900 dark:text-red-200' :
-                        'text-emerald-900 dark:text-emerald-200'
+                        isAmber ? 'text-amber-900 dark:text-amber-200' :
+                          'text-emerald-900 dark:text-emerald-200'
                       }`}>
                       {event.title}
                     </h4>
@@ -275,7 +280,8 @@ const SCalendarPage = () => {
                     <div className="flex items-center justify-between mt-2">
                       <p className={`text-xs font-bold uppercase tracking-widest ${isBlue ? 'text-blue-500/70' :
                         isRed ? 'text-red-500/70' :
-                          'text-emerald-500/70'
+                          isAmber ? 'text-amber-500/70' :
+                            'text-emerald-500/70'
                         }`}>
                         {event.description}
                       </p>

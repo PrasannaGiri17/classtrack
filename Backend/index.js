@@ -35,7 +35,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const userRoutes = require("./routes/userRoutes");
 const khaltiPaymentRoutes = require("./routes/khaltiPayment");
 const esewaPaymentRoutes = require("./routes/esewaPayment");
-const flagRoutes = require("./routes/flagRoutes");
+
 const schoolNotificationRoutes = require("./routes/schoolNotificationRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
 
@@ -49,8 +49,8 @@ const app = express();
 const port = 7000;
 
 // Run notification checks every hour to ensure 24h advance notice
-setInterval(checkAndSendHolidayNotifications, 3600000); 
-setInterval(checkAndSendExamNotifications, 3600000); 
+setInterval(checkAndSendHolidayNotifications, 3600000);
+setInterval(checkAndSendExamNotifications, 3600000);
 
 // middlewares
 // middlewares
@@ -72,15 +72,15 @@ app.get("/", (req, res) => {
 
 // routes
 app.use("/api/students", studentRoutes);
-app.use("/api/teachers", teacherRoutes); // ✅ now: /api/teachers, /api/teachers/add, /api/teachers/:id
+app.use("/api/teachers", teacherRoutes);
 app.use("/api/school", schoolRoutes);
 app.use("/api/grades", gradeRoutes);
 app.use("/api/routines", routineRoutes);
 app.use("/api/timetables", timetableRoutes);
-app.use("/api/calendar", calendarRoutes); // Mount calendar routes
-app.use("/api/exams", examRoutes); // Mount exam routes
-app.use("/api/results", resultRoutes); // Mount result routes
-app.use("/api/auth", authRoutes);    // /api/auth/register, /api/auth/login, etc.
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/exams", examRoutes);
+app.use("/api/results", resultRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/classroom-notices", classroomNoticeRoutes);
 app.use("/api/attendance", attendanceRoutes);
@@ -100,7 +100,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/payment/khalti", khaltiPaymentRoutes);
 app.use("/api/payment/esewa", esewaPaymentRoutes);
-app.use("/api/flags", flagRoutes);
+
 app.use("/api/school-notifications", schoolNotificationRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 

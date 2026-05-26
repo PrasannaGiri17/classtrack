@@ -160,7 +160,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded, isStudentView, studentId
                   onChange={handleChange}
                   className="w-full px-7 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-[20px] text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all dark:text-slate-200 cursor-pointer shadow-inner appearance-none"
                 >
-                  <option value="event">Campus Event</option>
+                  <option value="event">School Event</option>
                   <option value="holiday">School Holiday</option>
                   <option value="exams">Examination Period</option>
                 </select>
@@ -218,6 +218,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded, isStudentView, studentId
                       setShowStartCal(false);
                     }}
                     className="shadow-2xl border-emerald-500/20"
+                    disablePastDates={true}
                   />
                 </div>
               )}
@@ -244,6 +245,7 @@ const AddEventModal = ({ isOpen, onClose, onEventAdded, isStudentView, studentId
                       setShowEndCal(false);
                     }}
                     className="shadow-2xl border-emerald-500/20"
+                    disablePastDates={true}
                   />
                 </div>
               )}

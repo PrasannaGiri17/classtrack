@@ -29,6 +29,7 @@ import AdminMePage from './Adminpages/AdminMePage';
 import TeacherPage from './Page/teacherpage';
 import MessagesPage from './Page/MessagesPage';
 import ActivityPage from './Page/NotificationPage';
+import SchoolPage from './Page/SchoolPage';
 
 
 import TeacherLayout from './TeacherComponents/Layout/TecaherLayout';
@@ -175,6 +176,7 @@ function App() {
           <Route path="student/:id" element={<StudentPage />} />
           <Route path="messages" element={<MessagesPage />} />
           <Route path="activities" element={<ActivityPage />} />
+          <Route path="school" element={<SchoolPage />} />
         </Route>
 
         <Route path="/student" element={
@@ -197,7 +199,7 @@ function App() {
           <Route path="profile" element={<StudentMePage />} />
           <Route path="messages" element={<MessagesPage />} />
           <Route path="activities" element={<ActivityPage />} />
-          
+          <Route path="school" element={<SchoolPage />} />
         </Route>
 
             {/* ---------------- Public Website ---------------- */}

@@ -72,8 +72,8 @@ const CalendarPage = () => {
   // Determine if we are viewing a past month
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const isPastMonth = currentDate.getFullYear() < today.getFullYear() || 
-                    (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() < today.getMonth());
+  const isPastMonth = currentDate.getFullYear() < today.getFullYear() ||
+    (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() < today.getMonth());
 
   // Derived state: Events filtered by viewed month and future/past status
   const filteredEvents = events
@@ -92,7 +92,7 @@ const CalendarPage = () => {
 
       // 2. If viewing current month, only show future/today events
       const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
-      
+
       if (isCurrentMonth) {
         // Normalize today and eventEnd to midnight local for accurate "from today" check
         const eventEndLocal = new Date(eventEnd.getFullYear(), eventEnd.getMonth(), eventEnd.getDate());
@@ -137,7 +137,7 @@ const CalendarPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Academic Calendar</h1>
-          <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Manage schedules, holidays, and campus events</p>
+          <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Manage schedules, holidays, and School events</p>
         </div>
 
         <div className="flex items-center gap-4">
@@ -222,25 +222,29 @@ const CalendarPage = () => {
               ) : filteredEvents.map((event) => {
                 const isBlue = event.type === 'EXAMS' || event.type === 'blue' || event.color === 'blue';
                 const isRed = event.type === 'HOLIDAY' || event.type === 'red' || event.color === 'red';
+                const isAmber = event.type === 'HOMEWORK' || event.type === 'amber' || event.color === 'amber';
 
                 return (
                   <div
                     key={event._id || event.id}
                     className={`p-8 rounded-[32px] border bg-white dark:bg-slate-900 shadow-sm transition-all hover:shadow-md ${isBlue ? 'border-blue-100 dark:border-blue-900/30' :
                       isRed ? 'border-red-100 dark:border-red-900/30' :
-                        'border-emerald-100 dark:border-emerald-900/30'
+                        isAmber ? 'border-amber-100 dark:border-amber-900/30' :
+                          'border-emerald-100 dark:border-emerald-900/30'
                       }`}
                   >
                     <div className="flex items-center justify-between mb-6">
                       <span className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-xl shadow-sm ${isBlue ? 'bg-blue-500 text-white' :
                         isRed ? 'bg-red-500 text-white' :
-                          'bg-emerald-500 text-white'
+                          isAmber ? 'bg-amber-500 text-white' :
+                            'bg-emerald-500 text-white'
                         }`}>
                         {event.type}
                       </span>
                       <span className={`text-sm font-black ${isBlue ? 'text-blue-600' :
                         isRed ? 'text-red-600' :
-                          'text-emerald-600'
+                          isAmber ? 'text-amber-600' :
+                            'text-emerald-600'
                         }`}>
                         {calendarMode === 'AD'
                           ? formatDateRange(event.startDate, event.endDate)
@@ -250,7 +254,8 @@ const CalendarPage = () => {
                     </div>
                     <h4 className={`text-xl font-black mb-2 ${isBlue ? 'text-blue-900 dark:text-blue-200' :
                       isRed ? 'text-red-900 dark:text-red-200' :
-                        'text-emerald-900 dark:text-emerald-200'
+                        isAmber ? 'text-amber-900 dark:text-amber-200' :
+                          'text-emerald-900 dark:text-emerald-200'
                       }`}>
                       {event.title}
                     </h4>
@@ -258,7 +263,8 @@ const CalendarPage = () => {
                     <div className="flex items-center justify-between mt-2">
                       <p className={`text-xs font-bold uppercase tracking-widest ${isBlue ? 'text-blue-500/70' :
                         isRed ? 'text-red-500/70' :
-                          'text-emerald-500/70'
+                          isAmber ? 'text-amber-500/70' :
+                            'text-emerald-500/70'
                         }`}>
                         {event.description}
                       </p>

@@ -15,21 +15,63 @@ const NEPALI_MONTHS = [
     "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
 ];
 
+const normalizeToDateString = (date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "";
+
+    const isUTCMidnight = 
+        d.getUTCHours() === 0 && 
+        d.getUTCMinutes() === 0 && 
+        d.getUTCSeconds() === 0 && 
+        d.getUTCMilliseconds() === 0;
+
+    if (isUTCMidnight) {
+        const year = d.getUTCFullYear();
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    } else {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+};
+
+const parseSelectedDate = (selectedDate) => {
+    if (!selectedDate) return new Date();
+    const d = new Date(selectedDate);
+    if (isNaN(d.getTime())) return new Date();
+
+    const isUTCMidnight = 
+        d.getUTCHours() === 0 && 
+        d.getUTCMinutes() === 0 && 
+        d.getUTCSeconds() === 0 && 
+        d.getUTCMilliseconds() === 0;
+
+    if (isUTCMidnight) {
+        return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    }
+    return d;
+};
+
 const CustomNepaliHolidayCalendar = ({
     selectedDate = new Date(),
     onChange,
     holidays = [],
     className = "",
     showTodayButton = true,
-    showTime = false
+    showTime = false,
+    disablePastDates = false
 }) => {
     // Navigation state (AD month/year)
-    const [viewDate, setViewDate] = useState(new Date(selectedDate));
+    const [viewDate, setViewDate] = useState(() => parseSelectedDate(selectedDate));
     const [hoveredDate, setHoveredDate] = useState(null);
 
     // Time state
     const [tempTime, setTempTime] = useState(() => {
-        const d = new Date(selectedDate);
+        const d = parseSelectedDate(selectedDate);
         return {
             hours: d.getHours(),
             minutes: d.getMinutes() >= 30 ? 30 : 0
@@ -58,16 +100,26 @@ const CustomNepaliHolidayCalendar = ({
     };
 
     const handleDateSelect = (dateAD) => {
-        const newDate = new Date(dateAD);
+        if (disablePastDates) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const compareDate = new Date(dateAD);
+            compareDate.setHours(0, 0, 0, 0);
+            if (compareDate < today) return;
+        }
+        let newDate = new Date(dateAD);
         if (showTime) {
             newDate.setHours(tempTime.hours, tempTime.minutes, 0, 0);
+        } else {
+            // Normalize to UTC midnight of the selected day to avoid timezone shifts in parent component (.toISOString())
+            newDate = new Date(Date.UTC(dateAD.getFullYear(), dateAD.getMonth(), dateAD.getDate()));
         }
         if (onChange) onChange(newDate);
     };
 
     const handleTimeSelect = (h, m) => {
         setTempTime({ hours: h, minutes: m });
-        const newDate = new Date(selectedDate);
+        const newDate = parseSelectedDate(selectedDate);
         newDate.setHours(h, m, 0, 0);
         if (onChange) onChange(newDate);
     };
@@ -121,13 +173,19 @@ const CustomNepaliHolidayCalendar = ({
             cells.push({ type: 'empty', key: `empty-${i}` });
         }
 
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         // Actual days
         for (let day = 1; day <= totalDays; day++) {
             const dateAD = new Date(viewYear, viewMonth, day);
             const holiday = getHolidayOnDate(dateAD, holidays);
-            const isSelected = selectedDate.toDateString() === dateAD.toDateString();
-            const isToday = new Date().toDateString() === dateAD.toDateString();
+            const isSelected = normalizeToDateString(selectedDate) === normalizeToDateString(dateAD);
+            const isToday = normalizeToDateString(new Date()) === normalizeToDateString(dateAD);
             const nepaliInfo = getNepaliDateInfo(dateAD);
+
+            const isPast = dateAD < today;
+            const isDisabled = disablePastDates && isPast;
 
             cells.push({
                 type: 'day',
@@ -137,12 +195,13 @@ const CustomNepaliHolidayCalendar = ({
                 isSelected,
                 isToday,
                 nepaliInfo,
+                isDisabled,
                 key: `day-${day}`
             });
         }
 
         return cells;
-    }, [viewMonth, viewYear, selectedDate, holidays]);
+    }, [viewMonth, viewYear, selectedDate, holidays, disablePastDates]);
 
     const monthName = viewDate.toLocaleString('default', { month: 'long' });
 
@@ -167,9 +226,9 @@ const CustomNepaliHolidayCalendar = ({
 
                     <div className="flex items-center gap-2">
                         <button
-                            type="button"
-                            onClick={handlePrevMonth}
-                            className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all text-slate-400 hover:text-emerald-500 shadow-sm border border-transparent hover:border-slate-100 dark:hover:border-slate-700"
+                             type="button"
+                             onClick={handlePrevMonth}
+                             className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all text-slate-400 hover:text-emerald-500 shadow-sm border border-transparent hover:border-slate-100 dark:hover:border-slate-700"
                         >
                             <ChevronLeft size={18} />
                         </button>
@@ -209,39 +268,57 @@ const CustomNepaliHolidayCalendar = ({
                         {calendarCells.map((cell) => {
                             if (cell.type === 'empty') return <div key={cell.key} className="h-10 w-10 sm:h-11 sm:w-11" />;
 
-                            const { day, holiday, isSelected, isToday, dateAD, nepaliInfo } = cell;
+                            const { day, holiday, isSelected, isToday, dateAD, nepaliInfo, isDisabled } = cell;
                             const isWeekend = dateAD.getDay() === 6;
 
                             return (
                                 <div
                                     key={cell.key}
                                     className="relative group flex justify-center"
-                                    onMouseEnter={() => holiday && setHoveredDate(cell.key)}
+                                    onMouseEnter={() => holiday && !isDisabled && setHoveredDate(cell.key)}
                                     onMouseLeave={() => setHoveredDate(null)}
                                 >
                                     <button
                                         type="button"
+                                        disabled={isDisabled}
                                         onClick={() => handleDateSelect(dateAD)}
                                         className={`
                                             h-10 w-10 sm:h-11 sm:w-11 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 relative
-                                            ${isSelected
-                                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 scale-105 z-10'
-                                                : holiday || isWeekend
-                                                    ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
-                                                    : isToday
-                                                        ? 'bg-slate-50 dark:bg-slate-800 ring-4 ring-emerald-500/10'
-                                                        : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                                            ${isDisabled
+                                                ? 'bg-slate-100/50 dark:bg-slate-800/30 opacity-40 cursor-not-allowed border border-dashed border-slate-200/50 dark:border-slate-700/30'
+                                                : isSelected
+                                                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 scale-105 z-10'
+                                                    : holiday || isWeekend
+                                                        ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                                                        : isToday
+                                                            ? 'bg-slate-50 dark:bg-slate-800 ring-4 ring-emerald-500/10'
+                                                            : 'hover:bg-slate-50 dark:hover:bg-slate-800'
                                             }
                                         `}
                                     >
-                                        <span className={`text-sm font-black tracking-tighter ${isSelected ? 'text-white' : (holiday || isWeekend) ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'
-                                            }`}>
+                                        <span className={`text-sm font-black tracking-tighter ${
+                                            isDisabled
+                                                ? 'text-slate-400 dark:text-slate-500'
+                                                : isSelected
+                                                    ? 'text-white'
+                                                    : (holiday || isWeekend)
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : 'text-slate-900 dark:text-white'
+                                        }`}>
                                             {day}
                                         </span>
-                                        <span className={`text-[8px] font-bold opacity-60 mt-0.5 ${isSelected ? 'text-emerald-100' : (holiday || isWeekend) ? 'text-red-400/60' : 'text-slate-400'}`}>
+                                        <span className={`text-[8px] font-bold opacity-60 mt-0.5 ${
+                                            isDisabled
+                                                ? 'text-slate-400/40 dark:text-slate-500/40'
+                                                : isSelected
+                                                    ? 'text-emerald-100'
+                                                    : (holiday || isWeekend)
+                                                        ? 'text-red-400/60'
+                                                        : 'text-slate-400'
+                                        }`}>
                                             {nepaliInfo.day}
                                         </span>
-                                        {holiday && !isSelected && (
+                                        {holiday && !isSelected && !isDisabled && (
                                             <div className="absolute top-1.5 right-1.5 w-1 h-1 bg-red-500 rounded-full shadow-sm" />
                                         )}
                                     </button>

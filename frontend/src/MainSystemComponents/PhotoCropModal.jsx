@@ -5,7 +5,7 @@ import { getCroppedImg } from '../Utils/cropImage';
 
 import PortalPopup from './PortalPopup';
 
-const PhotoCropModal = ({ isOpen, image, onClose, onDone, onChange }) => {
+const PhotoCropModal = ({ isOpen, image, onClose, onDone, onChange, aspect = 1 }) => {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -52,7 +52,7 @@ const PhotoCropModal = ({ isOpen, image, onClose, onDone, onChange }) => {
                         image={image}
                         crop={crop}
                         zoom={zoom}
-                        aspect={1} // 1:1 Square crop
+                        aspect={aspect}
                         onCropChange={setCrop}
                         onCropComplete={onCropComplete}
                         onZoomChange={setZoom}

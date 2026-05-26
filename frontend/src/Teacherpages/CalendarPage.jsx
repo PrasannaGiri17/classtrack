@@ -73,8 +73,8 @@ const CalendarPage = () => {
   // Determine if we are viewing a past month
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const isPastMonth = currentDate.getFullYear() < today.getFullYear() || 
-                    (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() < today.getMonth());
+  const isPastMonth = currentDate.getFullYear() < today.getFullYear() ||
+    (currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() < today.getMonth());
 
   // Derived state: Events filtered by viewed month and future/past status
   const filteredEvents = events
@@ -93,7 +93,7 @@ const CalendarPage = () => {
 
       // 2. If viewing current month, only show future/today events
       const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
-      
+
       if (isCurrentMonth) {
         // Normalize today and eventEnd to midnight local for accurate "from today" check
         const eventEndLocal = new Date(eventEnd.getFullYear(), eventEnd.getMonth(), eventEnd.getDate());
@@ -138,7 +138,7 @@ const CalendarPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Academic Calendar</h1>
-          <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Manage schedules, holidays, and campus events</p>
+          <p className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Manage schedules, holidays, and School events</p>
         </div>
 
         <div className="flex items-center gap-4">
