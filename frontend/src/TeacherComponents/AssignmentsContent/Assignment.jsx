@@ -18,12 +18,14 @@ import {
     AlertCircle,
     Download,
     FileBox,
-    Loader2
+    Loader2,
+    Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import "react-datepicker/dist/react-datepicker.css";
 import { toast } from '../../MainSystemComponents/Toast';
 import PortalPopup from '../../MainSystemComponents/PortalPopup';
+import ConfirmDialog from '../../MainSystemComponents/ConfirmDialog';
 import teacherService from '../../Api/teacherService';
 import calendarService from '../../Api/calendarService';
 import assignmentService from '../../Api/assignmentService';
@@ -43,6 +45,8 @@ const Assignment = ({ activeTab, setActiveTab }) => {
     const [searchQuery, setSearchQuery] = useState("");
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [detailsAssignment, setDetailsAssignment] = useState(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const [teacherData, setTeacherData] = useState({ classes: [], subjects: [], classOptions: [] });
     const [holidays, setHolidays] = useState([]);
@@ -166,6 +170,21 @@ const Assignment = ({ activeTab, setActiveTab }) => {
             toast({ type: 'success', message: 'Homework portal access updated.' });
         } catch (error) {
             toast({ type: 'error', message: 'Failed to update access.' });
+        }
+    };
+
+    const handleDeleteAssignment = async () => {
+        if (!confirmDeleteId) return;
+        try {
+            setIsDeleting(true);
+            await assignmentService.deleteAssignment(confirmDeleteId);
+            setAssignments(prev => prev.filter(a => (a._id || a.id) !== confirmDeleteId));
+            toast({ type: 'success', message: 'Assignment deleted successfully.' });
+        } catch (error) {
+            toast({ type: 'error', message: 'Failed to delete assignment.' });
+        } finally {
+            setIsDeleting(false);
+            setConfirmDeleteId(null);
         }
     };
 
@@ -373,8 +392,20 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                     setDetailsAssignment(a);
                     setIsDetailsOpen(true);
                 }}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-md transition-all group cursor-pointer"
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-md transition-all group cursor-pointer relative"
             >
+                {/* Trash delete button — top-right corner */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteId(cardId);
+                    }}
+                    title="Delete assignment"
+                    className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
+                >
+                    <Trash2 size={15} />
+                </button>
+
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="text-base font-medium text-slate-800 dark:text-slate-100">{a.title}</h4>
@@ -1030,6 +1061,15 @@ const Assignment = ({ activeTab, setActiveTab }) => {
                     })()}
                 </PortalPopup>
             )}
+
+            {/* Confirm Delete Dialog */}
+            <ConfirmDialog
+                isOpen={!!confirmDeleteId}
+                onClose={() => setConfirmDeleteId(null)}
+                onConfirm={handleDeleteAssignment}
+                title="Delete Assignment"
+                message="Are you sure you want to permanently delete this assignment? This action cannot be undone and all related submissions will be lost."
+            />
         </div>
     );
 };

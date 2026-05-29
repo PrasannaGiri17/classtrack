@@ -1083,10 +1083,15 @@ const StudentPage = () => {
                     const percentage = parseFloat(latestResult.summary?.percentage || 0);
                     const gpa = parseFloat(latestResult.summary?.gpa || 0);
 
-                    flagColor =
-                        attendancePct < 70 || percentage < 60 ? 'red' :
-                            attendancePct < 80 || (percentage >= 60 && percentage < 70) ? 'yellow' :
-                                'green';
+                    if (attendancePct < 70 || percentage < 60) {
+                        flagColor = 'red';
+                    }
+                    else if (attendancePct < 80 || (percentage >= 60 && percentage < 70)) {
+                        flagColor = 'yellow';
+                    }
+                    else {
+                        flagColor = 'green';
+                    }
 
                     flagDetailsVal = {
                         attendancePct,

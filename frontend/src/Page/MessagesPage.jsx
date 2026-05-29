@@ -651,7 +651,6 @@ const MessagesPage = () => {
                                             )}
                                         </div>
                                     )}
-                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full shadow-sm"></div>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start mb-0.5">

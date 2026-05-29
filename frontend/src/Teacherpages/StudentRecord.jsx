@@ -35,6 +35,9 @@ import studentService from "../Api/studentService";
 import classroomNoticeService from "../Api/classroomNoticeService";
 import gradeService from "../Api/gradeService";
 import attendanceService from "../Api/attendanceService";
+import { convertADtoBS, convertBStoAD } from "@adhikarisaroj795/nepali-calendar-react";
+import calendarService from "../Api/calendarService";
+
 
 const INITIAL_NOTICES = [
   { id: "n1", text: "Please ensure all student IDs are visible during tomorrow's morning assembly.", timestamp: "2 hours ago", isPinned: true, authorType: 'teacher', authorName: 'Class Teacher' },
@@ -87,15 +90,63 @@ const SStudentRecord = () => {
         if (studentsRes.status === 'fulfilled') {
           const rawStudents = studentsRes.value || [];
 
-          // Use academic year 2082 as requested
-          const currentYear = 2082;
+          // Calculate current BS (Bikram Sambat) year from today's AD date.
+          // Nepali New Year (Baisakh 1) falls around April 13-15 each year.
+          // BS year = AD year + 57 after ~Apr 14, or AD year + 56 before it.
+          // Calculate current BS (Bikram Sambat) year from today's AD date.
+          let currentYear = 2083;
+          let startAD = "";
+          try {
+            const todayBS = convertADtoBS(new Date().toISOString().split('T')[0]);
+            const [curY] = todayBS.split('-').map(Number);
+            if (curY) {
+              currentYear = curY;
+            }
+            startAD = convertBStoAD(`${currentYear}-01-01`);
+          } catch (err) {
+            console.error("Error converting dates in StudentRecord:", err);
+            const today = new Date();
+            const adYear = today.getFullYear();
+            const isAfterNewYear = today.getMonth() > 3 || (today.getMonth() === 3 && today.getDate() >= 14);
+            currentYear = adYear + (isAfterNewYear ? 57 : 56);
+            startAD = `${adYear}-04-14`; // rough fallback for Baisakh 1
+          }
+          const endAD = new Date().toISOString().split('T')[0];
+
+          let holidaysList = [];
+          try {
+            holidaysList = await calendarService.getEvents(startAD, endAD);
+          } catch (e) {
+            console.warn("Failed to fetch holidays in StudentRecord", e);
+          }
+
+          const holidayDates = new Set(
+            (holidaysList || [])
+              .filter(e => e && e.type === 'HOLIDAY')
+              .map(e => new Date(e.startDate).toISOString().split('T')[0])
+          );
+
+          let workingDaysCount = 0;
+          if (startAD) {
+            let cur = new Date(startAD);
+            const end = new Date(endAD);
+            while (cur <= end) {
+              const dayOfWeek = cur.getDay(); // 6 is Saturday
+              const dateStr = cur.toISOString().split('T')[0];
+              if (dayOfWeek !== 6 && !holidayDates.has(dateStr)) {
+                workingDaysCount++;
+              }
+              cur.setDate(cur.getDate() + 1);
+            }
+          }
 
           // Enhanced fetch: Get yearly attendance rate for each student
           const studentsWithAttendance = await Promise.all(
             rawStudents.map(async (s) => {
               try {
                 const attRes = await attendanceService.getStudentYearlyAttendance(s._id, currentYear);
-                return { ...s, attendance: (attRes.rate || 0) + "%" };
+                const rate = workingDaysCount > 0 ? Math.round(((attRes.present || 0) / workingDaysCount) * 100) : (attRes.rate || 0);
+                return { ...s, attendance: rate + "%" };
               } catch (err) {
                 console.error(`Failed to fetch attendance for student ${s._id}:`, err);
                 return { ...s, attendance: "0%" };
@@ -104,6 +155,7 @@ const SStudentRecord = () => {
           );
           setStudents(studentsWithAttendance);
         }
+
 
         if (sectionRes.status === 'fulfilled') {
           const secData = sectionRes.value;
@@ -379,11 +431,7 @@ const SStudentRecord = () => {
 
                   {/* Bottom: Details */}
                   <div className="p-6 flex-1 flex flex-col gap-5 bg-white dark:bg-slate-900">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
-                        <div className={`mx-auto w-4 h-4 rounded-md ring-4 shadow-lg ${getFlagColor(s.flag)}`} />
-                      </div>
+                    <div className="flex justify-center">
                       <div className="text-center">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Role</p>
                         <button
@@ -413,7 +461,6 @@ const SStudentRecord = () => {
                   <th className="pl-8 pr-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest w-[180px]">ID Number</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Member Profile</th>
                   <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Attendance Rate</th>
-                  <th className="px-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Academic Flag</th>
                   <th className="pr-12 pl-6 py-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Manage</th>
                 </tr>
               </thead>
@@ -453,13 +500,12 @@ const SStudentRecord = () => {
                           </div>
                         </td>
                         <td className="px-6 py-6 text-center"><div className="inline-flex flex-col items-center"><div className={`flex items-center gap-1.5 text-slate-700 dark:text-slate-200`}><UserCheck size={14} className="text-emerald-500" /><span className="text-sm font-black tracking-tight">{s.attendance || "0%"}</span></div><span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Yearly Rate</span></div></td>
-                        <td className="px-6 py-6 text-center"><div className={`mx-auto w-4 h-4 rounded-md ring-4 shadow-lg transition-transform hover:scale-110 ${getFlagColor(s.flag)}`} /></td>
                         <td className="pr-12 pl-6 py-6 text-center"><div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all"><button onClick={(e) => { e.stopPropagation(); handleToggleMonitor(s._id); }} className={`w-10 h-10 flex items-center justify-center transition-all rounded-xl ${isMonitor ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-500' : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`} title={isMonitor ? "Remove Monitor Role" : "Assign as Monitor"}><Crown size={18} /></button></div></td>
                       </tr>
                     );
                   })
                 ) : (
-                  <tr><td colSpan={6} className="py-32 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No classroom members found</td></tr>
+                  <tr><td colSpan={5} className="py-32 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No classroom members found</td></tr>
                 )}
               </tbody>
             </table>

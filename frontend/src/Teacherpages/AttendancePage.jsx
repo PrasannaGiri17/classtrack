@@ -432,19 +432,6 @@ const AttendancePage = () => {
             <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
           </div>
 
-          <div className="relative group">
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl pl-5 pr-12 py-4 text-xs font-black text-slate-600 dark:text-slate-300 outline-none focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all cursor-pointer min-w-[120px]"
-            >
-              {[...new Set([currentBSYear, ...availableYears])].sort((a, b) => b - a).map(y => (
-                <option key={y} value={y}>{y} BS</option>
-              ))}
-            </select>
-            <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-emerald-500 transition-colors" />
-          </div>
-
           {isReadOnly ? (
             <div className="flex items-center gap-3 px-6 py-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm">
               <Lock size={14} strokeWidth={3} />
@@ -573,7 +560,7 @@ const AttendancePage = () => {
                     </div>
                   </td>
                   <td className="sticky left-[80px] z-20 bg-white dark:bg-slate-900 pl-6 pr-6 py-5 border-none transition-colors pointer-events-none">
-                    <div 
+                    <div
                       className="flex items-center gap-4 min-w-0 pointer-events-auto cursor-pointer hover:opacity-70 transition-opacity"
                       onClick={() => navigate(`/teacher/student/${s._id}`)}
                     >

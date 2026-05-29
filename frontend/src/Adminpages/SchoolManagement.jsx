@@ -57,7 +57,8 @@ const SchoolManagement = () => {
     website: "",
     phoneNumbers: [],
     socialLinks: {},
-    gradeSpan: { start: 1, end: 10 }
+    gradeSpan: { start: 1, end: 10 },
+    activeYear: ""
   });
 
   const [selectedGrade, setSelectedGrade] = useState("1");
@@ -124,6 +125,7 @@ const SchoolManagement = () => {
               principalName: schoolData.principalName || "",
               website: schoolData.website || "",
               gradeSpan: schoolData.gradeSpan || { start: 1, end: 10 },
+              activeYear: schoolData.activeYear || "",
               phoneNumbers: schoolData.phoneNumbers && Array.isArray(schoolData.phoneNumbers)
                 ? schoolData.phoneNumbers.map(p => ({ number: p.phoneNumber, label: p.type || "Phone" }))
                 : [],
@@ -572,13 +574,13 @@ const SchoolManagement = () => {
             <HubCard icon={Layers} color="bg-blue-500" title="Grade & Sections" desc="Introduce Grade and Section to your school" onClick={() => setActiveView('grades')} />
             <HubCard icon={BookOpen} color="bg-amber-500" title="School Subjects" desc="Manage mandatory subjects and specialized subjects." onClick={() => setActiveView('curriculum')} />
             <HubCard icon={Clock} color="bg-indigo-600" title="Routine Structure" desc="Set universal school day routine and structure." onClick={() => setActiveView('routine')} />
-            <HubCard icon={RefreshCcw} color="bg-rose-500" title="Next Year Switch" desc="Transition school records to the next academic cycle (2083)." onClick={() => setIsSwitchPopupOpen(true)} />
+            <HubCard icon={RefreshCcw} color="bg-rose-500" title="Next Year Switch" desc="Transition school records to the next academic cycle." onClick={() => setIsSwitchPopupOpen(true)} />
           </div>
 
           <YearSwitchPopup
             isOpen={isSwitchPopupOpen}
             onClose={() => setIsSwitchPopupOpen(false)}
-            currentYear={2082}
+            currentYear={schoolConfig.activeYear ? parseInt(schoolConfig.activeYear, 10) : 2084}
             schoolEmail={currentAdminEmail || schoolConfig.schoolEmail}
           />
         </div>

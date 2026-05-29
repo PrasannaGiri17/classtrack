@@ -183,6 +183,7 @@ const SuSchoolsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [registrationLoading, setRegistrationLoading] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, schoolId: null });
+  const [phoneErrors, setPhoneErrors] = useState({ contactNumber: '', otherNumber: '' });
 
   // Load draft on mount
   useEffect(() => {
@@ -214,6 +215,22 @@ const SuSchoolsPage = () => {
 
   const handleAddSchool = async (e) => {
     e.preventDefault();
+
+    // --- Phone validation before submitting ---
+    const contact = newSchool.contactNumber || '';
+    const other   = newSchool.otherNumber   || '';
+
+    if (!contact || contact.length < 10) {
+      setPhoneErrors(prev => ({ ...prev, contactNumber: 'Must be exactly 10 digits' }));
+      toast({ type: 'error', message: 'Contact Number must be exactly 10 digits.' });
+      return;
+    }
+    if (other && other.length < 10) {
+      setPhoneErrors(prev => ({ ...prev, otherNumber: 'Must be exactly 10 digits' }));
+      toast({ type: 'error', message: 'Other Number must be exactly 10 digits if provided.' });
+      return;
+    }
+
     setRegistrationLoading(true);
     try {
       const payload = {
@@ -256,6 +273,7 @@ const SuSchoolsPage = () => {
       setSchools([...schools, formatted]);
       setIsAddModalOpen(false);
       setNewSchool({});
+      setPhoneErrors({ contactNumber: '', otherNumber: '' });
       localStorage.removeItem('schoolRegistrationDraft');
       toast({ type: 'success', message: response.data.message || "School registered successfully!" });
     } catch (error) {
@@ -323,6 +341,7 @@ const SuSchoolsPage = () => {
         <button
           onClick={() => {
             // Keep the draft if it exists, otherwise start clean
+            setPhoneErrors({ contactNumber: '', otherNumber: '' });
             setIsAddModalOpen(true);
           }}
           className="px-8 py-3.5 bg-emerald-500 text-white rounded-full font-black text-sm shadow-xl shadow-emerald-500/20 flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 whitespace-nowrap"
@@ -344,7 +363,7 @@ const SuSchoolsPage = () => {
       </div>
 
       {/* Add Modal */}
-      <PortalPopup isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
+      <PortalPopup isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); setPhoneErrors({ contactNumber: '', otherNumber: '' }); }}>
         <div className="bg-white dark:bg-[#0f172a] rounded-[24px] w-full max-w-5xl shadow-2xl border border-slate-200 dark:border-slate-800/60 overflow-hidden flex flex-col max-h-[90vh] text-slate-800 dark:text-slate-200 font-sans">
           {/* Header */}
           <div className="p-6 sm:p-8 border-b border-slate-200 dark:border-slate-800/60 flex justify-between items-start">
@@ -400,33 +419,57 @@ const SuSchoolsPage = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Contact Number</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                      Contact Number <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="tel"
                       required
                       maxLength={10}
-                      className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                      className={`w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border rounded-xl focus:outline-none focus:ring-1 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm ${
+                        phoneErrors.contactNumber
+                          ? 'border-red-400 dark:border-red-500 focus:ring-red-400'
+                          : 'border-slate-200 dark:border-transparent focus:ring-emerald-500'
+                      }`}
                       placeholder="Enter 10-digit number"
                       value={newSchool.contactNumber || ''}
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                         setNewSchool({ ...newSchool, contactNumber: val });
+                        setPhoneErrors(prev => ({
+                          ...prev,
+                          contactNumber: val.length > 0 && val.length < 10 ? 'Must be exactly 10 digits' : ''
+                        }));
                       }}
                     />
+                    {phoneErrors.contactNumber && (
+                      <p className="mt-1.5 text-[11px] font-semibold text-red-500">{phoneErrors.contactNumber}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Other Number</label>
                     <input
                       type="tel"
                       maxLength={10}
-                      className="w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm"
+                      className={`w-full px-4 py-3.5 bg-slate-100 dark:bg-[#1e293b] border rounded-xl focus:outline-none focus:ring-1 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all text-sm ${
+                        phoneErrors.otherNumber
+                          ? 'border-red-400 dark:border-red-500 focus:ring-red-400'
+                          : 'border-slate-200 dark:border-transparent focus:ring-emerald-500'
+                      }`}
                       placeholder="Alternative number"
                       value={newSchool.otherNumber || ''}
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                         setNewSchool({ ...newSchool, otherNumber: val });
+                        setPhoneErrors(prev => ({
+                          ...prev,
+                          otherNumber: val.length > 0 && val.length < 10 ? 'Must be exactly 10 digits' : ''
+                        }));
                       }}
                     />
+                    {phoneErrors.otherNumber && (
+                      <p className="mt-1.5 text-[11px] font-semibold text-red-500">{phoneErrors.otherNumber}</p>
+                    )}
                   </div>
                 </div>
 

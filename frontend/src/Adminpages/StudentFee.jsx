@@ -329,14 +329,14 @@ const StudentFee = () => {
                         >
                             <ArrowLeft size={20} />
                         </button>
-                        <button
+                        {/* <button
                             onClick={handleSyncLedger}
                             disabled={isSyncing}
                             className="w-12 h-12 flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-2xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
                             title="Sync Ledger with Current Grade"
                         >
                             <RefreshCcw size={20} className={isSyncing ? "animate-spin" : ""} />
-                        </button>
+                        </button> */}
                         <img
                             src={studentInfo.profilePhoto || `https://api.dicebear.com/7.x/initials/svg?seed=${studentInfo.firstName}`}
                             alt=""

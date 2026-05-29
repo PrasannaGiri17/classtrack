@@ -16,6 +16,8 @@ import {
     Lock,
     Loader2
 } from "lucide-react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import ForgotPasswordModal from "../TeacherComponents/Layout/ForgotPasswordModal";
 import adminService from "../Api/adminService";
 import { toast } from "../MainSystemComponents/Toast";
@@ -48,10 +50,11 @@ const AdminMePage = () => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+    const [phoneError, setPhoneError] = useState("");
 
     const [formData, setFormData] = useState({
         name: "",
-        birthdate: "",
+        birthdate: null,
         qualification: "",
         gender: "",
         phoneNo: "",
@@ -98,7 +101,7 @@ const AdminMePage = () => {
                 setFormData({
                     firstName: adminData.firstName || "",
                     lastName: adminData.lastName || "",
-                    birthdate: adminData.birthdate ? new Date(adminData.birthdate).toISOString().split('T')[0] : "",
+                    birthdate: adminData.birthdate ? new Date(adminData.birthdate) : null,
                     qualification: adminData.qualification || "",
                     gender: adminData.gender || "",
                     phoneNo: adminData.phone || "",
@@ -122,17 +125,59 @@ const AdminMePage = () => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        
+        // Phone number validation
+        if (name === "phoneNo") {
+            // Allow only digits
+            const digitsOnly = value.replace(/\D/g, '');
+            if (digitsOnly.length <= 10) {
+                setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+                if (digitsOnly.length === 10) {
+                    setPhoneError("");
+                } else if (digitsOnly.length > 0 && digitsOnly.length < 10) {
+                    setPhoneError("Phone number must be exactly 10 digits");
+                } else if (digitsOnly.length === 0) {
+                    setPhoneError("");
+                }
+            }
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
+
+    const handleDateChange = (date) => {
+        setFormData(prev => ({ ...prev, birthdate: date }));
+    };
+
+    const validateForm = () => {
+        // Validate phone number
+        if (formData.phoneNo && formData.phoneNo.length !== 10) {
+            setPhoneError("Phone number must be exactly 10 digits");
+            toast({ type: 'error', message: "Please enter a valid 10-digit phone number" });
+            return false;
+        }
+        
+        // Validate birthdate (optional but if provided, should be valid)
+        if (formData.birthdate && isNaN(formData.birthdate.getTime())) {
+            toast({ type: 'error', message: "Please select a valid date of birth" });
+            return false;
+        }
+        
+        return true;
     };
 
     const handleSaveProfile = async () => {
+        if (!validateForm()) {
+            return;
+        }
+        
         setIsSaving(true);
         try {
             const targetId = id || localStorage.getItem("adminId");
             const payload = {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
-                birthdate: formData.birthdate,
+                birthdate: formData.birthdate ? formData.birthdate.toISOString().split('T')[0] : null,
                 qualification: formData.qualification,
                 gender: formData.gender,
                 phone: formData.phoneNo,
@@ -147,6 +192,7 @@ const AdminMePage = () => {
                 window.dispatchEvent(new Event('profileUpdated'));
                 toast({ type: 'success', message: "Profile updated successfully!" });
                 setIsEditing(false);
+                setPhoneError("");
             }
         } catch (err) {
             console.error("Save error:", err);
@@ -395,11 +441,12 @@ const AdminMePage = () => {
                                 <button
                                     onClick={() => {
                                         setIsEditing(false);
+                                        setPhoneError("");
                                         // Reset form data
                                         setFormData({
                                             firstName: admin.firstName || "",
                                             lastName: admin.lastName || "",
-                                            birthdate: admin.birthdate ? new Date(admin.birthdate).toISOString().split('T')[0] : "",
+                                            birthdate: admin.birthdate ? new Date(admin.birthdate) : null,
                                             qualification: admin.qualification || "",
                                             gender: admin.gender || "",
                                             phoneNo: admin.phone || "",
@@ -456,14 +503,94 @@ const AdminMePage = () => {
 
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-400 ml-1 capitalize tracking-widest">Date of Birth</label>
-                                        <input
-                                            name="birthdate"
-                                            type="date"
-                                            readOnly={!isEditing}
-                                            value={formData.birthdate}
-                                            onChange={handleInputChange}
-                                            className={`w-full px-5 py-4 ${isEditing ? 'bg-white dark:bg-slate-950 ring-2 ring-emerald-500/20 border-emerald-500/50' : 'bg-slate-50 dark:bg-slate-800/50 border-none'} rounded-2xl outline-none text-sm font-black transition-all dark:text-white shadow-inner ${!isEditing && 'cursor-default'}`}
-                                        />
+                                        {isEditing ? (
+                                            <div className="relative">
+                                                <DatePicker
+                                                    selected={formData.birthdate}
+                                                    onChange={handleDateChange}
+                                                    dateFormat="yyyy-MM-dd"
+                                                    maxDate={new Date()}
+                                                    showYearDropdown
+                                                    showMonthDropdown
+                                                    scrollableYearDropdown
+                                                    yearDropdownItemNumber={100}
+                                                    dropdownMode="select"
+                                                    placeholderText="Select date of birth"
+                                                    wrapperClassName="w-full"
+                                                    className="w-full px-5 py-4 pr-12 bg-white dark:bg-slate-950 ring-2 ring-emerald-500/20 border border-emerald-500/50 rounded-2xl outline-none text-sm font-black transition-all dark:text-white"
+                                                    popperClassName="datepicker-popper"
+                                                    calendarClassName="custom-calendar"
+                                                    renderCustomHeader={({
+                                                        date,
+                                                        changeYear,
+                                                        changeMonth,
+                                                        decreaseMonth,
+                                                        increaseMonth,
+                                                        prevMonthButtonDisabled,
+                                                        nextMonthButtonDisabled,
+                                                    }) => {
+                                                        const currentYear = new Date().getFullYear();
+                                                        const years = Array.from({ length: 101 }, (_, i) => currentYear - i);
+                                                        const months = [
+                                                            'January','February','March','April','May','June',
+                                                            'July','August','September','October','November','December'
+                                                        ];
+                                                        return (
+                                                            <div className="custom-header">
+                                                                <button
+                                                                    onClick={decreaseMonth}
+                                                                    disabled={prevMonthButtonDisabled}
+                                                                    type="button"
+                                                                    className="nav-btn"
+                                                                >
+                                                                    &#8249;
+                                                                </button>
+                                                                <div className="header-selects">
+                                                                    <select
+                                                                        value={months[date.getMonth()]}
+                                                                        onChange={({ target: { value } }) =>
+                                                                            changeMonth(months.indexOf(value))
+                                                                        }
+                                                                        className="header-select"
+                                                                    >
+                                                                        {months.map(m => (
+                                                                            <option key={m} value={m}>{m}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <select
+                                                                        value={date.getFullYear()}
+                                                                        onChange={({ target: { value } }) =>
+                                                                            changeYear(Number(value))
+                                                                        }
+                                                                        className="header-select"
+                                                                    >
+                                                                        {years.map(y => (
+                                                                            <option key={y} value={y}>{y}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                <button
+                                                                    onClick={increaseMonth}
+                                                                    disabled={nextMonthButtonDisabled}
+                                                                    type="button"
+                                                                    className="nav-btn"
+                                                                >
+                                                                    &#8250;
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    }}
+                                                />
+                                                <Calendar className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                                            </div>
+                                        ) : (
+                                            <input
+                                                value={formData.birthdate ? formData.birthdate.toLocaleDateString('en-GB') : ""}
+                                                readOnly
+                                                className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl outline-none text-sm font-black transition-all dark:text-white shadow-inner cursor-default"
+                                                placeholder="Not specified"
+                                            />
+                                        )}
                                     </div>
 
                                     <div className="space-y-1.5">
@@ -518,23 +645,34 @@ const AdminMePage = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-400 ml-1 capitalize tracking-widest">Primary Phone</label>
-                                        <input
-                                            name="phoneNo"
-                                            readOnly={!isEditing}
-                                            value={formData.phoneNo}
-                                            onChange={handleInputChange}
-                                            className={`w-full px-5 py-4 ${isEditing ? 'bg-white dark:bg-slate-950 ring-2 ring-emerald-500/20 border-emerald-500/50' : 'bg-slate-50 dark:bg-slate-800/50 border-none'} rounded-2xl outline-none text-sm font-black transition-all dark:text-white shadow-inner ${!isEditing && 'cursor-default'}`}
-                                        />
+                                        <div className="relative">
+                                            <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                                            <input
+                                                name="phoneNo"
+                                                readOnly={!isEditing}
+                                                value={formData.phoneNo}
+                                                onChange={handleInputChange}
+                                                placeholder="10-digit mobile number"
+                                                maxLength={10}
+                                                className={`w-full pl-12 pr-5 py-4 ${isEditing ? 'bg-white dark:bg-slate-950 ring-2 ring-emerald-500/20 border-emerald-500/50' : 'bg-slate-50 dark:bg-slate-800/50 border-none'} rounded-2xl outline-none text-sm font-black transition-all dark:text-white shadow-inner ${!isEditing && 'cursor-default'} ${phoneError && isEditing ? 'ring-2 ring-red-500/20 border-red-500' : ''}`}
+                                            />
+                                        </div>
+                                        {phoneError && isEditing && (
+                                            <p className="text-xs text-red-500 mt-1 ml-1">{phoneError}</p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-slate-400 ml-1 capitalize tracking-widest">Portal Email </label>
-                                        <input
-                                            name="email"
-                                            readOnly
-                                            value={formData.email}
-                                            className="w-full px-5 py-4 bg-slate-100 dark:bg-slate-900 border-none rounded-2xl outline-none text-sm font-black transition-all text-slate-400 shadow-inner cursor-not-allowed"
-                                        />
+                                        <label className="text-[10px] font-bold text-slate-400 ml-1 capitalize tracking-widest">Portal Email</label>
+                                        <div className="relative">
+                                            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                                            <input
+                                                name="email"
+                                                readOnly
+                                                value={formData.email}
+                                                className="w-full pl-12 pr-5 py-4 bg-slate-100 dark:bg-slate-900 border-none rounded-2xl outline-none text-sm font-black transition-all text-slate-400 shadow-inner cursor-not-allowed"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -574,6 +712,176 @@ const AdminMePage = () => {
                 onClose={() => setIsChangePasswordOpen(false)}
                 initialEmail={admin.email}
             />
+
+            {/* Add custom styles for DatePicker */}
+            <style>{`
+                .datepicker-popper {
+                    z-index: 9999 !important;
+                }
+                .react-datepicker {
+                    font-family: inherit;
+                    border-radius: 1rem;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.15);
+                    background-color: white;
+                    overflow: hidden;
+                }
+                .dark .react-datepicker {
+                    background-color: #1e293b;
+                    border-color: #334155;
+                    box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.5);
+                }
+                .react-datepicker__header,
+                .react-datepicker__header--custom {
+                    background-color: #f8fafc;
+                    border-bottom: 1px solid #e2e8f0;
+                    padding: 0;
+                }
+                .dark .react-datepicker__header,
+                .dark .react-datepicker__header--custom {
+                    background-color: #0f172a;
+                    border-bottom-color: #334155;
+                }
+                /* Custom header layout */
+                .custom-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 10px 12px;
+                    gap: 6px;
+                    background-color: #f8fafc;
+                }
+                .dark .custom-header {
+                    background-color: #0f172a;
+                }
+                .header-selects {
+                    display: flex;
+                    gap: 6px;
+                    flex: 1;
+                    justify-content: center;
+                }
+                .header-select {
+                    padding: 4px 8px;
+                    border-radius: 8px;
+                    border: 1px solid #e2e8f0;
+                    background-color: white;
+                    color: #1e293b;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    outline: none;
+                    transition: border-color 0.2s;
+                }
+                .header-select:focus {
+                    border-color: #10b981;
+                }
+                .dark .header-select {
+                    background-color: #1e293b;
+                    border-color: #334155;
+                    color: #e2e8f0;
+                }
+                .dark .header-select:focus {
+                    border-color: #10b981;
+                }
+                .nav-btn {
+                    width: 28px;
+                    height: 28px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 8px;
+                    border: 1px solid #e2e8f0;
+                    background: white;
+                    color: #64748b;
+                    font-size: 1.3rem;
+                    cursor: pointer;
+                    line-height: 1;
+                    transition: all 0.15s;
+                    flex-shrink: 0;
+                }
+                .nav-btn:hover:not(:disabled) {
+                    background-color: #10b981;
+                    border-color: #10b981;
+                    color: white;
+                }
+                .nav-btn:disabled {
+                    opacity: 0.35;
+                    cursor: not-allowed;
+                }
+                .dark .nav-btn {
+                    background-color: #1e293b;
+                    border-color: #334155;
+                    color: #94a3b8;
+                }
+                .dark .nav-btn:hover:not(:disabled) {
+                    background-color: #10b981;
+                    border-color: #10b981;
+                    color: white;
+                }
+                /* Day names row */
+                .react-datepicker__day-names {
+                    padding: 4px 4px 0;
+                }
+                .react-datepicker__day-name,
+                .react-datepicker__day {
+                    width: 2.1rem;
+                    line-height: 2.1rem;
+                    margin: 0.15rem;
+                    font-size: 0.82rem;
+                    border-radius: 0.5rem;
+                }
+                .react-datepicker__day-name {
+                    color: #64748b;
+                    font-weight: 700;
+                    font-size: 0.72rem;
+                    text-transform: uppercase;
+                }
+                .dark .react-datepicker__day-name {
+                    color: #94a3b8;
+                }
+                .react-datepicker__month {
+                    padding: 4px 8px 8px;
+                    margin: 0;
+                }
+                .react-datepicker__day {
+                    color: #1e293b;
+                    transition: background-color 0.15s, color 0.15s;
+                }
+                .dark .react-datepicker__day {
+                    color: #e2e8f0;
+                }
+                .react-datepicker__day:hover {
+                    background-color: #d1fae5;
+                    color: #065f46;
+                    border-radius: 0.5rem;
+                }
+                .dark .react-datepicker__day:hover {
+                    background-color: #064e3b;
+                    color: #6ee7b7;
+                }
+                .react-datepicker__day--selected,
+                .react-datepicker__day--keyboard-selected {
+                    background-color: #10b981 !important;
+                    color: white !important;
+                    border-radius: 0.5rem;
+                    font-weight: 700;
+                }
+                .react-datepicker__day--today {
+                    font-weight: bold;
+                    border: 1.5px solid #10b981;
+                    border-radius: 0.5rem;
+                }
+                .react-datepicker__day--outside-month {
+                    opacity: 0.35;
+                }
+                /* Hide the old built-in navigation arrows since we use custom */
+                .react-datepicker__navigation {
+                    display: none;
+                }
+                .react-datepicker__close-icon::after {
+                    background-color: #10b981;
+                }
+            `}</style>
         </div>
     );
 };

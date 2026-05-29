@@ -38,7 +38,7 @@ const Fee = () => {
   const navigate = useNavigate();
   const [feeConfig, setFeeConfig] = useState({});
   const [grades, setGrades] = useState([]);
-  const [admissionFee, setAdmissionFee] = useState(0);
+  const [admissionFee, setAdmissionFee] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +88,7 @@ const Fee = () => {
       ]);
 
       console.log("FEE_DEBUG: School Data:", schoolData);
-      setAdmissionFee(String(schoolData?.admissionFee || 0));
+      setAdmissionFee(String(schoolData?.admissionFee && schoolData.admissionFee >= 1 ? schoolData.admissionFee : 1));
       if (schoolData?.activeYear) {
         setCurrentAcademicYear(schoolData.activeYear);
       }
@@ -96,7 +96,7 @@ const Fee = () => {
 
       const config = {};
       gradesData.forEach(grade => {
-        config[`Grade ${grade.gradeNumber}`] = String(grade.monthlyFee || 0);
+        config[`Grade ${grade.gradeNumber}`] = String(grade.monthlyFee && grade.monthlyFee >= 1 ? grade.monthlyFee : 1);
       });
       setFeeConfig(config);
     } catch (error) {
@@ -168,11 +168,28 @@ const Fee = () => {
     try {
       setIsLoading(true);
       const adminSchoolId = getSchoolId();
+      
+      const parsedAdmissionFee = parseFloat(admissionFee);
+      if (isNaN(parsedAdmissionFee) || parsedAdmissionFee < 1) {
+        toast({ type: 'error', message: 'Admission Fee must be at least 1.' });
+        setIsLoading(false);
+        return;
+      }
+      
+      for (const grade of grades) {
+        const feeVal = parseFloat(feeConfig[`Grade ${grade.gradeNumber}`]);
+        if (isNaN(feeVal) || feeVal < 1) {
+          toast({ type: 'error', message: `Grade ${grade.gradeNumber} Fee must be at least 1.` });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       await schoolService.updateSchool(adminSchoolId, { 
-        admissionFee: parseFloat(admissionFee) || 0
+        admissionFee: parsedAdmissionFee
       });
       const updatePromises = grades.map(grade => {
-        const fee = parseFloat(feeConfig[`Grade ${grade.gradeNumber}`]) || 0;
+        const fee = parseFloat(feeConfig[`Grade ${grade.gradeNumber}`]);
         return gradeService.updateGradeFee(grade.gradeNumber, fee, adminSchoolId);
       });
       await Promise.all(updatePromises);
@@ -236,12 +253,20 @@ const Fee = () => {
     try {
       const validFees = extraFees.filter(f => f.title.trim() && f.amount);
       if (validFees.length === 0) {
-        toast({ type: 'error', message: 'Please add at least one fee item.' });
+        toast({ type: 'error', message: 'Please add at least one fee item with a valid amount.' });
         return;
       }
 
       for (const fee of validFees) {
-        await feeService.addExtraFee(selectedFeeRecord._id, fee.title, fee.amount);
+        const amt = parseFloat(fee.amount);
+        if (isNaN(amt) || amt < 1) {
+          toast({ type: 'error', message: 'Fee amount must be at least 1.' });
+          return;
+        }
+      }
+
+      for (const fee of validFees) {
+        await feeService.addExtraFee(selectedFeeRecord._id, fee.title, parseFloat(fee.amount));
       }
 
       toast({ type: 'success', message: `Extra fees added successfully.` });
@@ -316,14 +341,14 @@ const Fee = () => {
             </div>
           </div>
 
-          <button
+          {/* <button
               onClick={handleGenerateFees}
               disabled={isSyncing}
               className="flex items-center gap-3 px-8 py-3.5 bg-indigo-600 dark:bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
             >
               <RefreshCcw size={16} className={isSyncing ? "animate-spin" : ""} />
               {isSyncing ? "Syncing..." : "Generate Ledger"}
-          </button>
+          </button> */}
         </div>
 
         <div className="p-10 space-y-10">
@@ -337,7 +362,7 @@ const Fee = () => {
                   <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">Rs.</span>
                   <input
                     type="number"
-                    value={admissionFee}
+                    value={admissionFee ?? ''}
                     onChange={(e) => handleFeeChange('Admission', e.target.value)}
                     className="w-full pl-14 pr-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-base font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all shadow-inner"
                   />
@@ -351,7 +376,7 @@ const Fee = () => {
                     <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">Rs.</span>
                     <input
                       type="number"
-                      value={feeConfig[`Grade ${grade.gradeNumber}`] || 0}
+                      value={feeConfig[`Grade ${grade.gradeNumber}`] ?? ''}
                       onChange={(e) => handleFeeChange(`Grade ${grade.gradeNumber}`, e.target.value)}
                       className="w-full pl-14 pr-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all shadow-inner"
                     />
@@ -567,8 +592,8 @@ const Fee = () => {
                   <label className="text-[10px] font-black text-slate-400 capitalize tracking-widest ml-1">Amount</label>
                   <input
                     type="number"
-                    placeholder="0"
-                    value={fee.amount}
+                    placeholder="1"
+                    value={fee.amount ?? ''}
                     onChange={(e) => handleExtraFeeChange(index, 'amount', e.target.value)}
                     className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold dark:text-white focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
                   />

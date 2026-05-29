@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Save,
   Clock,
@@ -61,6 +62,43 @@ const SchedulingView = () => {
   // Drag Refs
   const dragItem = React.useRef(null);
   const dragOverItem = React.useRef(null);
+
+  // Calendar Coordinates for Portal rendering
+  const [calendarCoords, setCalendarCoords] = useState(null);
+
+  const handleCalendarClick = (e, index) => {
+    if (openCalendarId === index) {
+      setOpenCalendarId(null);
+      setCalendarCoords(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const calendarHeight = 350; // Expected calendar height
+      const top = rect.top - calendarHeight - 8 + window.scrollY;
+
+      setOpenCalendarId(index);
+      setCalendarCoords({
+        top,
+        left: rect.right - 340 + window.scrollX
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleScrollOrResize = () => {
+      setOpenCalendarId(null);
+      setCalendarCoords(null);
+    };
+
+    if (openCalendarId !== null) {
+      window.addEventListener('scroll', handleScrollOrResize, true);
+      window.addEventListener('resize', handleScrollOrResize);
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [openCalendarId]);
 
   // Derived Subjects
   const currentGradeData = allGrades.find(g => g.gradeNumber.toString() === mappingGrade);
@@ -587,13 +625,16 @@ const SchedulingView = () => {
 
         <div className="p-0">
           <table className="w-full text-left border-collapse">
+            <colgroup>
+              <col className="w-[180px]" />
+              <col />
+              <col className="w-[220px]" />
+            </colgroup>
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-50 dark:border-slate-800">
-                <th className="pl-10 pr-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest w-[15%]">Sequence</th>
-                <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest w-[35%]">Academic Subject</th>
-                <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest w-[20%]">Exam Date</th>
-                <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest w-[15%]">Time</th>
-                <th className="pr-10 pl-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest text-center w-[15%]">Status</th>
+                <th className="pl-10 pr-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Sequence</th>
+                <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest text-center">Academic Subject</th>
+                <th className="px-6 py-6 text-[10px] font-black text-slate-400 capitalize tracking-widest">Exam Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
@@ -618,7 +659,7 @@ const SchedulingView = () => {
                     </div>
                   </td>
                   <td className="px-6 py-6">
-                    <div className="relative group/sel w-full max-w-[280px]">
+                    <div className="relative group/sel max-w-[280px] mx-auto">
                       {/* Read-only subject display */}
                       <div className="flex items-center h-full px-5 py-3 w-full text-xs font-bold dark:text-white bg-slate-50 dark:bg-slate-800 rounded-xl border border-transparent">
                         {mappingSubjects.find(s => s._id === slot.subjectId)?.subjectName?.toUpperCase() || "SELECT SUBJECT"}
@@ -626,44 +667,17 @@ const SchedulingView = () => {
                     </div>
                   </td>
                   <td className="px-6 py-6">
-                    <div className="relative w-full max-w-[180px]">
+                    <div className="relative w-full">
                       <div
-                        onClick={() => setOpenCalendarId(openCalendarId === index ? null : index)}
-                        className="bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-3 w-full text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer flex items-center justify-between whitespace-nowrap min-w-[130px]"
+                        onClick={(e) => handleCalendarClick(e, index)}
+                        className="bg-slate-50 dark:bg-slate-800 border border-transparent focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-4 py-3 w-full text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer flex items-center justify-between whitespace-nowrap"
                       >
                         <span>{slot.date || "Select Date"}</span>
                         <Calendar size={14} className="text-emerald-500 flex-shrink-0 ml-3" />
                       </div>
+                    </div>
+                  </td>
 
-                      {openCalendarId === index && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setOpenCalendarId(null)} />
-                          <div className="absolute top-14 left-0 z-50 w-[340px] shadow-2xl">
-                            <CustomNepaliHolidayCalendar
-                              selectedDate={slot.date ? new Date(slot.date) : new Date()}
-                              onChange={(date) => {
-                                const formatted = date.toISOString().split('T')[0];
-                                updateSlot(index, 'date', formatted);
-                                setOpenCalendarId(null);
-                              }}
-                              disablePastDates={true}
-                            />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-6">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-                      <Clock size={14} className="text-emerald-500" />
-                      {startTime}
-                    </div>
-                  </td>
-                  <td className="pr-10 pl-6 py-6 text-center">
-                    <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[9px] font-black text-slate-400 capitalize tracking-widest">
-                      DRAFT
-                    </span>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -773,6 +787,32 @@ const SchedulingView = () => {
         title="Save Year Setup?"
         message={`This will update the academic calendar to ${yearSetup.termsCount} term${yearSetup.termsCount > 1 ? 's' : ''}${yearSetup.includeMidTerm ? ' with mid-term exams' : ''}. All existing term statuses will be re-synced.`}
       />
+
+      {/* Portal Calendar overlay */}
+      {openCalendarId !== null && calendarCoords && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenCalendarId(null); setCalendarCoords(null); }} />
+          <div
+            className="absolute z-[9999] w-[340px] shadow-2xl animate-in zoom-in-95 duration-100"
+            style={{
+              top: `${calendarCoords.top}px`,
+              left: `${calendarCoords.left}px`,
+            }}
+          >
+            <CustomNepaliHolidayCalendar
+              selectedDate={slots[openCalendarId]?.date ? new Date(slots[openCalendarId].date) : new Date()}
+              onChange={(date) => {
+                const formatted = date.toISOString().split('T')[0];
+                updateSlot(openCalendarId, 'date', formatted);
+                setOpenCalendarId(null);
+                setCalendarCoords(null);
+              }}
+              disablePastDates={true}
+            />
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 };

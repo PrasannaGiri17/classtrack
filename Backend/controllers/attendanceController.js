@@ -128,8 +128,11 @@ const getStudentMonthlyAttendance = async (req, res) => {
 const getStudentYearlyAttendance = async (req, res) => {
     try {
         const { studentId, year } = req.params;
+        const schoolId = Number(req.schoolId);
+        const numericYear = Number(year);
         const records = await ClassroomAttendance.find({ 
-            year, 
+            schoolId,
+            year: numericYear, 
             "attendanceData.studentId": studentId 
         });
 
@@ -144,6 +147,7 @@ const getStudentYearlyAttendance = async (req, res) => {
 
         let totalPresent = 0;
         let totalAbsent = 0;
+        let totalLeave = 0;
 
         records.forEach(monthRecord => {
             const studentData = monthRecord.attendanceData.find(a => a.studentId.toString() === studentId);
@@ -151,18 +155,22 @@ const getStudentYearlyAttendance = async (req, res) => {
                 // convert Map to object if it's a Map
                 const dailyStatus = studentData.dailyStatus instanceof Map ? studentData.dailyStatus : new Map(Object.entries(studentData.dailyStatus));
                 dailyStatus.forEach(status => {
-                    if (status === 'P' || status === 'L') totalPresent++;
-                    if (status === 'A') totalAbsent++;
+                    if (status === 'P') totalPresent++;        // Present only
+                    else if (status === 'A') totalAbsent++;   // Absent
+                    else if (status === 'L') totalLeave++;    // Leave (school day, not present)
+                    // 'H' = Holiday → excluded from school day count
                 });
             }
         });
 
-        const totalDays = totalPresent + totalAbsent;
+        // Total school days = P + A + L (excludes holidays)
+        const totalDays = totalPresent + totalAbsent + totalLeave;
         const rate = totalDays > 0 ? Math.round((totalPresent / totalDays) * 100) : 0;
 
         res.status(200).json({
             present: totalPresent,
             absent: totalAbsent,
+            leave: totalLeave,
             totalDays,
             rate
         });

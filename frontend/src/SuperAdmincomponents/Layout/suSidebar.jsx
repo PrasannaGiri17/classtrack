@@ -51,8 +51,8 @@ const SuSidebar = ({ activePage }) => {
                 key={item.key}
                 onClick={() => navigate(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${isActive
-                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100 dark:shadow-none'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400'
+                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100 dark:shadow-none'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400'
                   }`}
               >
                 <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400'
@@ -83,7 +83,7 @@ const SuSidebar = ({ activePage }) => {
         onClose={() => setIsLogoutDialogOpen(false)}
         onConfirm={() => {
           localStorage.clear();
-          navigate('/login');
+          window.location.replace('/login')
         }}
         title="Confirm Logout"
         message="Are you sure you want to log out of the Super Admin portal?"
